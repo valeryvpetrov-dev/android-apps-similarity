@@ -1,0 +1,67 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.example.simpleapplication'
+    compileSdk 33
+
+    defaultConfig {
+        applicationId "com.example.simpleapplication"
+        minSdk 21
+        targetSdk 33
+        versionCode 1
+        versionName "1.0"
+    }
+
+    signingConfigs {
+        release {
+            storeFile file("keystore.jks")
+            storePassword 'password'
+            keyAlias 'key0'
+            keyPassword 'password'
+        }
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+
+            minifyEnabled false
+        }
+        releaseNonOptimized {
+            versionNameSuffix "releaseNonOptimized"
+
+            signingConfig signingConfigs.release
+
+            minifyEnabled false
+            shrinkResources false
+        }
+        releaseRename {
+            versionNameSuffix "releaseRename"
+
+            signingConfig signingConfigs.release
+
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles 'proguard-rules-renaming.pro'
+        }
+        releaseOptimized {
+            versionNameSuffix "releaseOptimized"
+
+            signingConfig signingConfigs.release
+
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles 'proguard-rules-optimization.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+
+}

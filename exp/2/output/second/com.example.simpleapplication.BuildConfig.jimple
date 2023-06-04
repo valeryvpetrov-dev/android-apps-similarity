@@ -1,0 +1,34 @@
+public final class com.example.simpleapplication.BuildConfig extends java.lang.Object
+{
+    public static final java.lang.String APPLICATION_ID;
+    public static final java.lang.String BUILD_TYPE;
+    public static final boolean DEBUG;
+    public static final int VERSION_CODE;
+    public static final java.lang.String VERSION_NAME;
+
+    public void <init>()
+    {
+        com.example.simpleapplication.BuildConfig r0;
+
+        r0 := @this: com.example.simpleapplication.BuildConfig;
+
+        specialinvoke r0.<java.lang.Object: void <init>()>();
+
+        return;
+    }
+
+    public static void <clinit>()
+    {
+        <com.example.simpleapplication.BuildConfig: java.lang.String VERSION_NAME> = "1.0releaseNonOptimized";
+
+        <com.example.simpleapplication.BuildConfig: int VERSION_CODE> = 1;
+
+        <com.example.simpleapplication.BuildConfig: boolean DEBUG> = 0;
+
+        <com.example.simpleapplication.BuildConfig: java.lang.String BUILD_TYPE> = "releaseNonOptimized";
+
+        <com.example.simpleapplication.BuildConfig: java.lang.String APPLICATION_ID> = "com.example.simpleapplication";
+
+        return;
+    }
+}

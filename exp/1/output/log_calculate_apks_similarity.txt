@@ -1,0 +1,72 @@
+Prepare
+Parse input args
+Check first input exists
+Check second input exists
+Create first temp dir
+Remove existing dir exp/1/output
+Create second temp dir
+Remove existing dir exp/1/output
+apk_1=exp/1/input/simple_app-releaseNonOptimized.apk, apk_2=exp/1/input/simple_app-empty.apk, output_1=/Users/va.petrov/Android/GitHub/soot/art/exp/1/output/first, output_2=/Users/va.petrov/Android/GitHub/soot/art/exp/1/output/second, ins_block_sim_threshold=0.95, ged_timeout_sec=60, processes_count=10, threads_count=45
+
+Build model of first .input
+Execute command: sh script/sh/generateDot.sh soot-4.4.1-jar-with-dependencies.jar /Users/va.petrov/Library/Android/sdk/platforms/ exp/1/input/simple_app-releaseNonOptimized.apk /Users/va.petrov/Android/GitHub/soot/art/exp/1/output/first
+SLF4J: No SLF4J providers were found.
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See https://www.slf4j.org/codes.html#noProviders for further details.
+Soot started on Sat Jun 03 17:04:38 MSK 2023
+Soot finished on Sat Jun 03 17:04:38 MSK 2023
+Soot has run for 0 min. 0 sec.
+Collect all .dot files
+Create graphs
+First .input model: [<networkx.classes.digraph.DiGraph object at 0x1042837c0>, <networkx.classes.digraph.DiGraph object at 0x1045f2580>, <networkx.classes.digraph.DiGraph object at 0x10456f9a0>, <networkx.classes.digraph.DiGraph object at 0x104550280>, <networkx.classes.digraph.DiGraph object at 0x1046086d0>, <networkx.classes.digraph.DiGraph object at 0x104619700>, <networkx.classes.digraph.DiGraph object at 0x1046927c0>, <networkx.classes.digraph.DiGraph object at 0x1046a2d30>, <networkx.classes.digraph.DiGraph object at 0x1046a9fd0>, <networkx.classes.digraph.DiGraph object at 0x104695cd0>, <networkx.classes.digraph.DiGraph object at 0x104695a60>, <networkx.classes.digraph.DiGraph object at 0x1046de5e0>, <networkx.classes.digraph.DiGraph object at 0x1046ac580>, <networkx.classes.digraph.DiGraph object at 0x1046f68b0>, <networkx.classes.digraph.DiGraph object at 0x104695ee0>, <networkx.classes.digraph.DiGraph object at 0x104711460>, <networkx.classes.digraph.DiGraph object at 0x104711880>]
+
+Build model of second .input
+Execute command: sh script/sh/generateDot.sh soot-4.4.1-jar-with-dependencies.jar /Users/va.petrov/Library/Android/sdk/platforms/ exp/1/input/simple_app-empty.apk /Users/va.petrov/Android/GitHub/soot/art/exp/1/output/second
+SLF4J: No SLF4J providers were found.
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See https://www.slf4j.org/codes.html#noProviders for further details.
+Soot started on Sat Jun 03 17:04:38 MSK 2023
+java.lang.RuntimeException: no apk file given
+	at soot.Scene.defaultAndroidClassPath(Scene.java:677)
+	at soot.Scene.defaultClassPath(Scene.java:623)
+	at soot.Scene.getSootClassPath(Scene.java:341)
+	at soot.SourceLocator.getClassSource(SourceLocator.java:212)
+	at soot.Scene.tryLoadClass(Scene.java:981)
+	at soot.Scene.loadBasicClasses(Scene.java:1833)
+	at soot.Scene.loadNecessaryClasses(Scene.java:1952)
+	at soot.Main.run(Main.java:240)
+	at soot.Main.main(Main.java:142)
+	at soot.tools.CFGViewer.main(CFGViewer.java:102)
+
+
+Ouuups... something went wrong! Sorry about that.
+Follow these steps to fix the problem:
+1.) Are you sure you used the right command line?
+    Click here to double-check:
+    https://github.com/soot-oss/soot/wiki/Options-and-JavaDoc
+
+2.) Not sure whether it's a bug? Feel free to discuss
+    the issue on the Soot mailing list:
+    https://github.com/soot-oss/soot/wiki/Getting-help
+
+3.) Sure it's a bug? Click this link to report it.
+    https://github.com/soot-oss/soot/issues/new?title=java.lang.RuntimeException+when+...&body=Steps+to+reproduce%3A%0A1.%29+...%0A%0AFiles+used+to+reproduce%3A+%0A...%0A%0ASoot+version%3A+%3Cpre%3Etrunk%3C%2Fpre%3E%0A%0ACommand+line%3A%0A%3Cpre%3E-p+jtp.printcfg+graph-type%3ACompleteBlockGraph+-d+%2FUsers%2Fva.petrov%2FAndroid%2FGitHub%2Fsoot%2Fart%2Fexp%2F1%2Foutput%2Fsecond+-android-jars+%2FUsers%2Fva.petrov%2FLibrary%2FAndroid%2Fsdk%2Fplatforms%2F+-allow-phantom-refs+-src-prec+apk+-ire+-f+J+-process-dir+exp%2F1%2Finput%2Fsimple_app-empty.apk%3C%2Fpre%3E%0A%0AMax+Memory%3A%0A%3Cpre%3E4096MB%3C%2Fpre%3E%0A%0AStack+trace%3A%0A%3Cpre%3Ejava.lang.RuntimeException%3A+no+apk+file+given%0A%09at+soot.Scene.defaultAndroidClassPath%28Scene.java%3A677%29%0A%09at+soot.Scene.defaultClassPath%28Scene.java%3A623%29%0A%09at+soot.Scene.getSootClassPath%28Scene.java%3A341%29%0A%09at+soot.SourceLocator.getClassSource%28SourceLocator.java%3A212%29%0A%09at+soot.Scene.tryLoadClass%28Scene.java%3A981%29%0A%09at+soot.Scene.loadBasicClasses%28Scene.java%3A1833%29%0A%09at+soot.Scene.loadNecessaryClasses%28Scene.java%3A1952%29%0A%09at+soot.Main.run%28Main.java%3A240%29%0A%09at+soot.Main.main%28Main.java%3A142%29%0A%09at+soot.tools.CFGViewer.main%28CFGViewer.java%3A102%29%0A%3C%2Fpre%3E
+    Please be as precise as possible when giving us
+    information on how to reproduce the problem. Thanks!
+Collect all .dot files
+Create graphs
+Second .input model: []
+
+Build comparison matrix
+Comparison matrix: []
+
+Save comparison matrix to file /Users/va.petrov/Android/GitHub/soot/art/exp/1/output/m_comp.csv
+Saved successfully
+Save first dots to file /Users/va.petrov/Android/GitHub/soot/art/exp/1/output/dots_1.csv
+Saved successfully
+Save second dots to file /Users/va.petrov/Android/GitHub/soot/art/exp/1/output/dots_2.csv
+Saved successfully
+Calculate models similarity
+Pairs are saved to /Users/va.petrov/Android/GitHub/soot/art/exp/1/output/sim_pairs.json
+Apks similarity = 0.0
+Execution time: 2.3163740634918213 seconds

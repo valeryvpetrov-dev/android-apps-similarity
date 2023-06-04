@@ -1,0 +1,17 @@
+digraph "java.lang.String a()" {
+    label="java.lang.String a()";
+    node [shape=box];
+    "0" [style=filled,fillcolor=gray,label="Block #0\nr0 := @this\l$r1 = r0.a\l$l0 = virtualinvoke $r1.a()\l$b1 = $l0 cmp 0L\lif $b1 != 0 goto label1\l",];
+    "1" [label="Block #1\n$r2 = \"obverse\"\lgoto label3\l",];
+    "0"->"1";
+    "2" [label="Block #2\nlabel1:\n$b1 = $l0 cmp 1L\lif $b1 != 0 goto label2\l",];
+    "0"->"2";
+    "5" [style=filled,fillcolor=lightgray,label="Block #5\nlabel3:\n$r3 = newarray (java.lang.Object)[1]\l$r3[0] = $r2\l$r2 = java.lang.String.format(\"Hello! Toss a coin: %s\", $r3)\lreturn $r2\l",];
+    "1"->"5";
+    "3" [label="Block #3\n$r2 = \"reverse\"\lgoto label3\l",];
+    "2"->"3";
+    "4" [label="Block #4\nlabel2:\n$r2 = \"is it coin?\"\l",];
+    "2"->"4";
+    "3"->"5";
+    "4"->"5";
+}

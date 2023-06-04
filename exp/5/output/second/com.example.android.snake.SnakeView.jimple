@@ -1,0 +1,1283 @@
+public class com.example.android.snake.SnakeView extends com.example.android.snake.TileView
+{
+    private static final int EAST;
+    private static final int GREEN_STAR;
+    public static final int LOSE;
+    private static final int NORTH;
+    public static final int PAUSE;
+    public static final int READY;
+    private static final int RED_STAR;
+    private static final java.util.Random RNG;
+    public static final int RUNNING;
+    private static final int SOUTH;
+    private static final java.lang.String TAG;
+    private static final int WEST;
+    private static final int YELLOW_STAR;
+    private int key_down;
+    private int key_left;
+    private int key_right;
+    private int key_up;
+    private java.util.ArrayList mAppleList;
+    private int mDirection;
+    private long mLastMove;
+    private int mMode;
+    private long mMoveDelay;
+    private int mNextDirection;
+    private com.example.android.snake.SnakeView$RefreshHandler mRedrawHandler;
+    private long mScore;
+    private java.util.ArrayList mSnakeTrail;
+    private android.widget.TextView mStatusText;
+
+    static void <clinit>()
+    {
+        java.util.Random $r0;
+
+        <com.example.android.snake.SnakeView: int YELLOW_STAR> = 2;
+
+        <com.example.android.snake.SnakeView: int WEST> = 4;
+
+        <com.example.android.snake.SnakeView: java.lang.String TAG> = "SnakeView";
+
+        <com.example.android.snake.SnakeView: int SOUTH> = 2;
+
+        <com.example.android.snake.SnakeView: int RUNNING> = 2;
+
+        <com.example.android.snake.SnakeView: int RED_STAR> = 1;
+
+        <com.example.android.snake.SnakeView: int READY> = 1;
+
+        <com.example.android.snake.SnakeView: int PAUSE> = 0;
+
+        <com.example.android.snake.SnakeView: int NORTH> = 1;
+
+        <com.example.android.snake.SnakeView: int LOSE> = 3;
+
+        <com.example.android.snake.SnakeView: int GREEN_STAR> = 3;
+
+        <com.example.android.snake.SnakeView: int EAST> = 3;
+
+        $r0 = new java.util.Random;
+
+        specialinvoke $r0.<java.util.Random: void <init>()>();
+
+        <com.example.android.snake.SnakeView: java.util.Random RNG> = $r0;
+
+        return;
+    }
+
+    public void <init>(android.content.Context, android.util.AttributeSet)
+    {
+        android.content.Context $r1;
+        android.util.AttributeSet $r2;
+        com.example.android.snake.SnakeView$RefreshHandler $r4;
+        com.example.android.snake.SnakeView r0;
+        java.util.ArrayList $r3;
+
+        r0 := @this: com.example.android.snake.SnakeView;
+
+        $r1 := @parameter0: android.content.Context;
+
+        $r2 := @parameter1: android.util.AttributeSet;
+
+        specialinvoke r0.<com.example.android.snake.TileView: void <init>(android.content.Context,android.util.AttributeSet)>($r1, $r2);
+
+        r0.<com.example.android.snake.SnakeView: int key_up> = 33;
+
+        r0.<com.example.android.snake.SnakeView: int key_down> = 52;
+
+        r0.<com.example.android.snake.SnakeView: int key_right> = 32;
+
+        r0.<com.example.android.snake.SnakeView: int key_left> = 47;
+
+        r0.<com.example.android.snake.SnakeView: int mMode> = 1;
+
+        r0.<com.example.android.snake.SnakeView: int mDirection> = 1;
+
+        r0.<com.example.android.snake.SnakeView: int mNextDirection> = 1;
+
+        r0.<com.example.android.snake.SnakeView: long mScore> = 0L;
+
+        r0.<com.example.android.snake.SnakeView: long mMoveDelay> = 600L;
+
+        $r3 = new java.util.ArrayList;
+
+        specialinvoke $r3.<java.util.ArrayList: void <init>()>();
+
+        r0.<com.example.android.snake.SnakeView: java.util.ArrayList mSnakeTrail> = $r3;
+
+        $r3 = new java.util.ArrayList;
+
+        specialinvoke $r3.<java.util.ArrayList: void <init>()>();
+
+        r0.<com.example.android.snake.SnakeView: java.util.ArrayList mAppleList> = $r3;
+
+        $r4 = new com.example.android.snake.SnakeView$RefreshHandler;
+
+        specialinvoke $r4.<com.example.android.snake.SnakeView$RefreshHandler: void <init>(com.example.android.snake.SnakeView)>(r0);
+
+        r0.<com.example.android.snake.SnakeView: com.example.android.snake.SnakeView$RefreshHandler mRedrawHandler> = $r4;
+
+        specialinvoke r0.<com.example.android.snake.SnakeView: void initSnakeView()>();
+
+        return;
+    }
+
+    public void <init>(android.content.Context, android.util.AttributeSet, int)
+    {
+        android.content.Context $r1;
+        android.util.AttributeSet $r2;
+        com.example.android.snake.SnakeView$RefreshHandler $r4;
+        int $i0;
+        com.example.android.snake.SnakeView r0;
+        java.util.ArrayList $r3;
+
+        r0 := @this: com.example.android.snake.SnakeView;
+
+        $r1 := @parameter0: android.content.Context;
+
+        $r2 := @parameter1: android.util.AttributeSet;
+
+        $i0 := @parameter2: int;
+
+        specialinvoke r0.<com.example.android.snake.TileView: void <init>(android.content.Context,android.util.AttributeSet,int)>($r1, $r2, $i0);
+
+        r0.<com.example.android.snake.SnakeView: int key_up> = 33;
+
+        r0.<com.example.android.snake.SnakeView: int key_down> = 52;
+
+        r0.<com.example.android.snake.SnakeView: int key_right> = 32;
+
+        r0.<com.example.android.snake.SnakeView: int key_left> = 47;
+
+        r0.<com.example.android.snake.SnakeView: int mMode> = 1;
+
+        r0.<com.example.android.snake.SnakeView: int mDirection> = 1;
+
+        r0.<com.example.android.snake.SnakeView: int mNextDirection> = 1;
+
+        r0.<com.example.android.snake.SnakeView: long mScore> = 0L;
+
+        r0.<com.example.android.snake.SnakeView: long mMoveDelay> = 600L;
+
+        $r3 = new java.util.ArrayList;
+
+        specialinvoke $r3.<java.util.ArrayList: void <init>()>();
+
+        r0.<com.example.android.snake.SnakeView: java.util.ArrayList mSnakeTrail> = $r3;
+
+        $r3 = new java.util.ArrayList;
+
+        specialinvoke $r3.<java.util.ArrayList: void <init>()>();
+
+        r0.<com.example.android.snake.SnakeView: java.util.ArrayList mAppleList> = $r3;
+
+        $r4 = new com.example.android.snake.SnakeView$RefreshHandler;
+
+        specialinvoke $r4.<com.example.android.snake.SnakeView$RefreshHandler: void <init>(com.example.android.snake.SnakeView)>(r0);
+
+        r0.<com.example.android.snake.SnakeView: com.example.android.snake.SnakeView$RefreshHandler mRedrawHandler> = $r4;
+
+        specialinvoke r0.<com.example.android.snake.SnakeView: void initSnakeView()>();
+
+        return;
+    }
+
+    private void addRandomApple()
+    {
+        com.example.android.snake.SnakeView r0;
+        java.util.Random $r2;
+        java.util.ArrayList $r3;
+        int i0, i1;
+        java.lang.Object $r4;
+        com.example.android.snake.SnakeView$Coordinate r1, $r5;
+        boolean z0, $z1;
+
+        r0 := @this: com.example.android.snake.SnakeView;
+
+        r1 = null;
+
+        z0 = 0;
+
+     label1:
+        if z0 != 0 goto label6;
+
+        $r2 = <com.example.android.snake.SnakeView: java.util.Random RNG>;
+
+        i0 = <com.example.android.snake.SnakeView: int mXTileCount>;
+
+        i0 = i0 - 2;
+
+        i0 = virtualinvoke $r2.<java.util.Random: int nextInt(int)>(i0);
+
+        i0 = i0 + 1;
+
+        $r2 = <com.example.android.snake.SnakeView: java.util.Random RNG>;
+
+        i1 = <com.example.android.snake.SnakeView: int mYTileCount>;
+
+        i1 = i1 - 2;
+
+        i1 = virtualinvoke $r2.<java.util.Random: int nextInt(int)>(i1);
+
+        i1 = i1 + 1;
+
+        r1 = new com.example.android.snake.SnakeView$Coordinate;
+
+        specialinvoke r1.<com.example.android.snake.SnakeView$Coordinate: void <init>(com.example.android.snake.SnakeView,int,int)>(r0, i0, i1);
+
+        z0 = 0;
+
+        $r3 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mSnakeTrail>;
+
+        i0 = virtualinvoke $r3.<java.util.ArrayList: int size()>();
+
+        i1 = 0;
+
+     label2:
+        if i1 >= i0 goto label4;
+
+        $r3 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mSnakeTrail>;
+
+        $r4 = virtualinvoke $r3.<java.util.ArrayList: java.lang.Object get(int)>(i1);
+
+        $r5 = (com.example.android.snake.SnakeView$Coordinate) $r4;
+
+        $z1 = virtualinvoke $r5.<com.example.android.snake.SnakeView$Coordinate: boolean equals(com.example.android.snake.SnakeView$Coordinate)>(r1);
+
+        if $z1 == 0 goto label3;
+
+        z0 = 1;
+
+     label3:
+        i1 = i1 + 1;
+
+        goto label2;
+
+     label4:
+        if z0 != 0 goto label5;
+
+        z0 = 1;
+
+        goto label1;
+
+     label5:
+        z0 = 0;
+
+        goto label1;
+
+     label6:
+        if r1 != null goto label7;
+
+        staticinvoke <android.util.Log: int e(java.lang.String,java.lang.String)>("SnakeView", "Somehow ended up with a null newCoord!");
+
+     label7:
+        $r3 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mAppleList>;
+
+        virtualinvoke $r3.<java.util.ArrayList: boolean add(java.lang.Object)>(r1);
+
+        return;
+    }
+
+    private int[] coordArrayListToArray(java.util.ArrayList)
+    {
+        com.example.android.snake.SnakeView r0;
+        java.util.ArrayList r1;
+        int[] r2;
+        int $i0, $i1, $i2, $i3;
+        java.lang.Object $r3;
+        com.example.android.snake.SnakeView$Coordinate r4;
+
+        r0 := @this: com.example.android.snake.SnakeView;
+
+        r1 := @parameter0: java.util.ArrayList;
+
+        $i0 = virtualinvoke r1.<java.util.ArrayList: int size()>();
+
+        $i1 = $i0 * 2;
+
+        r2 = newarray (int)[$i1];
+
+        $i1 = 0;
+
+     label1:
+        if $i1 >= $i0 goto label2;
+
+        $r3 = virtualinvoke r1.<java.util.ArrayList: java.lang.Object get(int)>($i1);
+
+        r4 = (com.example.android.snake.SnakeView$Coordinate) $r3;
+
+        $i2 = $i1 * 2;
+
+        $i3 = r4.<com.example.android.snake.SnakeView$Coordinate: int x>;
+
+        r2[$i2] = $i3;
+
+        $i2 = $i1 * 2;
+
+        $i2 = $i2 + 1;
+
+        $i3 = r4.<com.example.android.snake.SnakeView$Coordinate: int y>;
+
+        r2[$i2] = $i3;
+
+        $i1 = $i1 + 1;
+
+        goto label1;
+
+     label2:
+        return r2;
+    }
+
+    private java.util.ArrayList coordArrayToArrayList(int[])
+    {
+        com.example.android.snake.SnakeView r0;
+        java.util.ArrayList r3;
+        int[] $r1;
+        int i0, $i1, i2, $i3;
+        com.example.android.snake.SnakeView$Coordinate r2;
+
+        r0 := @this: com.example.android.snake.SnakeView;
+
+        $r1 := @parameter0: int[];
+
+        r3 = new java.util.ArrayList;
+
+        specialinvoke r3.<java.util.ArrayList: void <init>()>();
+
+        i0 = lengthof $r1;
+
+        i2 = 0;
+
+     label1:
+        if i2 >= i0 goto label2;
+
+        r2 = new com.example.android.snake.SnakeView$Coordinate;
+
+        $i1 = $r1[i2];
+
+        $i3 = i2 + 1;
+
+        $i3 = $r1[$i3];
+
+        specialinvoke r2.<com.example.android.snake.SnakeView$Coordinate: void <init>(com.example.android.snake.SnakeView,int,int)>(r0, $i1, $i3);
+
+        virtualinvoke r3.<java.util.ArrayList: boolean add(java.lang.Object)>(r2);
+
+        i2 = i2 + 2;
+
+        goto label1;
+
+     label2:
+        return r3;
+    }
+
+    private void initNewGame()
+    {
+        com.example.android.snake.SnakeView r0;
+        java.util.ArrayList $r1;
+        com.example.android.snake.SnakeView$Coordinate $r2;
+
+        r0 := @this: com.example.android.snake.SnakeView;
+
+        $r1 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mSnakeTrail>;
+
+        virtualinvoke $r1.<java.util.ArrayList: void clear()>();
+
+        $r1 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mAppleList>;
+
+        virtualinvoke $r1.<java.util.ArrayList: void clear()>();
+
+        $r1 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mSnakeTrail>;
+
+        $r2 = new com.example.android.snake.SnakeView$Coordinate;
+
+        specialinvoke $r2.<com.example.android.snake.SnakeView$Coordinate: void <init>(com.example.android.snake.SnakeView,int,int)>(r0, 7, 7);
+
+        virtualinvoke $r1.<java.util.ArrayList: boolean add(java.lang.Object)>($r2);
+
+        $r1 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mSnakeTrail>;
+
+        $r2 = new com.example.android.snake.SnakeView$Coordinate;
+
+        specialinvoke $r2.<com.example.android.snake.SnakeView$Coordinate: void <init>(com.example.android.snake.SnakeView,int,int)>(r0, 6, 7);
+
+        virtualinvoke $r1.<java.util.ArrayList: boolean add(java.lang.Object)>($r2);
+
+        $r1 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mSnakeTrail>;
+
+        $r2 = new com.example.android.snake.SnakeView$Coordinate;
+
+        specialinvoke $r2.<com.example.android.snake.SnakeView$Coordinate: void <init>(com.example.android.snake.SnakeView,int,int)>(r0, 5, 7);
+
+        virtualinvoke $r1.<java.util.ArrayList: boolean add(java.lang.Object)>($r2);
+
+        $r1 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mSnakeTrail>;
+
+        $r2 = new com.example.android.snake.SnakeView$Coordinate;
+
+        specialinvoke $r2.<com.example.android.snake.SnakeView$Coordinate: void <init>(com.example.android.snake.SnakeView,int,int)>(r0, 4, 7);
+
+        virtualinvoke $r1.<java.util.ArrayList: boolean add(java.lang.Object)>($r2);
+
+        $r1 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mSnakeTrail>;
+
+        $r2 = new com.example.android.snake.SnakeView$Coordinate;
+
+        specialinvoke $r2.<com.example.android.snake.SnakeView$Coordinate: void <init>(com.example.android.snake.SnakeView,int,int)>(r0, 3, 7);
+
+        virtualinvoke $r1.<java.util.ArrayList: boolean add(java.lang.Object)>($r2);
+
+        $r1 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mSnakeTrail>;
+
+        $r2 = new com.example.android.snake.SnakeView$Coordinate;
+
+        specialinvoke $r2.<com.example.android.snake.SnakeView$Coordinate: void <init>(com.example.android.snake.SnakeView,int,int)>(r0, 2, 7);
+
+        virtualinvoke $r1.<java.util.ArrayList: boolean add(java.lang.Object)>($r2);
+
+        r0.<com.example.android.snake.SnakeView: int mNextDirection> = 1;
+
+        specialinvoke r0.<com.example.android.snake.SnakeView: void addRandomApple()>();
+
+        specialinvoke r0.<com.example.android.snake.SnakeView: void addRandomApple()>();
+
+        r0.<com.example.android.snake.SnakeView: long mMoveDelay> = 600L;
+
+        r0.<com.example.android.snake.SnakeView: long mScore> = 0L;
+
+        return;
+    }
+
+    private void initSnakeView()
+    {
+        android.content.Context $r1;
+        com.example.android.snake.SnakeView r0;
+        android.graphics.drawable.Drawable $r3;
+        android.content.res.Resources $r2;
+
+        r0 := @this: com.example.android.snake.SnakeView;
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView: void setFocusable(boolean)>(1);
+
+        $r1 = virtualinvoke r0.<com.example.android.snake.SnakeView: android.content.Context getContext()>();
+
+        $r2 = virtualinvoke $r1.<android.content.Context: android.content.res.Resources getResources()>();
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView: void resetTiles(int)>(4);
+
+        $r3 = virtualinvoke $r2.<android.content.res.Resources: android.graphics.drawable.Drawable getDrawable(int)>(2130837505);
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView: void loadTile(int,android.graphics.drawable.Drawable)>(1, $r3);
+
+        $r3 = virtualinvoke $r2.<android.content.res.Resources: android.graphics.drawable.Drawable getDrawable(int)>(2130837506);
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView: void loadTile(int,android.graphics.drawable.Drawable)>(2, $r3);
+
+        $r3 = virtualinvoke $r2.<android.content.res.Resources: android.graphics.drawable.Drawable getDrawable(int)>(2130837504);
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView: void loadTile(int,android.graphics.drawable.Drawable)>(3, $r3);
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView: void setFocusableInTouchMode(boolean)>(1);
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView: boolean requestFocus()>();
+
+        return;
+    }
+
+    private void updateApples()
+    {
+        java.util.Iterator $r2;
+        com.example.android.snake.SnakeView r0;
+        java.util.ArrayList $r1;
+        int $i0, $i1;
+        java.lang.Object $r3;
+        boolean $z0;
+        com.example.android.snake.SnakeView$Coordinate r4;
+
+        r0 := @this: com.example.android.snake.SnakeView;
+
+        $r1 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mAppleList>;
+
+        $r2 = virtualinvoke $r1.<java.util.ArrayList: java.util.Iterator iterator()>();
+
+     label1:
+        $z0 = interfaceinvoke $r2.<java.util.Iterator: boolean hasNext()>();
+
+        if $z0 == 0 goto label2;
+
+        $r3 = interfaceinvoke $r2.<java.util.Iterator: java.lang.Object next()>();
+
+        r4 = (com.example.android.snake.SnakeView$Coordinate) $r3;
+
+        $i0 = r4.<com.example.android.snake.SnakeView$Coordinate: int x>;
+
+        $i1 = r4.<com.example.android.snake.SnakeView$Coordinate: int y>;
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView: void setTile(int,int,int)>(2, $i0, $i1);
+
+        goto label1;
+
+     label2:
+        return;
+    }
+
+    private void updateSnake()
+    {
+        java.util.Iterator $r6;
+        com.example.android.snake.SnakeView r0;
+        long $l2;
+        java.util.ArrayList $r1, $r5;
+        int $i0, $i1, $i3;
+        java.lang.Object $r2;
+        boolean z0, $z1;
+        com.example.android.snake.SnakeView$Coordinate r3, r4;
+        double $d0;
+
+        r0 := @this: com.example.android.snake.SnakeView;
+
+        z0 = 0;
+
+        $r1 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mSnakeTrail>;
+
+        $r2 = virtualinvoke $r1.<java.util.ArrayList: java.lang.Object get(int)>(0);
+
+        r3 = (com.example.android.snake.SnakeView$Coordinate) $r2;
+
+        r4 = new com.example.android.snake.SnakeView$Coordinate;
+
+        specialinvoke r4.<com.example.android.snake.SnakeView$Coordinate: void <init>(com.example.android.snake.SnakeView,int,int)>(r0, 1, 1);
+
+        $i0 = r0.<com.example.android.snake.SnakeView: int mNextDirection>;
+
+        r0.<com.example.android.snake.SnakeView: int mDirection> = $i0;
+
+        $i0 = r0.<com.example.android.snake.SnakeView: int mDirection>;
+
+        lookupswitch($i0)
+        {
+            case 1: goto label05;
+            case 2: goto label06;
+            case 3: goto label03;
+            case 4: goto label04;
+            default: goto label01;
+        };
+
+     label01:
+        $i0 = r4.<com.example.android.snake.SnakeView$Coordinate: int x>;
+
+        if $i0 < 1 goto label02;
+
+        $i0 = r4.<com.example.android.snake.SnakeView$Coordinate: int y>;
+
+        if $i0 < 1 goto label02;
+
+        $i0 = r4.<com.example.android.snake.SnakeView$Coordinate: int x>;
+
+        $i1 = <com.example.android.snake.SnakeView: int mXTileCount>;
+
+        $i1 = $i1 - 2;
+
+        if $i0 > $i1 goto label02;
+
+        $i0 = r4.<com.example.android.snake.SnakeView$Coordinate: int y>;
+
+        $i1 = <com.example.android.snake.SnakeView: int mYTileCount>;
+
+        $i1 = $i1 - 2;
+
+        if $i0 <= $i1 goto label07;
+
+     label02:
+        virtualinvoke r0.<com.example.android.snake.SnakeView: void setMode(int)>(3);
+
+        return;
+
+     label03:
+        r4 = new com.example.android.snake.SnakeView$Coordinate;
+
+        $i0 = r3.<com.example.android.snake.SnakeView$Coordinate: int x>;
+
+        $i0 = $i0 + 1;
+
+        $i1 = r3.<com.example.android.snake.SnakeView$Coordinate: int y>;
+
+        specialinvoke r4.<com.example.android.snake.SnakeView$Coordinate: void <init>(com.example.android.snake.SnakeView,int,int)>(r0, $i0, $i1);
+
+        goto label01;
+
+     label04:
+        r4 = new com.example.android.snake.SnakeView$Coordinate;
+
+        $i0 = r3.<com.example.android.snake.SnakeView$Coordinate: int x>;
+
+        $i0 = $i0 - 1;
+
+        $i1 = r3.<com.example.android.snake.SnakeView$Coordinate: int y>;
+
+        specialinvoke r4.<com.example.android.snake.SnakeView$Coordinate: void <init>(com.example.android.snake.SnakeView,int,int)>(r0, $i0, $i1);
+
+        goto label01;
+
+     label05:
+        r4 = new com.example.android.snake.SnakeView$Coordinate;
+
+        $i0 = r3.<com.example.android.snake.SnakeView$Coordinate: int x>;
+
+        $i1 = r3.<com.example.android.snake.SnakeView$Coordinate: int y>;
+
+        $i1 = $i1 - 1;
+
+        specialinvoke r4.<com.example.android.snake.SnakeView$Coordinate: void <init>(com.example.android.snake.SnakeView,int,int)>(r0, $i0, $i1);
+
+        goto label01;
+
+     label06:
+        r4 = new com.example.android.snake.SnakeView$Coordinate;
+
+        $i0 = r3.<com.example.android.snake.SnakeView$Coordinate: int x>;
+
+        $i1 = r3.<com.example.android.snake.SnakeView$Coordinate: int y>;
+
+        $i1 = $i1 + 1;
+
+        specialinvoke r4.<com.example.android.snake.SnakeView$Coordinate: void <init>(com.example.android.snake.SnakeView,int,int)>(r0, $i0, $i1);
+
+        goto label01;
+
+     label07:
+        $r1 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mSnakeTrail>;
+
+        $i0 = virtualinvoke $r1.<java.util.ArrayList: int size()>();
+
+        $i1 = 0;
+
+     label08:
+        if $i1 >= $i0 goto label10;
+
+        $r1 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mSnakeTrail>;
+
+        $r2 = virtualinvoke $r1.<java.util.ArrayList: java.lang.Object get(int)>($i1);
+
+        r3 = (com.example.android.snake.SnakeView$Coordinate) $r2;
+
+        $z1 = virtualinvoke r3.<com.example.android.snake.SnakeView$Coordinate: boolean equals(com.example.android.snake.SnakeView$Coordinate)>(r4);
+
+        if $z1 == 0 goto label09;
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView: void setMode(int)>(3);
+
+        return;
+
+     label09:
+        $i1 = $i1 + 1;
+
+        goto label08;
+
+     label10:
+        $r1 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mAppleList>;
+
+        $i0 = virtualinvoke $r1.<java.util.ArrayList: int size()>();
+
+        $i1 = 0;
+
+     label11:
+        if $i1 >= $i0 goto label13;
+
+        $r1 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mAppleList>;
+
+        $r2 = virtualinvoke $r1.<java.util.ArrayList: java.lang.Object get(int)>($i1);
+
+        r3 = (com.example.android.snake.SnakeView$Coordinate) $r2;
+
+        $z1 = virtualinvoke r3.<com.example.android.snake.SnakeView$Coordinate: boolean equals(com.example.android.snake.SnakeView$Coordinate)>(r4);
+
+        if $z1 == 0 goto label12;
+
+        $r1 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mAppleList>;
+
+        virtualinvoke $r1.<java.util.ArrayList: boolean remove(java.lang.Object)>(r3);
+
+        specialinvoke r0.<com.example.android.snake.SnakeView: void addRandomApple()>();
+
+        $l2 = r0.<com.example.android.snake.SnakeView: long mScore>;
+
+        $l2 = $l2 + 1L;
+
+        r0.<com.example.android.snake.SnakeView: long mScore> = $l2;
+
+        $l2 = r0.<com.example.android.snake.SnakeView: long mMoveDelay>;
+
+        $d0 = (double) $l2;
+
+        $d0 = $d0 * 0.9;
+
+        $l2 = (long) $d0;
+
+        r0.<com.example.android.snake.SnakeView: long mMoveDelay> = $l2;
+
+        z0 = 1;
+
+     label12:
+        $i1 = $i1 + 1;
+
+        goto label11;
+
+     label13:
+        $r1 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mSnakeTrail>;
+
+        virtualinvoke $r1.<java.util.ArrayList: void add(int,java.lang.Object)>(0, r4);
+
+        if z0 != 0 goto label14;
+
+        $r1 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mSnakeTrail>;
+
+        $r5 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mSnakeTrail>;
+
+        $i0 = virtualinvoke $r5.<java.util.ArrayList: int size()>();
+
+        $i0 = $i0 - 1;
+
+        virtualinvoke $r1.<java.util.ArrayList: java.lang.Object remove(int)>($i0);
+
+     label14:
+        $i0 = 0;
+
+        $r1 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mSnakeTrail>;
+
+        $r6 = virtualinvoke $r1.<java.util.ArrayList: java.util.Iterator iterator()>();
+
+     label15:
+        z0 = interfaceinvoke $r6.<java.util.Iterator: boolean hasNext()>();
+
+        if z0 == 0 goto label18;
+
+        $r2 = interfaceinvoke $r6.<java.util.Iterator: java.lang.Object next()>();
+
+        r4 = (com.example.android.snake.SnakeView$Coordinate) $r2;
+
+        if $i0 != 0 goto label17;
+
+        $i1 = r4.<com.example.android.snake.SnakeView$Coordinate: int x>;
+
+        $i3 = r4.<com.example.android.snake.SnakeView$Coordinate: int y>;
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView: void setTile(int,int,int)>(2, $i1, $i3);
+
+     label16:
+        $i0 = $i0 + 1;
+
+        goto label15;
+
+     label17:
+        $i1 = r4.<com.example.android.snake.SnakeView$Coordinate: int x>;
+
+        $i3 = r4.<com.example.android.snake.SnakeView$Coordinate: int y>;
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView: void setTile(int,int,int)>(1, $i1, $i3);
+
+        goto label16;
+
+     label18:
+        return;
+    }
+
+    private void updateWalls()
+    {
+        int i0, $i1;
+        com.example.android.snake.SnakeView r0;
+
+        r0 := @this: com.example.android.snake.SnakeView;
+
+        i0 = 0;
+
+     label1:
+        $i1 = <com.example.android.snake.SnakeView: int mXTileCount>;
+
+        if i0 >= $i1 goto label2;
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView: void setTile(int,int,int)>(3, i0, 0);
+
+        $i1 = <com.example.android.snake.SnakeView: int mYTileCount>;
+
+        $i1 = $i1 - 1;
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView: void setTile(int,int,int)>(3, i0, $i1);
+
+        i0 = i0 + 1;
+
+        goto label1;
+
+     label2:
+        i0 = 1;
+
+     label3:
+        $i1 = <com.example.android.snake.SnakeView: int mYTileCount>;
+
+        $i1 = $i1 - 1;
+
+        if i0 >= $i1 goto label4;
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView: void setTile(int,int,int)>(3, 0, i0);
+
+        $i1 = <com.example.android.snake.SnakeView: int mXTileCount>;
+
+        $i1 = $i1 - 1;
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView: void setTile(int,int,int)>(3, $i1, i0);
+
+        i0 = i0 + 1;
+
+        goto label3;
+
+     label4:
+        return;
+    }
+
+    public boolean onKeyDown(int, android.view.KeyEvent)
+    {
+        java.io.PrintStream $r2;
+        android.view.KeyEvent $r1;
+        com.example.android.snake.SnakeView r0;
+        int $i0, $i1;
+        java.lang.StringBuilder $r3;
+        java.lang.String $r4;
+        boolean $z0, $z1;
+
+        r0 := @this: com.example.android.snake.SnakeView;
+
+        $i0 := @parameter0: int;
+
+        $r1 := @parameter1: android.view.KeyEvent;
+
+        $r2 = <java.lang.System: java.io.PrintStream out>;
+
+        $r3 = new java.lang.StringBuilder;
+
+        specialinvoke $r3.<java.lang.StringBuilder: void <init>()>();
+
+        $r3 = virtualinvoke $r3.<java.lang.StringBuilder: java.lang.StringBuilder append(java.lang.String)>("keycode: ");
+
+        $r3 = virtualinvoke $r3.<java.lang.StringBuilder: java.lang.StringBuilder append(int)>($i0);
+
+        $r4 = virtualinvoke $r3.<java.lang.StringBuilder: java.lang.String toString()>();
+
+        virtualinvoke $r2.<java.io.PrintStream: void println(java.lang.String)>($r4);
+
+        $r2 = <java.lang.System: java.io.PrintStream out>;
+
+        $r3 = new java.lang.StringBuilder;
+
+        specialinvoke $r3.<java.lang.StringBuilder: void <init>()>();
+
+        $r3 = virtualinvoke $r3.<java.lang.StringBuilder: java.lang.StringBuilder append(java.lang.String)>("keycode up down right left: ");
+
+        $i1 = r0.<com.example.android.snake.SnakeView: int key_up>;
+
+        $r3 = virtualinvoke $r3.<java.lang.StringBuilder: java.lang.StringBuilder append(int)>($i1);
+
+        $r3 = virtualinvoke $r3.<java.lang.StringBuilder: java.lang.StringBuilder append(java.lang.String)>(" ");
+
+        $i1 = r0.<com.example.android.snake.SnakeView: int key_down>;
+
+        $r3 = virtualinvoke $r3.<java.lang.StringBuilder: java.lang.StringBuilder append(int)>($i1);
+
+        $r3 = virtualinvoke $r3.<java.lang.StringBuilder: java.lang.StringBuilder append(java.lang.String)>(" ");
+
+        $i1 = r0.<com.example.android.snake.SnakeView: int key_right>;
+
+        $r3 = virtualinvoke $r3.<java.lang.StringBuilder: java.lang.StringBuilder append(int)>($i1);
+
+        $r3 = virtualinvoke $r3.<java.lang.StringBuilder: java.lang.StringBuilder append(java.lang.String)>(" ");
+
+        $i1 = r0.<com.example.android.snake.SnakeView: int key_left>;
+
+        $r3 = virtualinvoke $r3.<java.lang.StringBuilder: java.lang.StringBuilder append(int)>($i1);
+
+        $r4 = virtualinvoke $r3.<java.lang.StringBuilder: java.lang.String toString()>();
+
+        virtualinvoke $r2.<java.io.PrintStream: void println(java.lang.String)>($r4);
+
+        $i1 = r0.<com.example.android.snake.SnakeView: int key_up>;
+
+        if $i0 != $i1 goto label08;
+
+        $i0 = r0.<com.example.android.snake.SnakeView: int mMode>;
+
+        if $i0 != 1 goto label03;
+
+        $z0 = 1;
+
+     label01:
+        $i0 = r0.<com.example.android.snake.SnakeView: int mMode>;
+
+        if $i0 != 3 goto label04;
+
+        $z1 = 1;
+
+     label02:
+        $z0 = $z0 | $z1;
+
+        if $z0 == 0 goto label05;
+
+        specialinvoke r0.<com.example.android.snake.SnakeView: void initNewGame()>();
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView: void setMode(int)>(2);
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView: void update()>();
+
+        return 1;
+
+     label03:
+        $z0 = 0;
+
+        goto label01;
+
+     label04:
+        $z1 = 0;
+
+        goto label02;
+
+     label05:
+        $i0 = r0.<com.example.android.snake.SnakeView: int mMode>;
+
+        if $i0 != 0 goto label06;
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView: void setMode(int)>(2);
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView: void update()>();
+
+        return 1;
+
+     label06:
+        $i0 = r0.<com.example.android.snake.SnakeView: int mDirection>;
+
+        if $i0 == 2 goto label07;
+
+        r0.<com.example.android.snake.SnakeView: int mNextDirection> = 1;
+
+     label07:
+        return 1;
+
+     label08:
+        $i1 = r0.<com.example.android.snake.SnakeView: int key_down>;
+
+        if $i0 != $i1 goto label10;
+
+        $i0 = r0.<com.example.android.snake.SnakeView: int mDirection>;
+
+        if $i0 == 1 goto label09;
+
+        r0.<com.example.android.snake.SnakeView: int mNextDirection> = 2;
+
+     label09:
+        return 1;
+
+     label10:
+        $i1 = r0.<com.example.android.snake.SnakeView: int key_left>;
+
+        if $i0 != $i1 goto label12;
+
+        $i0 = r0.<com.example.android.snake.SnakeView: int mDirection>;
+
+        if $i0 == 3 goto label11;
+
+        r0.<com.example.android.snake.SnakeView: int mNextDirection> = 4;
+
+     label11:
+        return 1;
+
+     label12:
+        $i1 = r0.<com.example.android.snake.SnakeView: int key_right>;
+
+        if $i0 != $i1 goto label14;
+
+        $i0 = r0.<com.example.android.snake.SnakeView: int mDirection>;
+
+        if $i0 == 4 goto label13;
+
+        r0.<com.example.android.snake.SnakeView: int mNextDirection> = 3;
+
+     label13:
+        return 1;
+
+     label14:
+        $z0 = specialinvoke r0.<com.example.android.snake.TileView: boolean onKeyDown(int,android.view.KeyEvent)>($i0, $r1);
+
+        return $z0;
+    }
+
+    public void restoreState(android.os.Bundle)
+    {
+        android.os.Bundle $r1;
+        int[] $r2;
+        int $i0;
+        com.example.android.snake.SnakeView r0;
+        long $l1;
+        java.util.ArrayList $r3;
+
+        r0 := @this: com.example.android.snake.SnakeView;
+
+        $r1 := @parameter0: android.os.Bundle;
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView: void setMode(int)>(0);
+
+        $r2 = virtualinvoke $r1.<android.os.Bundle: int[] getIntArray(java.lang.String)>("mAppleList");
+
+        $r3 = specialinvoke r0.<com.example.android.snake.SnakeView: java.util.ArrayList coordArrayToArrayList(int[])>($r2);
+
+        r0.<com.example.android.snake.SnakeView: java.util.ArrayList mAppleList> = $r3;
+
+        $i0 = virtualinvoke $r1.<android.os.Bundle: int getInt(java.lang.String)>("mDirection");
+
+        r0.<com.example.android.snake.SnakeView: int mDirection> = $i0;
+
+        $i0 = virtualinvoke $r1.<android.os.Bundle: int getInt(java.lang.String)>("mNextDirection");
+
+        r0.<com.example.android.snake.SnakeView: int mNextDirection> = $i0;
+
+        $l1 = virtualinvoke $r1.<android.os.Bundle: long getLong(java.lang.String)>("mMoveDelay");
+
+        r0.<com.example.android.snake.SnakeView: long mMoveDelay> = $l1;
+
+        $l1 = virtualinvoke $r1.<android.os.Bundle: long getLong(java.lang.String)>("mScore");
+
+        r0.<com.example.android.snake.SnakeView: long mScore> = $l1;
+
+        $r2 = virtualinvoke $r1.<android.os.Bundle: int[] getIntArray(java.lang.String)>("mSnakeTrail");
+
+        $r3 = specialinvoke r0.<com.example.android.snake.SnakeView: java.util.ArrayList coordArrayToArrayList(int[])>($r2);
+
+        r0.<com.example.android.snake.SnakeView: java.util.ArrayList mSnakeTrail> = $r3;
+
+        return;
+    }
+
+    public android.os.Bundle saveState()
+    {
+        android.os.Bundle r1;
+        com.example.android.snake.SnakeView r0;
+        long $l1;
+        java.lang.Integer $r4;
+        java.util.ArrayList $r2;
+        int[] $r3;
+        java.lang.Long $r5;
+        int $i0;
+
+        r0 := @this: com.example.android.snake.SnakeView;
+
+        r1 = new android.os.Bundle;
+
+        specialinvoke r1.<android.os.Bundle: void <init>()>();
+
+        $r2 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mAppleList>;
+
+        $r3 = specialinvoke r0.<com.example.android.snake.SnakeView: int[] coordArrayListToArray(java.util.ArrayList)>($r2);
+
+        virtualinvoke r1.<android.os.Bundle: void putIntArray(java.lang.String,int[])>("mAppleList", $r3);
+
+        $i0 = r0.<com.example.android.snake.SnakeView: int mDirection>;
+
+        $r4 = staticinvoke <java.lang.Integer: java.lang.Integer valueOf(int)>($i0);
+
+        $i0 = virtualinvoke $r4.<java.lang.Integer: int intValue()>();
+
+        virtualinvoke r1.<android.os.Bundle: void putInt(java.lang.String,int)>("mDirection", $i0);
+
+        $i0 = r0.<com.example.android.snake.SnakeView: int mNextDirection>;
+
+        $r4 = staticinvoke <java.lang.Integer: java.lang.Integer valueOf(int)>($i0);
+
+        $i0 = virtualinvoke $r4.<java.lang.Integer: int intValue()>();
+
+        virtualinvoke r1.<android.os.Bundle: void putInt(java.lang.String,int)>("mNextDirection", $i0);
+
+        $l1 = r0.<com.example.android.snake.SnakeView: long mMoveDelay>;
+
+        $r5 = staticinvoke <java.lang.Long: java.lang.Long valueOf(long)>($l1);
+
+        $l1 = virtualinvoke $r5.<java.lang.Long: long longValue()>();
+
+        virtualinvoke r1.<android.os.Bundle: void putLong(java.lang.String,long)>("mMoveDelay", $l1);
+
+        $l1 = r0.<com.example.android.snake.SnakeView: long mScore>;
+
+        $r5 = staticinvoke <java.lang.Long: java.lang.Long valueOf(long)>($l1);
+
+        $l1 = virtualinvoke $r5.<java.lang.Long: long longValue()>();
+
+        virtualinvoke r1.<android.os.Bundle: void putLong(java.lang.String,long)>("mScore", $l1);
+
+        $r2 = r0.<com.example.android.snake.SnakeView: java.util.ArrayList mSnakeTrail>;
+
+        $r3 = specialinvoke r0.<com.example.android.snake.SnakeView: int[] coordArrayListToArray(java.util.ArrayList)>($r2);
+
+        virtualinvoke r1.<android.os.Bundle: void putIntArray(java.lang.String,int[])>("mSnakeTrail", $r3);
+
+        return r1;
+    }
+
+    public void setMode(int)
+    {
+        android.content.Context $r2;
+        java.lang.CharSequence r4;
+        com.example.android.snake.SnakeView r0;
+        long $l2;
+        android.widget.TextView $r1;
+        int $i0, i1;
+        java.lang.StringBuilder $r5;
+        java.lang.String $r6;
+        boolean $z0, $z1;
+        android.content.res.Resources $r3;
+
+        r0 := @this: com.example.android.snake.SnakeView;
+
+        $i0 := @parameter0: int;
+
+        i1 = r0.<com.example.android.snake.SnakeView: int mMode>;
+
+        r0.<com.example.android.snake.SnakeView: int mMode> = $i0;
+
+        if $i0 != 2 goto label3;
+
+        $z0 = 1;
+
+     label1:
+        if i1 == 2 goto label4;
+
+        $z1 = 1;
+
+     label2:
+        $z0 = $z0 & $z1;
+
+        if $z0 == 0 goto label5;
+
+        $r1 = r0.<com.example.android.snake.SnakeView: android.widget.TextView mStatusText>;
+
+        virtualinvoke $r1.<android.widget.TextView: void setVisibility(int)>(4);
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView: void update()>();
+
+        return;
+
+     label3:
+        $z0 = 0;
+
+        goto label1;
+
+     label4:
+        $z1 = 0;
+
+        goto label2;
+
+     label5:
+        $r2 = virtualinvoke r0.<com.example.android.snake.SnakeView: android.content.Context getContext()>();
+
+        $r3 = virtualinvoke $r2.<android.content.Context: android.content.res.Resources getResources()>();
+
+        r4 = "";
+
+        if $i0 != 0 goto label6;
+
+        r4 = virtualinvoke $r3.<android.content.res.Resources: java.lang.CharSequence getText(int)>(2130968577);
+
+     label6:
+        if $i0 != 1 goto label7;
+
+        r4 = virtualinvoke $r3.<android.content.res.Resources: java.lang.CharSequence getText(int)>(2130968576);
+
+     label7:
+        if $i0 != 3 goto label8;
+
+        $r5 = new java.lang.StringBuilder;
+
+        specialinvoke $r5.<java.lang.StringBuilder: void <init>()>();
+
+        $r6 = virtualinvoke $r3.<android.content.res.Resources: java.lang.String getString(int)>(2130968578);
+
+        $r5 = virtualinvoke $r5.<java.lang.StringBuilder: java.lang.StringBuilder append(java.lang.String)>($r6);
+
+        $l2 = r0.<com.example.android.snake.SnakeView: long mScore>;
+
+        $r5 = virtualinvoke $r5.<java.lang.StringBuilder: java.lang.StringBuilder append(long)>($l2);
+
+        $r6 = virtualinvoke $r3.<android.content.res.Resources: java.lang.String getString(int)>(2130968579);
+
+        $r5 = virtualinvoke $r5.<java.lang.StringBuilder: java.lang.StringBuilder append(java.lang.String)>($r6);
+
+        r4 = virtualinvoke $r5.<java.lang.StringBuilder: java.lang.String toString()>();
+
+     label8:
+        $r1 = r0.<com.example.android.snake.SnakeView: android.widget.TextView mStatusText>;
+
+        virtualinvoke $r1.<android.widget.TextView: void setText(java.lang.CharSequence)>(r4);
+
+        $r1 = r0.<com.example.android.snake.SnakeView: android.widget.TextView mStatusText>;
+
+        virtualinvoke $r1.<android.widget.TextView: void setVisibility(int)>(0);
+
+        return;
+    }
+
+    public void setTextView(android.widget.TextView)
+    {
+        com.example.android.snake.SnakeView r0;
+        android.widget.TextView $r1;
+
+        r0 := @this: com.example.android.snake.SnakeView;
+
+        $r1 := @parameter0: android.widget.TextView;
+
+        r0.<com.example.android.snake.SnakeView: android.widget.TextView mStatusText> = $r1;
+
+        return;
+    }
+
+    public void update()
+    {
+        byte $b4;
+        com.example.android.snake.SnakeView$RefreshHandler $r1;
+        int $i2;
+        com.example.android.snake.SnakeView r0;
+        long $l0, $l1, $l3;
+
+        r0 := @this: com.example.android.snake.SnakeView;
+
+        $i2 = r0.<com.example.android.snake.SnakeView: int mMode>;
+
+        if $i2 != 2 goto label2;
+
+        $l1 = staticinvoke <java.lang.System: long currentTimeMillis()>();
+
+        $l0 = r0.<com.example.android.snake.SnakeView: long mLastMove>;
+
+        $l3 = $l1 - $l0;
+
+        $l0 = r0.<com.example.android.snake.SnakeView: long mMoveDelay>;
+
+        $b4 = $l3 cmp $l0;
+
+        $i2 = (int) $b4;
+
+        if $i2 <= 0 goto label1;
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView: void clearTiles()>();
+
+        specialinvoke r0.<com.example.android.snake.SnakeView: void updateWalls()>();
+
+        specialinvoke r0.<com.example.android.snake.SnakeView: void updateSnake()>();
+
+        specialinvoke r0.<com.example.android.snake.SnakeView: void updateApples()>();
+
+        r0.<com.example.android.snake.SnakeView: long mLastMove> = $l1;
+
+     label1:
+        $r1 = r0.<com.example.android.snake.SnakeView: com.example.android.snake.SnakeView$RefreshHandler mRedrawHandler>;
+
+        $l1 = r0.<com.example.android.snake.SnakeView: long mMoveDelay>;
+
+        virtualinvoke $r1.<com.example.android.snake.SnakeView$RefreshHandler: void sleep(long)>($l1);
+
+     label2:
+        return;
+    }
+}

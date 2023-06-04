@@ -1,0 +1,29 @@
+public final class com.example.android.snake.R$styleable extends java.lang.Object
+{
+    public static final int[] TileView;
+    public static final int TileView_tileSize;
+
+    static void <clinit>()
+    {
+        int[] $r0;
+
+        $r0 = newarray (int)[1];
+
+        $r0[0] = 2130771968;
+
+        <com.example.android.snake.R$styleable: int[] TileView> = $r0;
+
+        return;
+    }
+
+    public void <init>()
+    {
+        com.example.android.snake.R$styleable r0;
+
+        r0 := @this: com.example.android.snake.R$styleable;
+
+        specialinvoke r0.<java.lang.Object: void <init>()>();
+
+        return;
+    }
+}

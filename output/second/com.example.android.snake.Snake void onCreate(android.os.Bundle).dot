@@ -1,0 +1,13 @@
+digraph "void onCreate(android.os.Bundle)" {
+    label="void onCreate(android.os.Bundle)";
+    node [shape=box];
+    "0" [style=filled,fillcolor=gray,label="Block #0\nr0 := @this\l$r1 := @parameter0\lspecialinvoke r0.onCreate($r1)\lvirtualinvoke r0.setContentView(2130903040)\l$r2 = virtualinvoke r0.findViewById(2131034112)\lr3 = (com.example.android.snake.SnakeView) $r2\lr0.mSnakeView = r3\lr3 = r0.mSnakeView\l$r2 = virtualinvoke r0.findViewById(2131034113)\lr4 = (android.widget.TextView) $r2\lvirtualinvoke r3.setTextView(r4)\lif $r1 != null goto label1\l",];
+    "1" [style=filled,fillcolor=lightgray,label="Block #1\nr3 = r0.mSnakeView\lvirtualinvoke r3.setMode(1)\lreturn\l",];
+    "0"->"1";
+    "2" [label="Block #2\nlabel1:\n$r5 = com.example.android.snake.Snake.ICICLE_KEY\l$r1 = virtualinvoke $r1.getBundle($r5)\lif $r1 == null goto label2\l",];
+    "0"->"2";
+    "3" [style=filled,fillcolor=lightgray,label="Block #3\nr3 = r0.mSnakeView\lvirtualinvoke r3.restoreState($r1)\lreturn\l",];
+    "2"->"3";
+    "4" [style=filled,fillcolor=lightgray,label="Block #4\nlabel2:\nr3 = r0.mSnakeView\lvirtualinvoke r3.setMode(0)\lreturn\l",];
+    "2"->"4";
+}

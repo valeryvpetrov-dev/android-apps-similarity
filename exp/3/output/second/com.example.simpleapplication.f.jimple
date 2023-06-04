@@ -1,0 +1,25 @@
+public final class com.example.simpleapplication.f extends java.lang.Object
+{
+    public static final int ic_launcher;
+    public static final int ic_launcher_round;
+
+    private void <init>()
+    {
+        com.example.simpleapplication.f r0;
+
+        r0 := @this: com.example.simpleapplication.f;
+
+        specialinvoke r0.<java.lang.Object: void <init>()>();
+
+        return;
+    }
+
+    public static void <clinit>()
+    {
+        <com.example.simpleapplication.f: int ic_launcher_round> = 2130968577;
+
+        <com.example.simpleapplication.f: int ic_launcher> = 2130968576;
+
+        return;
+    }
+}

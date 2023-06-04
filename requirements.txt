@@ -1,0 +1,6 @@
+matplotlib==3.7.1
+networkx==3.1
+numpy==1.24.3
+pydot==1.4.2
+pypdf==3.9.0
+textdistance==4.5.0

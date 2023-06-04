@@ -1,0 +1,5 @@
+digraph "void onCreate(android.os.Bundle)" {
+    label="void onCreate(android.os.Bundle)";
+    node [shape=box];
+    "0" [style=filled,fillcolor=lightgray,label="Block #0\nr0 := @this\l$r1 := @parameter0\lspecialinvoke r0.onCreate($r1)\lvirtualinvoke r0.setContentView(2130903040)\l$r2 = virtualinvoke r0.findViewById(2130837504)\l$r3 = (android.widget.TextView) $r2\l$r4 = r0.greeting\l$r5 = virtualinvoke $r4.greet()\lvirtualinvoke $r3.setText($r5)\lreturn\l",];
+}

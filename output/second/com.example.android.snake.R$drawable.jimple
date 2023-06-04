@@ -1,0 +1,28 @@
+public final class com.example.android.snake.R$drawable extends java.lang.Object
+{
+    public static final int greenstar;
+    public static final int redstar;
+    public static final int yellowstar;
+
+    public void <init>()
+    {
+        com.example.android.snake.R$drawable r0;
+
+        r0 := @this: com.example.android.snake.R$drawable;
+
+        specialinvoke r0.<java.lang.Object: void <init>()>();
+
+        return;
+    }
+
+    public static void <clinit>()
+    {
+        <com.example.android.snake.R$drawable: int yellowstar> = 2130837506;
+
+        <com.example.android.snake.R$drawable: int redstar> = 2130837505;
+
+        <com.example.android.snake.R$drawable: int greenstar> = 2130837504;
+
+        return;
+    }
+}

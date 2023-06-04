@@ -1,0 +1,52 @@
+public class com.example.simpleapplication.MainActivity extends android.app.Activity
+{
+    private final com.example.simpleapplication.b a;
+
+    public void <init>()
+    {
+        com.example.simpleapplication.b $r1;
+        com.example.simpleapplication.MainActivity r0;
+
+        r0 := @this: com.example.simpleapplication.MainActivity;
+
+        specialinvoke r0.<android.app.Activity: void <init>()>();
+
+        $r1 = new com.example.simpleapplication.b;
+
+        specialinvoke $r1.<com.example.simpleapplication.b: void <init>()>();
+
+        r0.<com.example.simpleapplication.MainActivity: com.example.simpleapplication.b a> = $r1;
+
+        return;
+    }
+
+    protected void onCreate(android.os.Bundle)
+    {
+        com.example.simpleapplication.b $r4;
+        android.os.Bundle $r1;
+        android.widget.TextView $r3;
+        com.example.simpleapplication.MainActivity r0;
+        android.view.View $r2;
+        java.lang.String $r5;
+
+        r0 := @this: com.example.simpleapplication.MainActivity;
+
+        $r1 := @parameter0: android.os.Bundle;
+
+        specialinvoke r0.<android.app.Activity: void onCreate(android.os.Bundle)>($r1);
+
+        virtualinvoke r0.<android.app.Activity: void setContentView(int)>(2130903040);
+
+        $r2 = virtualinvoke r0.<android.app.Activity: android.view.View findViewById(int)>(2130837504);
+
+        $r3 = (android.widget.TextView) $r2;
+
+        $r4 = r0.<com.example.simpleapplication.MainActivity: com.example.simpleapplication.b a>;
+
+        $r5 = virtualinvoke $r4.<com.example.simpleapplication.b: java.lang.String a()>();
+
+        virtualinvoke $r3.<android.widget.TextView: void setText(java.lang.CharSequence)>($r5);
+
+        return;
+    }
+}

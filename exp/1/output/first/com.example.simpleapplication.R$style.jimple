@@ -1,0 +1,22 @@
+public final class com.example.simpleapplication.R$style extends java.lang.Object
+{
+    public static final int SimpleApplication;
+
+    private void <init>()
+    {
+        com.example.simpleapplication.R$style r0;
+
+        r0 := @this: com.example.simpleapplication.R$style;
+
+        specialinvoke r0.<java.lang.Object: void <init>()>();
+
+        return;
+    }
+
+    public static void <clinit>()
+    {
+        <com.example.simpleapplication.R$style: int SimpleApplication> = 2131099648;
+
+        return;
+    }
+}

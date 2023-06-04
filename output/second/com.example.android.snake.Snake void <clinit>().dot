@@ -1,0 +1,5 @@
+digraph "void <clinit>()" {
+    label="void <clinit>()";
+    node [shape=box];
+    "0" [style=filled,fillcolor=lightgray,label="Block #0\ncom.example.android.snake.Snake.ICICLE_KEY = \"snake-view\"\lreturn\l",];
+}

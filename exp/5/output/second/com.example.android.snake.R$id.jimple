@@ -1,0 +1,25 @@
+public final class com.example.android.snake.R$id extends java.lang.Object
+{
+    public static final int snake;
+    public static final int text;
+
+    public void <init>()
+    {
+        com.example.android.snake.R$id r0;
+
+        r0 := @this: com.example.android.snake.R$id;
+
+        specialinvoke r0.<java.lang.Object: void <init>()>();
+
+        return;
+    }
+
+    public static void <clinit>()
+    {
+        <com.example.android.snake.R$id: int text> = 2131034113;
+
+        <com.example.android.snake.R$id: int snake> = 2131034112;
+
+        return;
+    }
+}

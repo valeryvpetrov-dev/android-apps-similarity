@@ -1,0 +1,38 @@
+digraph "void setMode(int)" {
+    label="void setMode(int)";
+    node [shape=box];
+    "0" [style=filled,fillcolor=gray,label="Block #0\nr0 := @this\l$i0 := @parameter0\li1 = r0.mMode\lr0.mMode = $i0\lif $i0 != 2 goto label3\l",];
+    "1" [label="Block #1\n$z0 = 1\l",];
+    "0"->"1";
+    "6" [label="Block #6\nlabel3:\n$z0 = 0\lgoto label1\l",];
+    "0"->"6";
+    "2" [label="Block #2\nlabel1:\nif i1 == 2 goto label4\l",];
+    "1"->"2";
+    "3" [label="Block #3\n$z1 = 1\l",];
+    "2"->"3";
+    "7" [label="Block #7\nlabel4:\n$z1 = 0\lgoto label2\l",];
+    "2"->"7";
+    "4" [label="Block #4\nlabel2:\n$z0 = $z0 & $z1\lif $z0 == 0 goto label5\l",];
+    "3"->"4";
+    "5" [style=filled,fillcolor=lightgray,label="Block #5\n$r1 = r0.mStatusText\lvirtualinvoke $r1.setVisibility(4)\lvirtualinvoke r0.update()\lreturn\l",];
+    "4"->"5";
+    "8" [label="Block #8\nlabel5:\n$r2 = virtualinvoke r0.getContext()\l$r3 = virtualinvoke $r2.getResources()\lr4 = \"\"\lif $i0 != 0 goto label6\l",];
+    "4"->"8";
+    "6"->"2";
+    "7"->"4";
+    "9" [label="Block #9\nr4 = virtualinvoke $r3.getText(2130968577)\l",];
+    "8"->"9";
+    "10" [label="Block #10\nlabel6:\nif $i0 != 1 goto label7\l",];
+    "8"->"10";
+    "9"->"10";
+    "11" [label="Block #11\nr4 = virtualinvoke $r3.getText(2130968576)\l",];
+    "10"->"11";
+    "12" [label="Block #12\nlabel7:\nif $i0 != 3 goto label8\l",];
+    "10"->"12";
+    "11"->"12";
+    "13" [label="Block #13\n$r5 = new java.lang.StringBuilder\lspecialinvoke $r5.<init>()\l$r6 = virtualinvoke $r3.getString(2130968578)\l$r5 = virtualinvoke $r5.append($r6)\l$l2 = r0.mScore\l$r5 = virtualinvoke $r5.append($l2)\l$r6 = virtualinvoke $r3.getString(2130968579)\l$r5 = virtualinvoke $r5.append($r6)\lr4 = virtualinvoke $r5.toString()\l",];
+    "12"->"13";
+    "14" [style=filled,fillcolor=lightgray,label="Block #14\nlabel8:\n$r1 = r0.mStatusText\lvirtualinvoke $r1.setText(r4)\l$r1 = r0.mStatusText\lvirtualinvoke $r1.setVisibility(0)\lreturn\l",];
+    "12"->"14";
+    "13"->"14";
+}

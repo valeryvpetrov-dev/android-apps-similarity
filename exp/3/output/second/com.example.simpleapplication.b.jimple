@@ -1,0 +1,67 @@
+public class com.example.simpleapplication.b extends java.lang.Object
+{
+    private a.b a;
+
+    public void <init>()
+    {
+        com.example.simpleapplication.b r0;
+        a.b $r1;
+
+        r0 := @this: com.example.simpleapplication.b;
+
+        specialinvoke r0.<java.lang.Object: void <init>()>();
+
+        $r1 = new a.b;
+
+        specialinvoke $r1.<a.b: void <init>()>();
+
+        r0.<com.example.simpleapplication.b: a.b a> = $r1;
+
+        return;
+    }
+
+    public java.lang.String a()
+    {
+        com.example.simpleapplication.b r0;
+        java.lang.Object[] $r3;
+        a.b $r1;
+        byte $b1;
+        long $l0;
+        java.lang.String $r2;
+
+        r0 := @this: com.example.simpleapplication.b;
+
+        $r1 = r0.<com.example.simpleapplication.b: a.b a>;
+
+        $l0 = virtualinvoke $r1.<a.b: long a()>();
+
+        $b1 = $l0 cmp 0L;
+
+        if $b1 != 0 goto label1;
+
+        $r2 = "obverse";
+
+        goto label3;
+
+     label1:
+        $b1 = $l0 cmp 1L;
+
+        if $b1 != 0 goto label2;
+
+        $r2 = "reverse";
+
+        goto label3;
+
+     label2:
+        $r2 = "is it coin?";
+
+     label3:
+        $r3 = newarray (java.lang.Object)[1];
+
+        $r3[0] = $r2;
+
+        $r2 = staticinvoke <java.lang.String: java.lang.String format(java.lang.String,java.lang.Object[])>("Hello! Toss a coin: %s", $r3);
+
+        return $r2;
+    }
+}

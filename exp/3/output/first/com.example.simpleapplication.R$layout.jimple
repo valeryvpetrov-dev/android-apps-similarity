@@ -1,0 +1,22 @@
+public final class com.example.simpleapplication.R$layout extends java.lang.Object
+{
+    public static final int activity_main;
+
+    private void <init>()
+    {
+        com.example.simpleapplication.R$layout r0;
+
+        r0 := @this: com.example.simpleapplication.R$layout;
+
+        specialinvoke r0.<java.lang.Object: void <init>()>();
+
+        return;
+    }
+
+    public static void <clinit>()
+    {
+        <com.example.simpleapplication.R$layout: int activity_main> = 2130903040;
+
+        return;
+    }
+}

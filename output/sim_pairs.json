@@ -1,0 +1,313 @@
+{
+    "sim": 0.9656200888512476,
+    "pairs": [
+        {
+            "first": "first/com.example.android.snake.R.styleable void <clinit>().dot",
+            "second": "second/com.example.android.snake.R.styleable void <clinit>().dot",
+            "first_i": 0,
+            "second_i": 0,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView.RefreshHandler void <init>(com.example.android.snake.SnakeView).dot",
+            "second": "second/com.example.android.snake.SnakeView.RefreshHandler void <init>(com.example.android.snake.SnakeView).dot",
+            "first_i": 1,
+            "second_i": 1,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView void initNewGame().dot",
+            "second": "second/com.example.android.snake.SnakeView void initNewGame().dot",
+            "first_i": 2,
+            "second_i": 2,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.TileView void clearTiles().dot",
+            "second": "second/com.example.android.snake.TileView void clearTiles().dot",
+            "first_i": 3,
+            "second_i": 3,
+            "similarity": 0.8666666666666667
+        },
+        {
+            "first": "first/com.example.android.snake.TileView void setTile(int,int,int).dot",
+            "second": "second/com.example.android.snake.TileView void setTile(int,int,int).dot",
+            "first_i": 4,
+            "second_i": 4,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView void setMode(int).dot",
+            "second": "second/com.example.android.snake.SnakeView void setMode(int).dot",
+            "first_i": 5,
+            "second_i": 5,
+            "similarity": 0.8823529411764706
+        },
+        {
+            "first": "first/com.example.android.snake.R.layout void <init>().dot",
+            "second": "second/com.example.android.snake.R.layout void <init>().dot",
+            "first_i": 6,
+            "second_i": 6,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView void setTextView(android.widget.TextView).dot",
+            "second": "second/com.example.android.snake.SnakeView void setTextView(android.widget.TextView).dot",
+            "first_i": 7,
+            "second_i": 7,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView void update().dot",
+            "second": "second/com.example.android.snake.SnakeView void update().dot",
+            "first_i": 8,
+            "second_i": 8,
+            "similarity": 0.9090909090909091
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView.Coordinate boolean equals(com.example.android.snake.SnakeView$Coordinate).dot",
+            "second": "second/com.example.android.snake.SnakeView.Coordinate boolean equals(com.example.android.snake.SnakeView$Coordinate).dot",
+            "first_i": 9,
+            "second_i": 9,
+            "similarity": 0.9375
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView void updateWalls().dot",
+            "second": "second/com.example.android.snake.SnakeView void updateWalls().dot",
+            "first_i": 10,
+            "second_i": 10,
+            "similarity": 0.8666666666666667
+        },
+        {
+            "first": "first/com.example.android.snake.TileView void resetTiles(int).dot",
+            "second": "second/com.example.android.snake.TileView void resetTiles(int).dot",
+            "first_i": 11,
+            "second_i": 11,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView void updateApples().dot",
+            "second": "second/com.example.android.snake.SnakeView void updateApples().dot",
+            "first_i": 12,
+            "second_i": 12,
+            "similarity": 0.875
+        },
+        {
+            "first": "first/com.example.android.snake.TileView void onSizeChanged(int,int,int,int).dot",
+            "second": "second/com.example.android.snake.TileView void onSizeChanged(int,int,int,int).dot",
+            "first_i": 13,
+            "second_i": 13,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.R.drawable void <init>().dot",
+            "second": "second/com.example.android.snake.R.drawable void <init>().dot",
+            "first_i": 14,
+            "second_i": 14,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.R void <init>().dot",
+            "second": "second/com.example.android.snake.R void <init>().dot",
+            "first_i": 15,
+            "second_i": 15,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView void updateSnake().dot",
+            "second": "second/com.example.android.snake.SnakeView void updateSnake().dot",
+            "first_i": 16,
+            "second_i": 16,
+            "similarity": 0.8714285714285714
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView int[] coordArrayListToArray(java.util.ArrayList).dot",
+            "second": "second/com.example.android.snake.SnakeView int[] coordArrayListToArray(java.util.ArrayList).dot",
+            "first_i": 17,
+            "second_i": 17,
+            "similarity": 0.875
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView.RefreshHandler void sleep(long).dot",
+            "second": "second/com.example.android.snake.SnakeView.RefreshHandler void sleep(long).dot",
+            "first_i": 18,
+            "second_i": 18,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView.RefreshHandler void handleMessage(android.os.Message).dot",
+            "second": "second/com.example.android.snake.SnakeView.RefreshHandler void handleMessage(android.os.Message).dot",
+            "first_i": 19,
+            "second_i": 19,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.R.attr void <init>().dot",
+            "second": "second/com.example.android.snake.R.attr void <init>().dot",
+            "first_i": 20,
+            "second_i": 20,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.Snake void onPause().dot",
+            "second": "second/com.example.android.snake.Snake void onPause().dot",
+            "first_i": 21,
+            "second_i": 21,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView void restoreState(android.os.Bundle).dot",
+            "second": "second/com.example.android.snake.SnakeView void restoreState(android.os.Bundle).dot",
+            "first_i": 22,
+            "second_i": 22,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.Snake void onSaveInstanceState(android.os.Bundle).dot",
+            "second": "second/com.example.android.snake.Snake void onSaveInstanceState(android.os.Bundle).dot",
+            "first_i": 23,
+            "second_i": 23,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.Snake void onCreate(android.os.Bundle).dot",
+            "second": "second/com.example.android.snake.Snake void onCreate(android.os.Bundle).dot",
+            "first_i": 24,
+            "second_i": 24,
+            "similarity": 0.8888888888888888
+        },
+        {
+            "first": "first/com.example.android.snake.TileView void onDraw(android.graphics.Canvas).dot",
+            "second": "second/com.example.android.snake.TileView void onDraw(android.graphics.Canvas).dot",
+            "first_i": 25,
+            "second_i": 25,
+            "similarity": 0.875
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView.Coordinate java.lang.String toString().dot",
+            "second": "second/com.example.android.snake.SnakeView.Coordinate java.lang.String toString().dot",
+            "first_i": 26,
+            "second_i": 26,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView boolean onKeyDown(int,android.view.KeyEvent).dot",
+            "second": "second/com.example.android.snake.SnakeView boolean onKeyDown(int,android.view.KeyEvent).dot",
+            "first_i": 27,
+            "second_i": 27,
+            "similarity": 0.8813559322033898
+        },
+        {
+            "first": "first/com.example.android.snake.TileView void <init>(android.content.Context,android.util.AttributeSet).dot",
+            "second": "second/com.example.android.snake.TileView void <init>(android.content.Context,android.util.AttributeSet).dot",
+            "first_i": 28,
+            "second_i": 28,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView java.util.ArrayList coordArrayToArrayList(int[]).dot",
+            "second": "second/com.example.android.snake.SnakeView java.util.ArrayList coordArrayToArrayList(int[]).dot",
+            "first_i": 29,
+            "second_i": 29,
+            "similarity": 0.875
+        },
+        {
+            "first": "first/com.example.android.snake.Snake void <init>().dot",
+            "second": "second/com.example.android.snake.Snake void <init>().dot",
+            "first_i": 30,
+            "second_i": 30,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.TileView void loadTile(int,android.graphics.drawable.Drawable).dot",
+            "second": "second/com.example.android.snake.TileView void loadTile(int,android.graphics.drawable.Drawable).dot",
+            "first_i": 31,
+            "second_i": 31,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView void <init>(android.content.Context,android.util.AttributeSet,int).dot",
+            "second": "second/com.example.android.snake.SnakeView void <init>(android.content.Context,android.util.AttributeSet,int).dot",
+            "first_i": 32,
+            "second_i": 32,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.Snake void <clinit>().dot",
+            "second": "second/com.example.android.snake.Snake void <clinit>().dot",
+            "first_i": 33,
+            "second_i": 33,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView void <init>(android.content.Context,android.util.AttributeSet).dot",
+            "second": "second/com.example.android.snake.SnakeView void <init>(android.content.Context,android.util.AttributeSet).dot",
+            "first_i": 34,
+            "second_i": 34,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.R.id void <init>().dot",
+            "second": "second/com.example.android.snake.R.id void <init>().dot",
+            "first_i": 35,
+            "second_i": 35,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView android.os.Bundle saveState().dot",
+            "second": "second/com.example.android.snake.SnakeView android.os.Bundle saveState().dot",
+            "first_i": 36,
+            "second_i": 36,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.R.string void <init>().dot",
+            "second": "second/com.example.android.snake.R.string void <init>().dot",
+            "first_i": 37,
+            "second_i": 37,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView void <clinit>().dot",
+            "second": "second/com.example.android.snake.SnakeView void <clinit>().dot",
+            "first_i": 38,
+            "second_i": 38,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView void initSnakeView().dot",
+            "second": "second/com.example.android.snake.SnakeView void initSnakeView().dot",
+            "first_i": 39,
+            "second_i": 39,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.TileView void <init>(android.content.Context,android.util.AttributeSet,int).dot",
+            "second": "second/com.example.android.snake.TileView void <init>(android.content.Context,android.util.AttributeSet,int).dot",
+            "first_i": 40,
+            "second_i": 40,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView.Coordinate void <init>(com.example.android.snake.SnakeView,int,int).dot",
+            "second": "second/com.example.android.snake.SnakeView.Coordinate void <init>(com.example.android.snake.SnakeView,int,int).dot",
+            "first_i": 41,
+            "second_i": 41,
+            "similarity": 1.0
+        },
+        {
+            "first": "first/com.example.android.snake.SnakeView void addRandomApple().dot",
+            "second": "second/com.example.android.snake.SnakeView void addRandomApple().dot",
+            "first_i": 42,
+            "second_i": 42,
+            "similarity": 0.8833333333333333
+        },
+        {
+            "first": "first/com.example.android.snake.R.styleable void <init>().dot",
+            "second": "second/com.example.android.snake.R.styleable void <init>().dot",
+            "first_i": 43,
+            "second_i": 43,
+            "similarity": 1.0
+        }
+    ]
+}

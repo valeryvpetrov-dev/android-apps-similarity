@@ -1,0 +1,39 @@
+public class a.b extends java.lang.Object
+{
+    private static final int a;
+
+    public void <init>()
+    {
+        a.b r0;
+
+        r0 := @this: a.b;
+
+        specialinvoke r0.<java.lang.Object: void <init>()>();
+
+        return;
+    }
+
+    public long a()
+    {
+        long $l0;
+        a.b r0;
+        double $d0;
+
+        r0 := @this: a.b;
+
+        $d0 = staticinvoke <java.lang.Math: double random()>();
+
+        $d0 = $d0 * 3.0;
+
+        $l0 = staticinvoke <java.lang.Math: long round(double)>($d0);
+
+        return $l0;
+    }
+
+    public static void <clinit>()
+    {
+        <a.b: int a> = 3;
+
+        return;
+    }
+}

@@ -1,0 +1,5 @@
+digraph "void <init>()" {
+    label="void <init>()";
+    node [shape=box];
+    "0" [style=filled,fillcolor=lightgray,label="Block #0\nr0 := @this\lspecialinvoke r0.<init>()\lreturn\l",];
+}

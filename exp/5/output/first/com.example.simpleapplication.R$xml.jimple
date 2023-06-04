@@ -1,0 +1,25 @@
+public final class com.example.simpleapplication.R$xml extends java.lang.Object
+{
+    public static final int backup_rules;
+    public static final int data_extraction_rules;
+
+    private void <init>()
+    {
+        com.example.simpleapplication.R$xml r0;
+
+        r0 := @this: com.example.simpleapplication.R$xml;
+
+        specialinvoke r0.<java.lang.Object: void <init>()>();
+
+        return;
+    }
+
+    public static void <clinit>()
+    {
+        <com.example.simpleapplication.R$xml: int data_extraction_rules> = 2131165185;
+
+        <com.example.simpleapplication.R$xml: int backup_rules> = 2131165184;
+
+        return;
+    }
+}

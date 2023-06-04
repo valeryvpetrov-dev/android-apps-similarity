@@ -1,0 +1,121 @@
+public class com.example.android.snake.Snake extends android.app.Activity
+{
+    private static java.lang.String ICICLE_KEY;
+    private com.example.android.snake.SnakeView mSnakeView;
+
+    static void <clinit>()
+    {
+        <com.example.android.snake.Snake: java.lang.String ICICLE_KEY> = "snake-view";
+
+        return;
+    }
+
+    public void <init>()
+    {
+        com.example.android.snake.Snake r0;
+
+        r0 := @this: com.example.android.snake.Snake;
+
+        specialinvoke r0.<android.app.Activity: void <init>()>();
+
+        return;
+    }
+
+    public void onCreate(android.os.Bundle)
+    {
+        android.os.Bundle $r1;
+        android.widget.TextView r4;
+        com.example.android.snake.Snake r0;
+        android.view.View $r2;
+        com.example.android.snake.SnakeView r3;
+        java.lang.String $r5;
+
+        r0 := @this: com.example.android.snake.Snake;
+
+        $r1 := @parameter0: android.os.Bundle;
+
+        specialinvoke r0.<android.app.Activity: void onCreate(android.os.Bundle)>($r1);
+
+        virtualinvoke r0.<com.example.android.snake.Snake: void setContentView(int)>(2130903040);
+
+        $r2 = virtualinvoke r0.<com.example.android.snake.Snake: android.view.View findViewById(int)>(2131034112);
+
+        r3 = (com.example.android.snake.SnakeView) $r2;
+
+        r0.<com.example.android.snake.Snake: com.example.android.snake.SnakeView mSnakeView> = r3;
+
+        r3 = r0.<com.example.android.snake.Snake: com.example.android.snake.SnakeView mSnakeView>;
+
+        $r2 = virtualinvoke r0.<com.example.android.snake.Snake: android.view.View findViewById(int)>(2131034113);
+
+        r4 = (android.widget.TextView) $r2;
+
+        virtualinvoke r3.<com.example.android.snake.SnakeView: void setTextView(android.widget.TextView)>(r4);
+
+        if $r1 != null goto label1;
+
+        r3 = r0.<com.example.android.snake.Snake: com.example.android.snake.SnakeView mSnakeView>;
+
+        virtualinvoke r3.<com.example.android.snake.SnakeView: void setMode(int)>(1);
+
+        return;
+
+     label1:
+        $r5 = <com.example.android.snake.Snake: java.lang.String ICICLE_KEY>;
+
+        $r1 = virtualinvoke $r1.<android.os.Bundle: android.os.Bundle getBundle(java.lang.String)>($r5);
+
+        if $r1 == null goto label2;
+
+        r3 = r0.<com.example.android.snake.Snake: com.example.android.snake.SnakeView mSnakeView>;
+
+        virtualinvoke r3.<com.example.android.snake.SnakeView: void restoreState(android.os.Bundle)>($r1);
+
+        return;
+
+     label2:
+        r3 = r0.<com.example.android.snake.Snake: com.example.android.snake.SnakeView mSnakeView>;
+
+        virtualinvoke r3.<com.example.android.snake.SnakeView: void setMode(int)>(0);
+
+        return;
+    }
+
+    protected void onPause()
+    {
+        com.example.android.snake.SnakeView $r1;
+        com.example.android.snake.Snake r0;
+
+        r0 := @this: com.example.android.snake.Snake;
+
+        specialinvoke r0.<android.app.Activity: void onPause()>();
+
+        $r1 = r0.<com.example.android.snake.Snake: com.example.android.snake.SnakeView mSnakeView>;
+
+        virtualinvoke $r1.<com.example.android.snake.SnakeView: void setMode(int)>(0);
+
+        return;
+    }
+
+    public void onSaveInstanceState(android.os.Bundle)
+    {
+        android.os.Bundle $r1, $r3;
+        com.example.android.snake.Snake r0;
+        com.example.android.snake.SnakeView $r4;
+        java.lang.String $r2;
+
+        r0 := @this: com.example.android.snake.Snake;
+
+        $r1 := @parameter0: android.os.Bundle;
+
+        $r2 = <com.example.android.snake.Snake: java.lang.String ICICLE_KEY>;
+
+        $r4 = r0.<com.example.android.snake.Snake: com.example.android.snake.SnakeView mSnakeView>;
+
+        $r3 = virtualinvoke $r4.<com.example.android.snake.SnakeView: android.os.Bundle saveState()>();
+
+        virtualinvoke $r1.<android.os.Bundle: void putBundle(java.lang.String,android.os.Bundle)>($r2, $r3);
+
+        return;
+    }
+}

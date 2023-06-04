@@ -1,0 +1,386 @@
+public class com.example.android.snake.TileView extends android.view.View
+{
+    protected static int mTileSize;
+    private static int mXOffset;
+    protected static int mXTileCount;
+    private static int mYOffset;
+    protected static int mYTileCount;
+    private final android.graphics.Paint mPaint;
+    private android.graphics.Bitmap[] mTileArray;
+    private int[][] mTileGrid;
+
+    public void <init>(android.content.Context, android.util.AttributeSet)
+    {
+        android.content.Context $r1;
+        android.util.AttributeSet $r2;
+        int[] $r4;
+        com.example.android.snake.TileView r0;
+        int $i0;
+        android.graphics.Paint $r3;
+        android.content.res.TypedArray $r5;
+
+        r0 := @this: com.example.android.snake.TileView;
+
+        $r1 := @parameter0: android.content.Context;
+
+        $r2 := @parameter1: android.util.AttributeSet;
+
+        specialinvoke r0.<android.view.View: void <init>(android.content.Context,android.util.AttributeSet)>($r1, $r2);
+
+        $r3 = new android.graphics.Paint;
+
+        specialinvoke $r3.<android.graphics.Paint: void <init>()>();
+
+        r0.<com.example.android.snake.TileView: android.graphics.Paint mPaint> = $r3;
+
+        $r4 = <com.example.android.snake.R$styleable: int[] TileView>;
+
+        $r5 = virtualinvoke $r1.<android.content.Context: android.content.res.TypedArray obtainStyledAttributes(android.util.AttributeSet,int[])>($r2, $r4);
+
+        $i0 = virtualinvoke $r5.<android.content.res.TypedArray: int getInt(int,int)>(0, 12);
+
+        <com.example.android.snake.TileView: int mTileSize> = $i0;
+
+        virtualinvoke $r5.<android.content.res.TypedArray: void recycle()>();
+
+        return;
+    }
+
+    public void <init>(android.content.Context, android.util.AttributeSet, int)
+    {
+        android.content.Context $r1;
+        android.util.AttributeSet $r2;
+        int[] $r4;
+        com.example.android.snake.TileView r0;
+        int $i0;
+        android.graphics.Paint $r3;
+        android.content.res.TypedArray $r5;
+
+        r0 := @this: com.example.android.snake.TileView;
+
+        $r1 := @parameter0: android.content.Context;
+
+        $r2 := @parameter1: android.util.AttributeSet;
+
+        $i0 := @parameter2: int;
+
+        specialinvoke r0.<android.view.View: void <init>(android.content.Context,android.util.AttributeSet,int)>($r1, $r2, $i0);
+
+        $r3 = new android.graphics.Paint;
+
+        specialinvoke $r3.<android.graphics.Paint: void <init>()>();
+
+        r0.<com.example.android.snake.TileView: android.graphics.Paint mPaint> = $r3;
+
+        $r4 = <com.example.android.snake.R$styleable: int[] TileView>;
+
+        $r5 = virtualinvoke $r1.<android.content.Context: android.content.res.TypedArray obtainStyledAttributes(android.util.AttributeSet,int[])>($r2, $r4);
+
+        $i0 = virtualinvoke $r5.<android.content.res.TypedArray: int getInt(int,int)>(0, 12);
+
+        <com.example.android.snake.TileView: int mTileSize> = $i0;
+
+        virtualinvoke $r5.<android.content.res.TypedArray: void recycle()>();
+
+        return;
+    }
+
+    public void clearTiles()
+    {
+        com.example.android.snake.TileView r0;
+        int i0, $i1, $i2;
+
+        r0 := @this: com.example.android.snake.TileView;
+
+        i0 = 0;
+
+     label1:
+        $i1 = <com.example.android.snake.TileView: int mXTileCount>;
+
+        if i0 >= $i1 goto label4;
+
+        $i1 = 0;
+
+     label2:
+        $i2 = <com.example.android.snake.TileView: int mYTileCount>;
+
+        if $i1 >= $i2 goto label3;
+
+        virtualinvoke r0.<com.example.android.snake.TileView: void setTile(int,int,int)>(0, i0, $i1);
+
+        $i1 = $i1 + 1;
+
+        goto label2;
+
+     label3:
+        i0 = i0 + 1;
+
+        goto label1;
+
+     label4:
+        return;
+    }
+
+    public void loadTile(int, android.graphics.drawable.Drawable)
+    {
+        android.graphics.Bitmap[] $r5;
+        com.example.android.snake.TileView r0;
+        android.graphics.drawable.Drawable $r1;
+        android.graphics.Bitmap$Config $r3;
+        android.graphics.Bitmap $r4;
+        int $i0, $i1, $i2;
+        android.graphics.Canvas r2;
+
+        r0 := @this: com.example.android.snake.TileView;
+
+        $i0 := @parameter0: int;
+
+        $r1 := @parameter1: android.graphics.drawable.Drawable;
+
+        $i1 = <com.example.android.snake.TileView: int mTileSize>;
+
+        $i2 = <com.example.android.snake.TileView: int mTileSize>;
+
+        $r3 = <android.graphics.Bitmap$Config: android.graphics.Bitmap$Config ARGB_8888>;
+
+        $r4 = staticinvoke <android.graphics.Bitmap: android.graphics.Bitmap createBitmap(int,int,android.graphics.Bitmap$Config)>($i1, $i2, $r3);
+
+        r2 = new android.graphics.Canvas;
+
+        specialinvoke r2.<android.graphics.Canvas: void <init>(android.graphics.Bitmap)>($r4);
+
+        $i1 = <com.example.android.snake.TileView: int mTileSize>;
+
+        $i2 = <com.example.android.snake.TileView: int mTileSize>;
+
+        virtualinvoke $r1.<android.graphics.drawable.Drawable: void setBounds(int,int,int,int)>(0, 0, $i1, $i2);
+
+        virtualinvoke $r1.<android.graphics.drawable.Drawable: void draw(android.graphics.Canvas)>(r2);
+
+        $r5 = r0.<com.example.android.snake.TileView: android.graphics.Bitmap[] mTileArray>;
+
+        $r5[$i0] = $r4;
+
+        return;
+    }
+
+    public void onDraw(android.graphics.Canvas)
+    {
+        int[][] $r2;
+        android.graphics.Bitmap[] $r4;
+        com.example.android.snake.TileView r0;
+        int[] $r3;
+        android.graphics.Bitmap $r5;
+        int i0, $i1, $i2, $i3;
+        float $f0, $f1;
+        android.graphics.Canvas $r1;
+        android.graphics.Paint $r6;
+
+        r0 := @this: com.example.android.snake.TileView;
+
+        $r1 := @parameter0: android.graphics.Canvas;
+
+        specialinvoke r0.<android.view.View: void onDraw(android.graphics.Canvas)>($r1);
+
+        i0 = 0;
+
+     label1:
+        $i1 = <com.example.android.snake.TileView: int mXTileCount>;
+
+        if i0 >= $i1 goto label5;
+
+        $i1 = 0;
+
+     label2:
+        $i2 = <com.example.android.snake.TileView: int mYTileCount>;
+
+        if $i1 >= $i2 goto label4;
+
+        $r2 = r0.<com.example.android.snake.TileView: int[][] mTileGrid>;
+
+        $r3 = $r2[i0];
+
+        $i2 = $r3[$i1];
+
+        if $i2 <= 0 goto label3;
+
+        $r4 = r0.<com.example.android.snake.TileView: android.graphics.Bitmap[] mTileArray>;
+
+        $r2 = r0.<com.example.android.snake.TileView: int[][] mTileGrid>;
+
+        $r3 = $r2[i0];
+
+        $i2 = $r3[$i1];
+
+        $r5 = $r4[$i2];
+
+        $i2 = <com.example.android.snake.TileView: int mXOffset>;
+
+        $i3 = <com.example.android.snake.TileView: int mTileSize>;
+
+        $i3 = $i3 * i0;
+
+        $i2 = $i2 + $i3;
+
+        $f0 = (float) $i2;
+
+        $i2 = <com.example.android.snake.TileView: int mYOffset>;
+
+        $i3 = <com.example.android.snake.TileView: int mTileSize>;
+
+        $i3 = $i3 * $i1;
+
+        $i2 = $i2 + $i3;
+
+        $f1 = (float) $i2;
+
+        $r6 = r0.<com.example.android.snake.TileView: android.graphics.Paint mPaint>;
+
+        virtualinvoke $r1.<android.graphics.Canvas: void drawBitmap(android.graphics.Bitmap,float,float,android.graphics.Paint)>($r5, $f0, $f1, $r6);
+
+     label3:
+        $i1 = $i1 + 1;
+
+        goto label2;
+
+     label4:
+        i0 = i0 + 1;
+
+        goto label1;
+
+     label5:
+        return;
+    }
+
+    protected void onSizeChanged(int, int, int, int)
+    {
+        int[][] $r4;
+        com.example.android.snake.TileView r0;
+        int[] $r1;
+        int $i0, $i1, $i2, $i3;
+        java.lang.Class $r2;
+        java.lang.Object $r3;
+        double $d0;
+
+        r0 := @this: com.example.android.snake.TileView;
+
+        $i0 := @parameter0: int;
+
+        $i1 := @parameter1: int;
+
+        $i2 := @parameter2: int;
+
+        $i3 := @parameter3: int;
+
+        $i2 = <com.example.android.snake.TileView: int mTileSize>;
+
+        $i2 = $i0 / $i2;
+
+        $d0 = (double) $i2;
+
+        $d0 = staticinvoke <java.lang.Math: double floor(double)>($d0);
+
+        $i2 = (int) $d0;
+
+        <com.example.android.snake.TileView: int mXTileCount> = $i2;
+
+        $i2 = <com.example.android.snake.TileView: int mTileSize>;
+
+        $i2 = $i1 / $i2;
+
+        $d0 = (double) $i2;
+
+        $d0 = staticinvoke <java.lang.Math: double floor(double)>($d0);
+
+        $i2 = (int) $d0;
+
+        <com.example.android.snake.TileView: int mYTileCount> = $i2;
+
+        $i2 = <com.example.android.snake.TileView: int mTileSize>;
+
+        $i3 = <com.example.android.snake.TileView: int mXTileCount>;
+
+        $i2 = $i2 * $i3;
+
+        $i0 = $i0 - $i2;
+
+        $i0 = $i0 / 2;
+
+        <com.example.android.snake.TileView: int mXOffset> = $i0;
+
+        $i0 = <com.example.android.snake.TileView: int mTileSize>;
+
+        $i2 = <com.example.android.snake.TileView: int mYTileCount>;
+
+        $i0 = $i0 * $i2;
+
+        $i0 = $i1 - $i0;
+
+        $i0 = $i0 / 2;
+
+        <com.example.android.snake.TileView: int mYOffset> = $i0;
+
+        $i0 = <com.example.android.snake.TileView: int mXTileCount>;
+
+        $i1 = <com.example.android.snake.TileView: int mYTileCount>;
+
+        $r1 = newarray (int)[2];
+
+        $r1[0] = $i0;
+
+        $r1[1] = $i1;
+
+        $r2 = <java.lang.Integer: java.lang.Class TYPE>;
+
+        $r3 = staticinvoke <java.lang.reflect.Array: java.lang.Object newInstance(java.lang.Class,int[])>($r2, $r1);
+
+        $r4 = (int[][]) $r3;
+
+        r0.<com.example.android.snake.TileView: int[][] mTileGrid> = $r4;
+
+        virtualinvoke r0.<com.example.android.snake.TileView: void clearTiles()>();
+
+        return;
+    }
+
+    public void resetTiles(int)
+    {
+        com.example.android.snake.TileView r0;
+        int $i0;
+        android.graphics.Bitmap[] $r1;
+
+        r0 := @this: com.example.android.snake.TileView;
+
+        $i0 := @parameter0: int;
+
+        $r1 = newarray (android.graphics.Bitmap)[$i0];
+
+        r0.<com.example.android.snake.TileView: android.graphics.Bitmap[] mTileArray> = $r1;
+
+        return;
+    }
+
+    public void setTile(int, int, int)
+    {
+        int[][] $r1;
+        int[] $r2;
+        com.example.android.snake.TileView r0;
+        int $i0, $i1, $i2;
+
+        r0 := @this: com.example.android.snake.TileView;
+
+        $i0 := @parameter0: int;
+
+        $i1 := @parameter1: int;
+
+        $i2 := @parameter2: int;
+
+        $r1 = r0.<com.example.android.snake.TileView: int[][] mTileGrid>;
+
+        $r2 = $r1[$i1];
+
+        $r2[$i2] = $i0;
+
+        return;
+    }
+}

@@ -1,0 +1,22 @@
+public final class com.example.simpleapplication.R$string extends java.lang.Object
+{
+    public static final int app_name;
+
+    private void <init>()
+    {
+        com.example.simpleapplication.R$string r0;
+
+        r0 := @this: com.example.simpleapplication.R$string;
+
+        specialinvoke r0.<java.lang.Object: void <init>()>();
+
+        return;
+    }
+
+    public static void <clinit>()
+    {
+        <com.example.simpleapplication.R$string: int app_name> = 2131034112;
+
+        return;
+    }
+}

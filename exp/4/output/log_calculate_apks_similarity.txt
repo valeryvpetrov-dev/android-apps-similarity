@@ -1,0 +1,148 @@
+Prepare
+Parse input args
+Check first input exists
+Check second input exists
+Create first temp dir
+Remove existing dir exp/4/output
+Create second temp dir
+Remove existing dir exp/4/output
+apk_1=exp/4/input/simple_app-releaseNonOptimized.apk, apk_2=exp/4/input/simple_app-releaseOptimized.apk, output_1=/Users/va.petrov/Android/GitHub/soot/art/exp/4/output/first, output_2=/Users/va.petrov/Android/GitHub/soot/art/exp/4/output/second, ins_block_sim_threshold=0.95, ged_timeout_sec=60, processes_count=10, threads_count=45
+
+Build model of first .input
+Execute command: sh script/sh/generateDot.sh soot-4.4.1-jar-with-dependencies.jar /Users/va.petrov/Library/Android/sdk/platforms/ exp/4/input/simple_app-releaseNonOptimized.apk /Users/va.petrov/Android/GitHub/soot/art/exp/4/output/first
+SLF4J: No SLF4J providers were found.
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See https://www.slf4j.org/codes.html#noProviders for further details.
+Soot started on Sat Jun 03 21:49:02 MSK 2023
+Soot finished on Sat Jun 03 21:49:03 MSK 2023
+Soot has run for 0 min. 0 sec.
+Collect all .dot files
+Create graphs
+First .input model: ['first/com.example.simpleapplication.R.id void <init>().dot', 'first/com.example.simpleapplication.BuildConfig void <init>().dot', 'first/com.example.simpleapplication.R.layout void <init>().dot', 'first/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot', 'first/com.example.simpleapplication.R.xml void <init>().dot', 'first/com.example.simpleapplication.Greeting java.lang.String greet().dot', 'first/com.example.simpleapplication.R void <init>().dot', 'first/com.example.simpleapplication.R.drawable void <init>().dot', 'first/com.example.simpleapplication.R.mipmap void <init>().dot', 'first/com.example.simpleapplication.Greeting void <init>().dot', 'first/com.example.simpleapplication.R.style void <init>().dot', 'first/com.example.simpleapplication.something.Used long tossACoin().dot', 'first/com.example.simpleapplication.MainActivity void <init>().dot', 'first/com.example.simpleapplication.R.string void <init>().dot', 'first/com.example.simpleapplication.something.Used void <init>().dot', 'first/com.example.simpleapplication.something.Unused void something().dot', 'first/com.example.simpleapplication.something.Unused void <init>().dot']
+
+Build model of second .input
+Execute command: sh script/sh/generateDot.sh soot-4.4.1-jar-with-dependencies.jar /Users/va.petrov/Library/Android/sdk/platforms/ exp/4/input/simple_app-releaseOptimized.apk /Users/va.petrov/Android/GitHub/soot/art/exp/4/output/second
+SLF4J: No SLF4J providers were found.
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See https://www.slf4j.org/codes.html#noProviders for further details.
+Soot started on Sat Jun 03 21:49:03 MSK 2023
+Soot finished on Sat Jun 03 21:49:03 MSK 2023
+Soot has run for 0 min. 0 sec.
+Collect all .dot files
+Create graphs
+Second .input model: ['second/a.a java.lang.String a().dot', 'second/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot', 'second/b.a void <init>().dot', 'second/a.a void <init>().dot', 'second/com.example.simpleapplication.MainActivity void <init>().dot']
+
+Build comparison matrix
+Process=SpawnPoolWorker-6, Thread=6358691840 — dots_1=first/com.example.simpleapplication.R void <init>().dot, dots_2=second/b.a void <init>().dot, sim=1.0
+Process=SpawnPoolWorker-9, Thread=6358691840 — dots_1=first/com.example.simpleapplication.R.drawable void <init>().dot, dots_2=second/b.a void <init>().dot, sim=1.0
+Process=SpawnPoolWorker-10, Thread=6345895936 — dots_1=first/com.example.simpleapplication.R.id void <init>().dot, dots_2=second/b.a void <init>().dot, sim=1.0
+Process=SpawnPoolWorker-8, Thread=6322679808 — dots_1=first/com.example.simpleapplication.R.layout void <init>().dot, dots_2=second/b.a void <init>().dot, sim=1.0
+Process=SpawnPoolWorker-4, Thread=6152056832 — dots_1=first/com.example.simpleapplication.R.mipmap void <init>().dot, dots_2=second/b.a void <init>().dot, sim=1.0
+Process=SpawnPoolWorker-5, Thread=10888441856 — dots_1=first/com.example.simpleapplication.R.xml void <init>().dot, dots_2=second/b.a void <init>().dot, sim=1.0
+Process=SpawnPoolWorker-2, Thread=6358691840 — dots_1=first/com.example.simpleapplication.BuildConfig void <init>().dot, dots_2=second/b.a void <init>().dot, sim=1.0
+Process=SpawnPoolWorker-8, Thread=6289027072 — dots_1=first/com.example.simpleapplication.R.layout void <init>().dot, dots_2=second/a.a java.lang.String a().dot, sim=0.0714285714285714Process=SpawnPoolWorker-9, Thread=6325039104 — dots_1=first/com.example.simpleapplication.R.drawable void <init>().dot, dots_2=second/a.a java.lang.String a().dot, sim=0.0714285714285714
+Process=SpawnPoolWorker-4, Thread=6118404096 — dots_1=first/com.example.simpleapplication.R.mipmap void <init>().dot, dots_2=second/a.a java.lang.String a().dot, sim=0.0714285714285714
+Process=SpawnPoolWorker-10, Thread=6312243200 — dots_1=first/com.example.simpleapplication.R.id void <init>().dot, dots_2=second/a.a java.lang.String a().dot, sim=0.0714285714285714
+Process=SpawnPoolWorker-6, Thread=6325039104 — dots_1=first/com.example.simpleapplication.R void <init>().dot, dots_2=second/a.a java.lang.String a().dot, sim=0.0714285714285714
+Process=SpawnPoolWorker-5, Thread=6149304320 — dots_1=first/com.example.simpleapplication.R.xml void <init>().dot, dots_2=second/a.a java.lang.String a().dot, sim=0.0714285714285714
+Process=SpawnPoolWorker-9, Thread=6341865472 — dots_1=first/com.example.simpleapplication.R.drawable void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot, sim=0.5
+Process=SpawnPoolWorker-6, Thread=6341865472 — dots_1=first/com.example.simpleapplication.R void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot, sim=0.5
+Process=SpawnPoolWorker-5, Thread=6166130688 — dots_1=first/com.example.simpleapplication.R.xml void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot, sim=0.5
+Process=SpawnPoolWorker-8, Thread=6305853440 — dots_1=first/com.example.simpleapplication.R.layout void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot, sim=0.5
+Process=SpawnPoolWorker-3, Thread=6325039104 — dots_1=first/com.example.simpleapplication.Greeting java.lang.String greet().dot, dots_2=second/a.a java.lang.String a().dot, sim=0.8461538461538461
+Process=SpawnPoolWorker-4, Thread=6135230464 — dots_1=first/com.example.simpleapplication.R.mipmap void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot, sim=0.5
+Process=SpawnPoolWorker-7, Thread=6319452160 — dots_1=first/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot, dots_2=second/a.a java.lang.String a().dot, sim=0.0714285714285714
+Process=SpawnPoolWorker-10, Thread=6329069568 — dots_1=first/com.example.simpleapplication.R.id void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot, sim=0.5
+Process=SpawnPoolWorker-2, Thread=6325039104 — dots_1=first/com.example.simpleapplication.BuildConfig void <init>().dot, dots_2=second/a.a java.lang.String a().dot, sim=0.0714285714285714
+Process=SpawnPoolWorker-5, Thread=10905268224 — dots_1=first/com.example.simpleapplication.R.xml void <init>().dot, dots_2=second/a.a void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-6, Thread=6375518208 — dots_1=first/com.example.simpleapplication.R void <init>().dot, dots_2=second/a.a void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-9, Thread=6375518208 — dots_1=first/com.example.simpleapplication.R.drawable void <init>().dot, dots_2=second/a.a void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-8, Thread=6339506176 — dots_1=first/com.example.simpleapplication.R.layout void <init>().dot, dots_2=second/a.a void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-4, Thread=6168883200 — dots_1=first/com.example.simpleapplication.R.mipmap void <init>().dot, dots_2=second/a.a void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-10, Thread=6362722304 — dots_1=first/com.example.simpleapplication.R.id void <init>().dot, dots_2=second/a.a void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-2, Thread=6341865472 — dots_1=first/com.example.simpleapplication.BuildConfig void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot, sim=0.5
+Process=SpawnPoolWorker-5, Thread=10922094592 — dots_1=first/com.example.simpleapplication.R.xml void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-7, Thread=6336278528 — dots_1=first/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot, dots_2=second/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot, sim=0.5
+
+Process=SpawnPoolWorker-3, Thread=6341865472 — dots_1=first/com.example.simpleapplication.Greeting java.lang.String greet().dot, dots_2=second/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot, sim=0.0714285714285714
+Process=SpawnPoolWorker-9, Thread=6392344576 — dots_1=first/com.example.simpleapplication.R.drawable void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-8, Thread=6356332544 — dots_1=first/com.example.simpleapplication.R.layout void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-4, Thread=10888441856 — dots_1=first/com.example.simpleapplication.R.mipmap void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-6, Thread=6392344576 — dots_1=first/com.example.simpleapplication.R void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-1, Thread=6358593536 — dots_1=first/com.example.simpleapplication.Greeting void <init>().dot, dots_2=second/a.a java.lang.String a().dot, sim=0.0714285714285714
+Process=SpawnPoolWorker-10, Thread=6379548672 — dots_1=first/com.example.simpleapplication.R.id void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-2, Thread=6375518208 — dots_1=first/com.example.simpleapplication.BuildConfig void <init>().dot, dots_2=second/a.a void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-7, Thread=6353104896 — dots_1=first/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot, dots_2=second/b.a void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-1, Thread=6375419904 — dots_1=first/com.example.simpleapplication.Greeting void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot, sim=0.5
+Process=SpawnPoolWorker-2, Thread=6392344576 — dots_1=first/com.example.simpleapplication.BuildConfig void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-7, Thread=6369931264 — dots_1=first/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot, dots_2=second/a.a void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-7, Thread=6386757632 — dots_1=first/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot, dots_2=second/com.example.simpleapplication.MainActivity void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-1, Thread=6425899008 — dots_1=first/com.example.simpleapplication.Greeting void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-1, Thread=6409072640 — dots_1=first/com.example.simpleapplication.Greeting void <init>().dot, dots_2=second/a.a void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-1, Thread=6392246272 — dots_1=first/com.example.simpleapplication.Greeting void <init>().dot, dots_2=second/b.a void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-3, Thread=6375518208 — dots_1=first/com.example.simpleapplication.Greeting java.lang.String greet().dot, dots_2=second/a.a void <init>().dot, sim=0.0714285714285714
+Process=SpawnPoolWorker-5, Thread=6144143360 — dots_1=first/com.example.simpleapplication.R.style void <init>().dot, dots_2=second/a.a java.lang.String a().dot, sim=0.0714285714285714
+Process=SpawnPoolWorker-10, Thread=6312243200 — dots_1=first/com.example.simpleapplication.something.Used long tossACoin().dot, dots_2=second/a.a java.lang.String a().dot, sim=0.0714285714285714
+Process=SpawnPoolWorker-9, Thread=6325039104 — dots_1=first/com.example.simpleapplication.MainActivity void <init>().dot, dots_2=second/a.a java.lang.String a().dot, sim=0.0714285714285714
+Process=SpawnPoolWorker-2, Thread=6325039104 — dots_1=first/com.example.simpleapplication.R.string void <init>().dot, dots_2=second/a.a java.lang.String a().dot, sim=0.0714285714285714
+Process=SpawnPoolWorker-8, Thread=6289027072 — dots_1=first/com.example.simpleapplication.something.Used void <init>().dot, dots_2=second/a.a java.lang.String a().dot, sim=0.0714285714285714
+Process=SpawnPoolWorker-5, Thread=6144143360 — dots_1=first/com.example.simpleapplication.R.style void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot, sim=0.5
+Process=SpawnPoolWorker-10, Thread=6329069568 — dots_1=first/com.example.simpleapplication.something.Used long tossACoin().dot, dots_2=second/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot, sim=0.5
+Process=SpawnPoolWorker-6, Thread=6173487104 — dots_1=first/com.example.simpleapplication.something.Unused void <init>().dot, dots_2=second/a.a java.lang.String a().dot, sim=0.0714285714285714
+Process=SpawnPoolWorker-3, Thread=6358691840 — dots_1=first/com.example.simpleapplication.Greeting java.lang.String greet().dot, dots_2=second/b.a void <init>().dot, sim=0.0714285714285714
+Process=SpawnPoolWorker-9, Thread=6325039104 — dots_1=first/com.example.simpleapplication.MainActivity void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot, sim=0.5
+Process=SpawnPoolWorker-2, Thread=6325039104 — dots_1=first/com.example.simpleapplication.R.string void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot, sim=0.5
+Process=SpawnPoolWorker-5, Thread=6144143360 — dots_1=first/com.example.simpleapplication.R.style void <init>().dot, dots_2=second/b.a void <init>().dot, sim=1.0
+Process=SpawnPoolWorker-10, Thread=6329069568 — dots_1=first/com.example.simpleapplication.something.Used long tossACoin().dot, dots_2=second/b.a void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-8, Thread=6289027072 — dots_1=first/com.example.simpleapplication.something.Used void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot, sim=0.5
+Process=SpawnPoolWorker-3, Thread=6392344576 — dots_1=first/com.example.simpleapplication.Greeting java.lang.String greet().dot, dots_2=second/com.example.simpleapplication.MainActivity void <init>().dot, sim=0.0714285714285714
+Process=SpawnPoolWorker-6, Thread=6325039104 — dots_1=first/com.example.simpleapplication.something.Unused void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot, sim=0.5
+Process=SpawnPoolWorker-9, Thread=6325039104 — dots_1=first/com.example.simpleapplication.MainActivity void <init>().dot, dots_2=second/b.a void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-2, Thread=6325039104 — dots_1=first/com.example.simpleapplication.R.string void <init>().dot, dots_2=second/b.a void <init>().dot, sim=1.0
+Process=SpawnPoolWorker-5, Thread=6144143360 — dots_1=first/com.example.simpleapplication.R.style void <init>().dot, dots_2=second/a.a void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-8, Thread=6289027072 — dots_1=first/com.example.simpleapplication.something.Used void <init>().dot, dots_2=second/b.a void <init>().dot, sim=1.0
+Process=SpawnPoolWorker-10, Thread=6312243200 — dots_1=first/com.example.simpleapplication.something.Used long tossACoin().dot, dots_2=second/a.a void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-9, Thread=6325039104 — dots_1=first/com.example.simpleapplication.MainActivity void <init>().dot, dots_2=second/a.a void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-6, Thread=6325039104 — dots_1=first/com.example.simpleapplication.something.Unused void <init>().dot, dots_2=second/b.a void <init>().dot, sim=1.0
+Process=SpawnPoolWorker-2, Thread=6325039104 — dots_1=first/com.example.simpleapplication.R.string void <init>().dot, dots_2=second/a.a void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-5, Thread=6144143360 — dots_1=first/com.example.simpleapplication.R.style void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-10, Thread=6312243200 — dots_1=first/com.example.simpleapplication.something.Used long tossACoin().dot, dots_2=second/com.example.simpleapplication.MainActivity void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-8, Thread=6305853440 — dots_1=first/com.example.simpleapplication.something.Used void <init>().dot, dots_2=second/a.a void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-9, Thread=6325039104 — dots_1=first/com.example.simpleapplication.MainActivity void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-6, Thread=6325039104 — dots_1=first/com.example.simpleapplication.something.Unused void <init>().dot, dots_2=second/a.a void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-2, Thread=6325039104 — dots_1=first/com.example.simpleapplication.R.string void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-8, Thread=6305853440 — dots_1=first/com.example.simpleapplication.something.Used void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-6, Thread=6325039104 — dots_1=first/com.example.simpleapplication.something.Unused void <init>().dot, dots_2=second/com.example.simpleapplication.MainActivity void <init>().dot, sim=0.5
+Process=SpawnPoolWorker-4, Thread=6130069504 — dots_1=first/com.example.simpleapplication.something.Unused void something().dot, dots_2=second/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot, sim=0.11111111111111116
+Process=SpawnPoolWorker-4, Thread=6146895872 — dots_1=first/com.example.simpleapplication.something.Unused void something().dot, dots_2=second/b.a void <init>().dot, sim=0.11111111111111116
+Process=SpawnPoolWorker-4, Thread=10888441856 — dots_1=first/com.example.simpleapplication.something.Unused void something().dot, dots_2=second/com.example.simpleapplication.MainActivity void <init>().dot, sim=0.11111111111111116
+Process=SpawnPoolWorker-4, Thread=6163722240 — dots_1=first/com.example.simpleapplication.something.Unused void something().dot, dots_2=second/a.a void <init>().dot, sim=0.11111111111111116
+Process=SpawnPoolWorker-4, Thread=6113243136 — dots_1=first/com.example.simpleapplication.something.Unused void something().dot, dots_2=second/a.a java.lang.String a().dot, sim=0.47619047619047616
+Comparison matrix: [[0.07142857 0.5        1.         0.5        0.5       ]
+ [0.07142857 0.5        1.         0.5        0.5       ]
+ [0.07142857 0.5        1.         0.5        0.5       ]
+ [0.07142857 0.5        0.5        0.5        0.5       ]
+ [0.07142857 0.5        1.         0.5        0.5       ]
+ [0.84615385 0.07142857 0.07142857 0.07142857 0.07142857]
+ [0.07142857 0.5        1.         0.5        0.5       ]
+ [0.07142857 0.5        1.         0.5        0.5       ]
+ [0.07142857 0.5        1.         0.5        0.5       ]
+ [0.07142857 0.5        0.5        0.5        0.5       ]
+ [0.07142857 0.5        1.         0.5        0.5       ]
+ [0.07142857 0.5        0.5        0.5        0.5       ]
+ [0.07142857 0.5        0.5        0.5        0.5       ]
+ [0.07142857 0.5        1.         0.5        0.5       ]
+ [0.07142857 0.5        1.         0.5        0.5       ]
+ [0.47619048 0.11111111 0.11111111 0.11111111 0.11111111]
+ [0.07142857 0.5        1.         0.5        0.5       ]]
+
+Save comparison matrix to file /Users/va.petrov/Android/GitHub/soot/art/exp/4/output/m_comp.csv
+Saved successfully
+Save first dots to file /Users/va.petrov/Android/GitHub/soot/art/exp/4/output/dots_1.csv
+Saved successfully
+Save second dots to file /Users/va.petrov/Android/GitHub/soot/art/exp/4/output/dots_2.csv
+Saved successfully
+Calculate models similarity
+Apks similarity = 0.19683257918552036
+Pairs are saved to /Users/va.petrov/Android/GitHub/soot/art/exp/4/output/sim_pairs.json
+Execution time: 3.3728220462799072 seconds

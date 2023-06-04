@@ -1,0 +1,5 @@
+digraph "void initSnakeView()" {
+    label="void initSnakeView()";
+    node [shape=box];
+    "0" [style=filled,fillcolor=lightgray,label="Block #0\nr0 := @this\lvirtualinvoke r0.setFocusable(1)\l$r1 = virtualinvoke r0.getContext()\l$r2 = virtualinvoke $r1.getResources()\lvirtualinvoke r0.resetTiles(4)\l$r3 = virtualinvoke $r2.getDrawable(2130837505)\lvirtualinvoke r0.loadTile(1, $r3)\l$r3 = virtualinvoke $r2.getDrawable(2130837506)\lvirtualinvoke r0.loadTile(2, $r3)\l$r3 = virtualinvoke $r2.getDrawable(2130837504)\lvirtualinvoke r0.loadTile(3, $r3)\lvirtualinvoke r0.setFocusableInTouchMode(1)\lvirtualinvoke r0.requestFocus()\lreturn\l",];
+}
