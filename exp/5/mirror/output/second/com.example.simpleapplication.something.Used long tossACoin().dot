@@ -1,0 +1,5 @@
+digraph "long tossACoin()" {
+    label = "long tossACoin()";
+    node [shape = box];
+    "0" [style = filled,fillcolor = lightgray,label = "Block #0\nr0 := @this\l$d0 = java.lang.Math.random()\l$d0 = $d0 * 3.0\l$l0 = java.lang.Math.round($d0)\lreturn $l0\l",];
+}

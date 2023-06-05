@@ -1,0 +1,5 @@
+digraph "void <init>(android.content.Context,android.util.AttributeSet,int)" {
+    label = "void <init>(android.content.Context,android.util.AttributeSet,int)";
+    node [shape = box];
+    "0" [style = filled,fillcolor = lightgray,label = "Block #0\nr0 := @this\l$r1 := @parameter0\l$r2 := @parameter1\l$i0 := @parameter2\lspecialinvoke r0.<init>($r1, $r2, $i0)\lr0.key_up = 33\lr0.key_down = 52\lr0.key_right = 32\lr0.key_left = 47\lr0.mMode = 1\lr0.mDirection = 1\lr0.mNextDirection = 1\lr0.mScore = 0L\lr0.mMoveDelay = 600L\l$r3 = new java.util.ArrayList\lspecialinvoke $r3.<init>()\lr0.mSnakeTrail = $r3\l$r3 = new java.util.ArrayList\lspecialinvoke $r3.<init>()\lr0.mAppleList = $r3\l$r4 = new com.example.android.snake.SnakeView$RefreshHandler\lspecialinvoke $r4.<init>(r0)\lr0.mRedrawHandler = $r4\lspecialinvoke r0.initSnakeView()\lreturn\l",];
+}

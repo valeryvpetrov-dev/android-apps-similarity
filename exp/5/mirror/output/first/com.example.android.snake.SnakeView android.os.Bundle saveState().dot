@@ -1,0 +1,5 @@
+digraph "android.os.Bundle saveState()" {
+label = "android.os.Bundle saveState()";
+node [shape = box];
+"0" [style = filled,fillcolor = lightgray,label = "Block #0\nr0 := @this\lr1 = new android.os.Bundle\lspecialinvoke r1.<init>()\l$r2 = r0.mAppleList\l$r3 = specialinvoke r0.coordArrayListToArray($r2)\lvirtualinvoke r1.putIntArray(\"mAppleList\", $r3)\l$i0 = r0.mDirection\l$r4 = java.lang.Integer.valueOf($i0)\l$i0 = virtualinvoke $r4.intValue()\lvirtualinvoke r1.putInt(\"mDirection\", $i0)\l$i0 = r0.mNextDirection\l$r4 = java.lang.Integer.valueOf($i0)\l$i0 = virtualinvoke $r4.intValue()\lvirtualinvoke r1.putInt(\"mNextDirection\", $i0)\l$l1 = r0.mMoveDelay\l$r5 = java.lang.Long.valueOf($l1)\l$l1 = virtualinvoke $r5.longValue()\lvirtualinvoke r1.putLong(\"mMoveDelay\", $l1)\l$l1 = r0.mScore\l$r5 = java.lang.Long.valueOf($l1)\l$l1 = virtualinvoke $r5.longValue()\lvirtualinvoke r1.putLong(\"mScore\", $l1)\l$r2 = r0.mSnakeTrail\l$r3 = specialinvoke r0.coordArrayListToArray($r2)\lvirtualinvoke r1.putIntArray(\"mSnakeTrail\", $r3)\lreturn r1\l",];
+}

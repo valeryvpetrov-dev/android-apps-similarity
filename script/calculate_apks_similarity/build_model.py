@@ -19,7 +19,9 @@ def build_model(apk_path, output_path) -> list:
         pass
     print("Collect all .dot files")
     dots = list()
-    for filename in os.listdir(output_path):
+    dots_files = list(filter(lambda filename: filename.endswith(".dot"), os.listdir(output_path)))
+    dots_files = sorted(dots_files)
+    for filename in dots_files:
         f = os.path.join(output_path, filename)
         if os.path.isfile(f) and f.endswith(".dot"):
             dot = convert_dot_to_graph(f)

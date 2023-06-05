@@ -1,0 +1,5 @@
+digraph "void <clinit>()" {
+    label = "void <clinit>()";
+    node [shape = box];
+    "0" [style = filled,fillcolor = lightgray,label = "Block #0\n$r0 = newarray (int)[1]\l$r0[0] = 2130771968\lcom.example.android.snake.R$styleable.TileView = $r0\lreturn\l",];
+}

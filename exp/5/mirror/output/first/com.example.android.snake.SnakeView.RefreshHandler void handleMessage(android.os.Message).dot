@@ -1,0 +1,5 @@
+digraph "void handleMessage(android.os.Message)" {
+    label = "void handleMessage(android.os.Message)";
+    node [shape = box];
+    "0" [style = filled,fillcolor = lightgray,label = "Block #0\nr0 := @this\l$r1 := @parameter0\l$r2 = r0.this$0\lvirtualinvoke $r2.update()\l$r2 = r0.this$0\lvirtualinvoke $r2.invalidate()\lreturn\l",];
+}

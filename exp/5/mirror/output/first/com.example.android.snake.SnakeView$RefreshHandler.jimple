@@ -1,0 +1,60 @@
+class com.example.android.snake.SnakeView$RefreshHandler extends android.os.Handler
+{
+    final com.example.android.snake.SnakeView this$0;
+
+    void <init>(com.example.android.snake.SnakeView)
+    {
+        com.example.android.snake.SnakeView $r1;
+        com.example.android.snake.SnakeView$RefreshHandler r0;
+
+        r0 := @this: com.example.android.snake.SnakeView$RefreshHandler;
+
+        $r1 := @parameter0: com.example.android.snake.SnakeView;
+
+        r0.<com.example.android.snake.SnakeView$RefreshHandler: com.example.android.snake.SnakeView this$0> = $r1;
+
+        specialinvoke r0.<android.os.Handler: void <init>()>();
+
+        return;
+    }
+
+    public void handleMessage(android.os.Message)
+    {
+        com.example.android.snake.SnakeView $r2;
+        com.example.android.snake.SnakeView$RefreshHandler r0;
+        android.os.Message $r1;
+
+        r0 := @this: com.example.android.snake.SnakeView$RefreshHandler;
+
+        $r1 := @parameter0: android.os.Message;
+
+        $r2 = r0.<com.example.android.snake.SnakeView$RefreshHandler: com.example.android.snake.SnakeView this$0>;
+
+        virtualinvoke $r2.<com.example.android.snake.SnakeView: void update()>();
+
+        $r2 = r0.<com.example.android.snake.SnakeView$RefreshHandler: com.example.android.snake.SnakeView this$0>;
+
+        virtualinvoke $r2.<com.example.android.snake.SnakeView: void invalidate()>();
+
+        return;
+    }
+
+    public void sleep(long)
+    {
+        long $l0;
+        com.example.android.snake.SnakeView$RefreshHandler r0;
+        android.os.Message $r1;
+
+        r0 := @this: com.example.android.snake.SnakeView$RefreshHandler;
+
+        $l0 := @parameter0: long;
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView$RefreshHandler: void removeMessages(int)>(0);
+
+        $r1 = virtualinvoke r0.<com.example.android.snake.SnakeView$RefreshHandler: android.os.Message obtainMessage(int)>(0);
+
+        virtualinvoke r0.<com.example.android.snake.SnakeView$RefreshHandler: boolean sendMessageDelayed(android.os.Message,long)>($r1, $l0);
+
+        return;
+    }
+}

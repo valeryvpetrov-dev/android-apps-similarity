@@ -1,0 +1,12 @@
+digraph "void updateApples()" {
+    label = "void updateApples()";
+    node [shape = box];
+    "0" [style = filled,fillcolor = gray,label = "Block #0\nr0 := @this\l$r1 = r0.mAppleList\l$r2 = virtualinvoke $r1.iterator()\l",];
+    "1" [label = "Block #1\nlabel1:\n$z0 = interfaceinvoke $r2.hasNext()\lif $z0 == 0 goto label2\l",];
+    "0" -> "1";
+    "2" [label = "Block #2\n$r3 = interfaceinvoke $r2.next()\lr4 = (com.example.android.snake.SnakeView$Coordinate) $r3\l$i0 = r4.x\l$i1 = r4.y\lvirtualinvoke r0.setTile(2, $i0, $i1)\lgoto label1\l",];
+    "1" -> "2";
+    "3" [style = filled,fillcolor = lightgray,label = "Block #3\nlabel2:\nreturn\l",];
+    "1" -> "3";
+    "2" -> "1";
+}

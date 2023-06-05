@@ -1,0 +1,22 @@
+public final class com.example.android.snake.R$layout extends java.lang.Object
+{
+    public static final int snake_layout;
+
+    public void <init>()
+    {
+        com.example.android.snake.R$layout r0;
+
+        r0 := @this: com.example.android.snake.R$layout;
+
+        specialinvoke r0.<java.lang.Object: void <init>()>();
+
+        return;
+    }
+
+    public static void <clinit>()
+    {
+        <com.example.android.snake.R$layout: int snake_layout> = 2130903040;
+
+        return;
+    }
+}

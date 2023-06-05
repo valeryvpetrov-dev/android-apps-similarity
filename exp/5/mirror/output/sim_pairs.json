@@ -1,0 +1,124 @@
+{
+  "sim": 0.29183884297520657,
+  "pairs": [
+    {
+      "first": "first/com.example.android.snake.Snake void <init>().dot",
+      "second": "second/com.example.simpleapplication.BuildConfig void <init>().dot",
+      "first_i": 9,
+      "second_i": 0,
+      "similarity": 1.0
+    },
+    {
+      "first": "first/com.example.android.snake.R void <init>().dot",
+      "second": "second/com.example.simpleapplication.something.Used void <init>().dot",
+      "first_i": 0,
+      "second_i": 16,
+      "similarity": 1.0
+    },
+    {
+      "first": "first/com.example.android.snake.TileView void setTile(int,int,int).dot",
+      "second": "second/com.example.simpleapplication.Greeting void <init>().dot",
+      "first_i": 43,
+      "second_i": 2,
+      "similarity": 0.5
+    },
+    {
+      "first": "first/com.example.android.snake.TileView void resetTiles(int).dot",
+      "second": "second/com.example.simpleapplication.MainActivity void <init>().dot",
+      "first_i": 42,
+      "second_i": 3,
+      "similarity": 0.5
+    },
+    {
+      "first": "first/com.example.android.snake.TileView void onSizeChanged(int,int,int,int).dot",
+      "second": "second/com.example.simpleapplication.MainActivity void onCreate(android.os.Bundle).dot",
+      "first_i": 41,
+      "second_i": 4,
+      "similarity": 0.5
+    },
+    {
+      "first": "first/com.example.android.snake.R.styleable void <init>().dot",
+      "second": "second/com.example.simpleapplication.R void <init>().dot",
+      "first_i": 7,
+      "second_i": 5,
+      "similarity": 1.0
+    },
+    {
+      "first": "first/com.example.android.snake.R.string void <init>().dot",
+      "second": "second/com.example.simpleapplication.R.drawable void <init>().dot",
+      "first_i": 5,
+      "second_i": 6,
+      "similarity": 1.0
+    },
+    {
+      "first": "first/com.example.android.snake.R.layout void <init>().dot",
+      "second": "second/com.example.simpleapplication.R.id void <init>().dot",
+      "first_i": 4,
+      "second_i": 7,
+      "similarity": 1.0
+    },
+    {
+      "first": "first/com.example.android.snake.R.id void <init>().dot",
+      "second": "second/com.example.simpleapplication.R.layout void <init>().dot",
+      "first_i": 3,
+      "second_i": 8,
+      "similarity": 1.0
+    },
+    {
+      "first": "first/com.example.android.snake.R.drawable void <init>().dot",
+      "second": "second/com.example.simpleapplication.R.mipmap void <init>().dot",
+      "first_i": 2,
+      "second_i": 9,
+      "similarity": 1.0
+    },
+    {
+      "first": "first/com.example.android.snake.R.attr void <init>().dot",
+      "second": "second/com.example.simpleapplication.R.string void <init>().dot",
+      "first_i": 1,
+      "second_i": 10,
+      "similarity": 1.0
+    },
+    {
+      "first": "first/com.example.android.snake.TileView void loadTile(int,android.graphics.drawable.Drawable).dot",
+      "second": "second/com.example.simpleapplication.R.style void <init>().dot",
+      "first_i": 39,
+      "second_i": 11,
+      "similarity": 0.5
+    },
+    {
+      "first": "first/com.example.android.snake.TileView void <init>(android.content.Context,android.util.AttributeSet,int).dot",
+      "second": "second/com.example.simpleapplication.R.xml void <init>().dot",
+      "first_i": 37,
+      "second_i": 12,
+      "similarity": 0.5
+    },
+    {
+      "first": "first/com.example.android.snake.TileView void <init>(android.content.Context,android.util.AttributeSet).dot",
+      "second": "second/com.example.simpleapplication.something.Unused void <init>().dot",
+      "first_i": 36,
+      "second_i": 13,
+      "similarity": 0.5
+    },
+    {
+      "first": "first/com.example.android.snake.SnakeView void updateApples().dot",
+      "second": "second/com.example.simpleapplication.something.Unused void something().dot",
+      "first_i": 27,
+      "second_i": 14,
+      "similarity": 0.75
+    },
+    {
+      "first": "first/com.example.android.snake.SnakeView.RefreshHandler void sleep(long).dot",
+      "second": "second/com.example.simpleapplication.something.Used long tossACoin().dot",
+      "first_i": 35,
+      "second_i": 15,
+      "similarity": 0.5
+    },
+    {
+      "first": "first/com.example.android.snake.Snake void onCreate(android.os.Bundle).dot",
+      "second": "second/com.example.simpleapplication.Greeting java.lang.String greet().dot",
+      "first_i": 10,
+      "second_i": 1,
+      "similarity": 0.5909090909090908
+    }
+  ]
+}

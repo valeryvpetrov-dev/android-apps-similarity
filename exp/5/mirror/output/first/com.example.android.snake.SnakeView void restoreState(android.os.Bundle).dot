@@ -1,0 +1,5 @@
+digraph "void restoreState(android.os.Bundle)" {
+label = "void restoreState(android.os.Bundle)";
+node [shape = box];
+"0" [style = filled,fillcolor = lightgray,label = "Block #0\nr0 := @this\l$r1 := @parameter0\lvirtualinvoke r0.setMode(0)\l$r2 = virtualinvoke $r1.getIntArray(\"mAppleList\")\l$r3 = specialinvoke r0.coordArrayToArrayList($r2)\lr0.mAppleList = $r3\l$i0 = virtualinvoke $r1.getInt(\"mDirection\")\lr0.mDirection = $i0\l$i0 = virtualinvoke $r1.getInt(\"mNextDirection\")\lr0.mNextDirection = $i0\l$l1 = virtualinvoke $r1.getLong(\"mMoveDelay\")\lr0.mMoveDelay = $l1\l$l1 = virtualinvoke $r1.getLong(\"mScore\")\lr0.mScore = $l1\l$r2 = virtualinvoke $r1.getIntArray(\"mSnakeTrail\")\l$r3 = specialinvoke r0.coordArrayToArrayList($r2)\lr0.mSnakeTrail = $r3\lreturn\l",];
+}

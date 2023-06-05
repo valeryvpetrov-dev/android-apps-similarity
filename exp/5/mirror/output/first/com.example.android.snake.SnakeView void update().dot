@@ -1,0 +1,15 @@
+digraph "void update()" {
+    label = "void update()";
+    node [shape = box];
+    "0" [style = filled,fillcolor = gray,label = "Block #0\nr0 := @this\l$i2 = r0.mMode\lif $i2 != 2 goto label2\l",];
+    "1" [label = "Block #1\n$l1 = java.lang.System.currentTimeMillis()\l$l0 = r0.mLastMove\l$l3 = $l1 - $l0\l$l0 = r0.mMoveDelay\l$b4 = $l3 cmp $l0\l$i2 = (int) $b4\lif $i2 <= 0 goto label1\l",];
+    "0" -> "1";
+    "4" [style = filled,fillcolor = lightgray,label = "Block #4\nlabel2:\nreturn\l",];
+    "0" -> "4";
+    "2" [label = "Block #2\nvirtualinvoke r0.clearTiles()\lspecialinvoke r0.updateWalls()\lspecialinvoke r0.updateSnake()\lspecialinvoke r0.updateApples()\lr0.mLastMove = $l1\l",];
+    "1" -> "2";
+    "3" [label = "Block #3\nlabel1:\n$r1 = r0.mRedrawHandler\l$l1 = r0.mMoveDelay\lvirtualinvoke $r1.sleep($l1)\l",];
+    "1" -> "3";
+    "2" -> "3";
+    "3" -> "4";
+}

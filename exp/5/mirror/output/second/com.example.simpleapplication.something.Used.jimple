@@ -1,0 +1,39 @@
+public class com.example.simpleapplication.something.Used extends java.lang.Object
+{
+    private static final int MAGIC;
+
+    public void <init>()
+    {
+        com.example.simpleapplication.something.Used r0;
+
+        r0 := @this: com.example.simpleapplication.something.Used;
+
+        specialinvoke r0.<java.lang.Object: void <init>()>();
+
+        return;
+    }
+
+    public long tossACoin()
+    {
+        long $l0;
+        com.example.simpleapplication.something.Used r0;
+        double $d0;
+
+        r0 := @this: com.example.simpleapplication.something.Used;
+
+        $d0 = staticinvoke <java.lang.Math: double random()>();
+
+        $d0 = $d0 * 3.0;
+
+        $l0 = staticinvoke <java.lang.Math: long round(double)>($d0);
+
+        return $l0;
+    }
+
+    public static void <clinit>()
+    {
+        <com.example.simpleapplication.something.Used: int MAGIC> = 3;
+
+        return;
+    }
+}
