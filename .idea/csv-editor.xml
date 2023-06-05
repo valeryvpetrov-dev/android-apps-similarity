@@ -59,6 +59,27 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/exp/5/mirror/output/dots_1.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/exp/5/mirror/output/dots_2.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/exp/5/mirror/output/m_comp.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/exp/5/output/dots_1.csv">
           <value>
             <Attribute>
