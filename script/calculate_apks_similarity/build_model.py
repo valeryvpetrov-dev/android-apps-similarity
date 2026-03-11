@@ -1,10 +1,27 @@
+import os
+from pathlib import Path
+
+
 SH_GENERATE_DOT = "script/sh/generateDot.sh"
 SOOT_JAR_PATH = "soot-4.4.1-jar-with-dependencies.jar"
-ANDROID_JARS_PATH = "/Users/va.petrov/Library/Android/sdk/platforms/"
+
+
+def resolve_android_jars_path() -> str:
+    explicit = os.environ.get("ANDROID_JARS_PATH")
+    if explicit:
+        return explicit
+
+    sdk_root = os.environ.get("ANDROID_SDK_ROOT") or os.environ.get("ANDROID_HOME")
+    if sdk_root:
+        return str(Path(sdk_root) / "platforms")
+
+    return str(Path.home() / "Library" / "Android" / "sdk" / "platforms")
+
+
+ANDROID_JARS_PATH = resolve_android_jars_path()
 
 
 def build_model(apk_path, output_path) -> list:
-    import os
     cmd = "sh {script_path} {soot_path} {android_path} {apk_path} {output_path}".format(
         script_path=SH_GENERATE_DOT,
         soot_path=SOOT_JAR_PATH,
@@ -15,7 +32,7 @@ def build_model(apk_path, output_path) -> list:
     print("Execute command: {}".format(cmd))
     try:
         os.system(cmd)
-    except:
+    except Exception:
         pass
     print("Collect all .dot files")
     dots = list()

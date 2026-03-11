@@ -51,6 +51,12 @@ if __name__ == '__main__':
     dots_2 = build_model(apk_2, output_2)
     dots_2_name = list(map(lambda dot: dot.name, dots_2))
     print("Second .input model: {}\n".format(dots_2_name))
+
+    if not dots_1 or not dots_2:
+        raise RuntimeError(
+            "empty CFG model: first_count={}, second_count={}".format(len(dots_1), len(dots_2))
+        )
+
     print("Build comparison matrix")
     m_comp = build_comparison_matrix(dots_1, dots_2, ins_block_sim_threshold, ged_timeout_sec, processes_count, threads_count)
     print("Comparison matrix: {}\n".format(m_comp))
