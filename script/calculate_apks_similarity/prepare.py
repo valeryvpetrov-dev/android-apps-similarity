@@ -1,6 +1,7 @@
 def prepare() -> tuple:
     print("Parse input args")
-    apk_1, apk_2, output_dir, ins_block_sim_threshold, ged_timeout_sec, processes_count, threads_count = parse_input()
+    apk_1, apk_2, output_dir, ins_block_sim_threshold, ged_timeout_sec, processes_count, threads_count, \
+        representation_mode, library_exclusion_mode = parse_input()
     print("Check first input exists")
     check_apk_exists(apk_1)
     print("Check second input exists")
@@ -9,7 +10,8 @@ def prepare() -> tuple:
     output_1 = create_output_dir(output_dir, "first")
     print("Create second temp dir")
     output_2 = create_output_dir(output_dir, "second")
-    return apk_1, apk_2, output_1, output_2, ins_block_sim_threshold, ged_timeout_sec, processes_count, threads_count
+    return apk_1, apk_2, output_1, output_2, ins_block_sim_threshold, ged_timeout_sec, processes_count, \
+        threads_count, representation_mode, library_exclusion_mode
 
 
 def parse_input() -> tuple:
@@ -32,9 +34,19 @@ def parse_input() -> tuple:
                         help="Number of processes used to build comparison matrix")
     parser.add_argument('-p_t_c', '--threads_count', required=True,
                         help="Number of threads in each process used to build comparison matrix")
+    parser.add_argument(
+        '--representation_mode',
+        default="R_bytecode",
+        help="Requested representation mode: R_bytecode, R_multiview_partial, or R_multiview",
+    )
+    parser.add_argument(
+        '--library_exclusion_mode',
+        default="disabled",
+        help="Library reduction mode: disabled or heuristic_v1",
+    )
     args = parser.parse_args()
     return args.apk_1, args.apk_2, args.output_dir, float(args.ins_block_sim_threshold), int(args.ged_timeout_sec), \
-        int(args.processes_count), int(args.threads_count)
+        int(args.processes_count), int(args.threads_count), args.representation_mode, args.library_exclusion_mode
 
 
 def check_apk_exists(apk_path: str) -> None:
