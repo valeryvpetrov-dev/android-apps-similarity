@@ -1,5 +1,6 @@
 from collections import Counter
 from datetime import datetime, timezone
+from typing import Optional
 import zipfile
 
 
@@ -275,6 +276,12 @@ def inspect_apk(apk_path: str) -> dict:
     }
 
 
+def inspect_failed_apk(apk_path: str, cfg_count: int) -> Optional[dict]:
+    if cfg_count > 0:
+        return None
+    return inspect_apk(apk_path)
+
+
 def filter_failure_diagnostics(diagnostics: list, failure_reason: str) -> list:
     if failure_reason in {"unpack_failed", "missing_bytecode"}:
         filtered = [diagnostic for diagnostic in diagnostics if diagnostic["reason"] == failure_reason]
@@ -283,8 +290,13 @@ def filter_failure_diagnostics(diagnostics: list, failure_reason: str) -> list:
     return diagnostics
 
 
-def classify_failure_reason(apk_1: str, apk_2: str) -> tuple:
-    diagnostics = [inspect_apk(apk_1), inspect_apk(apk_2)]
+def classify_failure_reason(apk_1: str, apk_2: str, cfg_count_1: int, cfg_count_2: int) -> tuple:
+    diagnostics = []
+    for apk_path, cfg_count in ((apk_1, cfg_count_1), (apk_2, cfg_count_2)):
+        diagnostic = inspect_failed_apk(apk_path, cfg_count)
+        if diagnostic is not None:
+            diagnostics.append(diagnostic)
+
     reasons = {diagnostic["reason"] for diagnostic in diagnostics}
     if "unpack_failed" in reasons:
         failure_reason = "unpack_failed"

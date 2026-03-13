@@ -103,7 +103,7 @@ if __name__ == '__main__':
     }
 
     if not dots_1 or not dots_2:
-        failure_reason, diagnostics = classify_failure_reason(apk_1, apk_2)
+        failure_reason, diagnostics = classify_failure_reason(apk_1, apk_2, len(dots_1), len(dots_2))
         payload = {
             **common_payload,
             "analysis_status": "analysis_failed",
