@@ -275,6 +275,14 @@ def inspect_apk(apk_path: str) -> dict:
     }
 
 
+def filter_failure_diagnostics(diagnostics: list, failure_reason: str) -> list:
+    if failure_reason in {"unpack_failed", "missing_bytecode"}:
+        filtered = [diagnostic for diagnostic in diagnostics if diagnostic["reason"] == failure_reason]
+        if filtered:
+            return filtered
+    return diagnostics
+
+
 def classify_failure_reason(apk_1: str, apk_2: str) -> tuple:
     diagnostics = [inspect_apk(apk_1), inspect_apk(apk_2)]
     reasons = {diagnostic["reason"] for diagnostic in diagnostics}
@@ -284,4 +292,5 @@ def classify_failure_reason(apk_1: str, apk_2: str) -> tuple:
         failure_reason = "missing_bytecode"
     else:
         failure_reason = "feature_extraction_failed"
+    diagnostics = filter_failure_diagnostics(diagnostics, failure_reason)
     return failure_reason, diagnostics
