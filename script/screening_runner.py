@@ -1,0 +1,793 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import re
+import zipfile
+from itertools import combinations
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+
+M_STATIC_LAYERS = ("code", "component", "resource", "metadata", "library")
+LAYER_ALIASES = {
+    "code": ("code", "code_features", "graph_names", "code_graph_names"),
+    "component": ("component", "component_features"),
+    "resource": ("resource", "resource_features"),
+    "metadata": ("metadata", "metadata_features"),
+    "library": ("library", "library_features", "library_profile_features"),
+}
+MANIFEST_COMPONENT_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9_$.])(\.?[A-Za-z_][\w$]*(?:\.[A-Za-z_][\w$]*)*(?:Activity|Service|Receiver|Provider|Application))(?![A-Za-z0-9_$.])"
+)
+
+
+def strip_yaml_comment(line: str) -> str:
+    in_single = False
+    in_double = False
+    escaped = False
+    result = []
+    for char in line:
+        if char == "\\" and not escaped:
+            escaped = True
+            result.append(char)
+            continue
+        if char == "'" and not in_double and not escaped:
+            in_single = not in_single
+        elif char == '"' and not in_single and not escaped:
+            in_double = not in_double
+        elif char == "#" and not in_single and not in_double:
+            break
+        escaped = False
+        result.append(char)
+    return "".join(result).rstrip()
+
+
+def split_top_level(text: str, delimiter: str) -> list[str]:
+    parts = []
+    current = []
+    level = 0
+    in_single = False
+    in_double = False
+    escaped = False
+    for char in text:
+        if char == "\\" and not escaped:
+            escaped = True
+            current.append(char)
+            continue
+        if char == "'" and not in_double and not escaped:
+            in_single = not in_single
+        elif char == '"' and not in_single and not escaped:
+            in_double = not in_double
+        elif not in_single and not in_double:
+            if char in "[{(":
+                level += 1
+            elif char in "]})":
+                level = max(0, level - 1)
+            elif char == delimiter and level == 0:
+                parts.append("".join(current).strip())
+                current = []
+                escaped = False
+                continue
+        escaped = False
+        current.append(char)
+    parts.append("".join(current).strip())
+    return [part for part in parts if part]
+
+
+def parse_yaml_scalar(token: str):
+    token = token.strip()
+    if token == "":
+        return ""
+    lowered = token.lower()
+    if lowered in {"null", "~"}:
+        return None
+    if lowered == "true":
+        return True
+    if lowered == "false":
+        return False
+    if token.startswith('"') and token.endswith('"') and len(token) >= 2:
+        return token[1:-1].replace('\\"', '"')
+    if token.startswith("'") and token.endswith("'") and len(token) >= 2:
+        return token[1:-1].replace("\\'", "'")
+    if token.startswith("[") and token.endswith("]"):
+        inside = token[1:-1].strip()
+        if not inside:
+            return []
+        return [parse_yaml_scalar(item) for item in split_top_level(inside, ",")]
+    if token.startswith("{") and token.endswith("}"):
+        inside = token[1:-1].strip()
+        if not inside:
+            return {}
+        result = {}
+        for item in split_top_level(inside, ","):
+            if ":" not in item:
+                raise ValueError("Invalid inline mapping item: {!r}".format(item))
+            key, value = item.split(":", 1)
+            result[key.strip()] = parse_yaml_scalar(value)
+        return result
+    try:
+        if any(mark in token for mark in (".", "e", "E")):
+            return float(token)
+        return int(token)
+    except ValueError:
+        return token
+
+
+def parse_yaml_lines(lines: list[tuple[int, str]], start_index: int, indent: int):
+    if start_index >= len(lines):
+        return None, start_index
+    current_indent, current_content = lines[start_index]
+    if current_indent < indent:
+        return None, start_index
+    if current_indent > indent:
+        raise ValueError("Unexpected indentation at line item: {!r}".format(current_content))
+    if current_content.startswith("- "):
+        return parse_yaml_list(lines, start_index, indent)
+    return parse_yaml_mapping(lines, start_index, indent)
+
+
+def parse_yaml_list(lines: list[tuple[int, str]], start_index: int, indent: int):
+    result = []
+    index = start_index
+    while index < len(lines):
+        current_indent, content = lines[index]
+        if current_indent != indent or not content.startswith("- "):
+            break
+
+        item_content = content[2:].strip()
+        index += 1
+        if item_content == "":
+            item_value, index = parse_yaml_lines(lines, index, indent + 2)
+            result.append(item_value)
+            continue
+
+        if ":" in item_content and not item_content.startswith(("'", '"')):
+            key, rest = item_content.split(":", 1)
+            item_dict = {}
+            key = key.strip()
+            rest = rest.strip()
+            if rest == "":
+                nested_value, index = parse_yaml_lines(lines, index, indent + 2)
+                item_dict[key] = nested_value
+            else:
+                item_dict[key] = parse_yaml_scalar(rest)
+
+            while index < len(lines):
+                next_indent, next_content = lines[index]
+                if next_indent < indent + 2:
+                    break
+                if next_indent > indent + 2:
+                    raise ValueError("Unexpected indentation in list mapping: {!r}".format(next_content))
+                if next_content.startswith("- "):
+                    break
+                if ":" not in next_content:
+                    raise ValueError("Invalid mapping item: {!r}".format(next_content))
+                next_key, next_rest = next_content.split(":", 1)
+                next_key = next_key.strip()
+                next_rest = next_rest.strip()
+                index += 1
+                if next_rest == "":
+                    nested_value, index = parse_yaml_lines(lines, index, indent + 4)
+                    item_dict[next_key] = nested_value
+                else:
+                    item_dict[next_key] = parse_yaml_scalar(next_rest)
+            result.append(item_dict)
+            continue
+
+        result.append(parse_yaml_scalar(item_content))
+    return result, index
+
+
+def parse_yaml_mapping(lines: list[tuple[int, str]], start_index: int, indent: int):
+    result = {}
+    index = start_index
+    while index < len(lines):
+        current_indent, content = lines[index]
+        if current_indent != indent:
+            break
+        if content.startswith("- "):
+            break
+        if ":" not in content:
+            raise ValueError("Invalid mapping line: {!r}".format(content))
+        key, rest = content.split(":", 1)
+        key = key.strip()
+        rest = rest.strip()
+        index += 1
+        if rest == "":
+            nested_value, index = parse_yaml_lines(lines, index, indent + 2)
+            result[key] = nested_value
+        else:
+            result[key] = parse_yaml_scalar(rest)
+    return result, index
+
+
+def parse_simple_yaml(text: str) -> dict:
+    processed: list[tuple[int, str]] = []
+    for raw_line in text.splitlines():
+        if "\t" in raw_line:
+            raise ValueError("Tabs are not supported in YAML indentation")
+        line = strip_yaml_comment(raw_line)
+        if not line.strip():
+            continue
+        indent = len(line) - len(line.lstrip(" "))
+        processed.append((indent, line.strip()))
+    if not processed:
+        return {}
+    payload, index = parse_yaml_lines(processed, 0, processed[0][0])
+    if index != len(processed):
+        raise ValueError("Unable to parse YAML, trailing content starts at index {}".format(index))
+    if not isinstance(payload, dict):
+        raise ValueError("Top-level YAML payload must be a mapping")
+    return payload
+
+
+def load_yaml_or_json(path: Path) -> dict:
+    raw_text = path.read_text(encoding="utf-8")
+    if raw_text.lstrip().startswith("{"):
+        payload = json.loads(raw_text)
+        if not isinstance(payload, dict):
+            raise ValueError("Config root must be a mapping/object")
+        return payload
+
+    try:
+        import yaml  # type: ignore
+
+        payload = yaml.safe_load(raw_text)
+        if not isinstance(payload, dict):
+            raise ValueError("Config root must be a mapping/object")
+        return payload
+    except ImportError:
+        payload = parse_simple_yaml(raw_text)
+        if not isinstance(payload, dict):
+            raise ValueError("Config root must be a mapping/object")
+        return payload
+
+
+def normalize_layer_values(raw_value) -> set[str]:
+    if raw_value is None:
+        return set()
+    if isinstance(raw_value, str):
+        normalized = raw_value.strip()
+        return {normalized} if normalized else set()
+    if isinstance(raw_value, dict):
+        values = []
+        for key, value in raw_value.items():
+            values.append("{}={}".format(str(key).strip(), str(value).strip()))
+        return {item for item in values if item}
+    if isinstance(raw_value, (list, tuple, set)):
+        values = set()
+        for item in raw_value:
+            if item is None:
+                continue
+            if isinstance(item, (dict, list, tuple, set)):
+                values.add(json.dumps(item, sort_keys=True, ensure_ascii=False))
+            else:
+                normalized = str(item).strip()
+                if normalized:
+                    values.add(normalized)
+        return values
+    normalized = str(raw_value).strip()
+    return {normalized} if normalized else set()
+
+
+def get_layer_value(raw_app: dict, layer: str):
+    if isinstance(raw_app.get("layers"), dict):
+        layers = raw_app["layers"]
+        if layer in layers:
+            return layers[layer]
+    if isinstance(raw_app.get("features"), dict):
+        features = raw_app["features"]
+        if layer in features:
+            return features[layer]
+    for key in LAYER_ALIASES[layer]:
+        if key in raw_app:
+            return raw_app[key]
+    return []
+
+
+def normalize_app_record(raw_app: dict) -> dict:
+    app_id = (
+        str(raw_app.get("app_id") or raw_app.get("id") or raw_app.get("name") or "").strip()
+    )
+    if not app_id:
+        raise ValueError("Each app record must include app_id/id/name")
+
+    layers = {}
+    for layer in M_STATIC_LAYERS:
+        layers[layer] = normalize_layer_values(get_layer_value(raw_app, layer))
+
+    apk_path_raw = raw_app.get("apk_path") or raw_app.get("resolved_apk_path") or raw_app.get("apk")
+    apk_path = str(apk_path_raw).strip() if apk_path_raw else None
+    if apk_path == "":
+        apk_path = None
+    return {
+        "app_id": app_id,
+        "layers": layers,
+        "apk_path": apk_path,
+    }
+
+
+def load_app_records_from_json(path: Path) -> list[dict]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(payload, dict):
+        if isinstance(payload.get("apps"), list):
+            raw_apps = payload["apps"]
+        else:
+            raw_apps = []
+            for app_id, app_payload in payload.items():
+                if not isinstance(app_payload, dict):
+                    continue
+                item = {"app_id": app_id}
+                item.update(app_payload)
+                raw_apps.append(item)
+    elif isinstance(payload, list):
+        raw_apps = payload
+    else:
+        raise ValueError("apps-features payload must be list or object")
+
+    app_records = []
+    for raw_app in raw_apps:
+        if not isinstance(raw_app, dict):
+            continue
+        app_records.append(normalize_app_record(raw_app))
+    return app_records
+
+
+def size_bucket(value: int) -> str:
+    if value <= 0:
+        return "0"
+    if value <= 3:
+        return "1_3"
+    if value <= 7:
+        return "4_7"
+    if value <= 15:
+        return "8_15"
+    if value <= 31:
+        return "16_31"
+    if value <= 63:
+        return "32_63"
+    return "64_plus"
+
+
+def decode_manifest_candidates(manifest_bytes: bytes) -> list[str]:
+    candidates = []
+    for encoding in ("utf-8", "utf-16le"):
+        decoded = manifest_bytes.decode(encoding, errors="ignore")
+        if decoded:
+            candidates.append(decoded)
+    return candidates
+
+
+def extract_layers_from_apk(apk_path: Path) -> dict[str, set[str]]:
+    with zipfile.ZipFile(apk_path, "r") as archive:
+        entries = [entry for entry in archive.namelist() if entry and not entry.endswith("/")]
+        entry_set = set(entries)
+
+        dex_entries = sorted(
+            [entry for entry in entries if entry.startswith("classes") and entry.endswith(".dex")]
+        )
+        has_manifest = "AndroidManifest.xml" in entry_set
+        has_resources_arsc = "resources.arsc" in entry_set
+        manifest_component_features = set()
+        if has_manifest:
+            try:
+                manifest_bytes = archive.read("AndroidManifest.xml")
+                for text in decode_manifest_candidates(manifest_bytes):
+                    for match in MANIFEST_COMPONENT_PATTERN.findall(text):
+                        component = match.strip().replace("/", ".")
+                        if component:
+                            manifest_component_features.add("manifest_component:{}".format(component))
+            except KeyError:
+                has_manifest = False
+
+        metadata = {
+            "apk_name:{}".format(apk_path.stem),
+            "entry_bin:{}".format(size_bucket(len(entries))),
+            "dex_count_bin:{}".format(size_bucket(len(dex_entries))),
+            "manifest_present:{}".format(1 if has_manifest else 0),
+            "resources_arsc_present:{}".format(1 if has_resources_arsc else 0),
+        }
+
+        resource = set()
+        component = set(manifest_component_features)
+        library = set()
+        code = set("dex:{}".format(entry) for entry in dex_entries)
+
+        for entry in entries:
+            if entry.startswith("res/"):
+                parts = entry.split("/")
+                if len(parts) >= 2 and parts[1]:
+                    res_type = parts[1].split("-", 1)[0]
+                    resource.add("res_type:{}".format(res_type))
+                    if res_type.startswith("layout"):
+                        layout_name = Path(entry).stem
+                        if layout_name:
+                            component.add("layout:{}".format(layout_name))
+                suffix = Path(entry).suffix.lower().lstrip(".")
+                if suffix:
+                    resource.add("res_ext:{}".format(suffix))
+            elif entry.startswith("assets/"):
+                suffix = Path(entry).suffix.lower().lstrip(".")
+                if suffix:
+                    resource.add("asset_ext:{}".format(suffix))
+            elif entry.startswith("lib/"):
+                parts = entry.split("/")
+                if len(parts) >= 2 and parts[1]:
+                    library.add("lib_abi:{}".format(parts[1]))
+            elif entry.startswith("META-INF/"):
+                suffix = Path(entry).suffix.upper().lstrip(".")
+                if suffix:
+                    library.add("meta_inf_ext:{}".format(suffix))
+
+        if not code:
+            code.add("dex:absent")
+
+        return {
+            "code": code,
+            "component": component,
+            "resource": resource,
+            "metadata": metadata,
+            "library": library,
+        }
+
+
+def discover_app_records_from_apk_root(apk_root: Path) -> list[dict]:
+    apk_files = sorted(apk_root.rglob("*.apk"))
+    records = []
+    for apk_path in apk_files:
+        layers = extract_layers_from_apk(apk_path)
+        records.append(
+            {
+                "app_id": apk_path.stem,
+                "apk_path": str(apk_path.resolve()),
+                "layers": layers,
+            }
+        )
+    return records
+
+
+def jaccard_similarity(left: set[str], right: set[str]) -> float:
+    union_size = len(left | right)
+    if union_size == 0:
+        return 0.0
+    return len(left & right) / union_size
+
+
+def cosine_similarity(left: set[str], right: set[str]) -> float:
+    denominator = math.sqrt(len(left)) * math.sqrt(len(right))
+    if denominator == 0.0:
+        return 0.0
+    return len(left & right) / denominator
+
+
+def containment_similarity(left: set[str], right: set[str]) -> float:
+    denominator = min(len(left), len(right))
+    if denominator == 0:
+        return 0.0
+    return len(left & right) / denominator
+
+
+def dice_similarity(left: set[str], right: set[str]) -> float:
+    denominator = len(left) + len(right)
+    if denominator == 0:
+        return 0.0
+    return (2.0 * len(left & right)) / denominator
+
+
+def overlap_similarity(left: set[str], right: set[str]) -> float:
+    denominator = max(len(left), len(right))
+    if denominator == 0:
+        return 0.0
+    return len(left & right) / denominator
+
+
+def shared_count_similarity(left: set[str], right: set[str]) -> float:
+    return float(len(left & right))
+
+
+def levenshtein_similarity(left: set[str], right: set[str]) -> float:
+    import textdistance
+
+    left_seq = sorted(left)
+    right_seq = sorted(right)
+    maximum = max(len(left_seq), len(right_seq))
+    if maximum == 0:
+        return 0.0
+    distance = textdistance.levenshtein.distance(left_seq, right_seq)
+    return max(0.0, 1.0 - (distance / maximum))
+
+
+def normalize_metric_name(metric: str) -> str:
+    normalized = metric.strip().lower()
+    aliases = {
+        "jac": "jaccard",
+        "jaccard_similarity": "jaccard",
+        "cos": "cosine",
+        "cosine_similarity": "cosine",
+        "cnt": "containment",
+        "intersection_over_min": "containment",
+        "overlap_coefficient": "containment",
+        "dice_coefficient": "dice",
+        "shared_graph_count_v1": "shared_count",
+    }
+    return aliases.get(normalized, normalized)
+
+
+def aggregate_features(app_record: dict, selected_layers: list[str]) -> set[str]:
+    aggregated = set()
+    layers = app_record.get("layers", {})
+    for layer in selected_layers:
+        layer_values = layers.get(layer, set())
+        for feature in layer_values:
+            aggregated.add("{}:{}".format(layer, feature))
+    return aggregated
+
+
+def calculate_cfg_ged_similarity(
+    apk_a: str,
+    apk_b: str,
+    ins_block_sim_threshold: float,
+    ged_timeout_sec: int,
+    processes_count: int,
+    threads_count: int,
+) -> float:
+    try:
+        from script.calculate_apks_similarity.build_comparison_matrix import build_comparison_matrix
+        from script.calculate_apks_similarity.build_model import build_model
+        from script.calculate_apks_similarity.calculate_models_similarity import calculate_models_similarity
+    except ImportError:
+        import sys
+
+        sys.path.append(str(Path(__file__).resolve().parent))
+        from calculate_apks_similarity.build_comparison_matrix import build_comparison_matrix
+        from calculate_apks_similarity.build_model import build_model
+        from calculate_apks_similarity.calculate_models_similarity import calculate_models_similarity
+
+    with TemporaryDirectory(prefix="screening_cfg_ged_") as tmp_dir:
+        output_1 = Path(tmp_dir) / "first"
+        output_2 = Path(tmp_dir) / "second"
+        output_1.mkdir(parents=True, exist_ok=True)
+        output_2.mkdir(parents=True, exist_ok=True)
+        dots_1 = build_model(apk_a, str(output_1))
+        dots_2 = build_model(apk_b, str(output_2))
+        if not dots_1 or not dots_2:
+            return 0.0
+        m_comp = build_comparison_matrix(
+            dots_1,
+            dots_2,
+            ins_block_sim_threshold=ins_block_sim_threshold,
+            ged_timeout_sec=ged_timeout_sec,
+            processes_count=processes_count,
+            threads_count=threads_count,
+        )
+        similarity_score, _ = calculate_models_similarity(m_comp, dots_1, dots_2)
+        return float(similarity_score)
+
+
+def calculate_pair_score(
+    app_a: dict,
+    app_b: dict,
+    metric: str,
+    selected_layers: list[str],
+    ins_block_sim_threshold: float,
+    ged_timeout_sec: int,
+    processes_count: int,
+    threads_count: int,
+) -> float:
+    if metric == "ged" and selected_layers == ["code"]:
+        apk_a = app_a.get("apk_path")
+        apk_b = app_b.get("apk_path")
+        if apk_a and apk_b:
+            return calculate_cfg_ged_similarity(
+                apk_a=apk_a,
+                apk_b=apk_b,
+                ins_block_sim_threshold=ins_block_sim_threshold,
+                ged_timeout_sec=ged_timeout_sec,
+                processes_count=processes_count,
+                threads_count=threads_count,
+            )
+        return 0.0
+
+    features_a = aggregate_features(app_a, selected_layers)
+    features_b = aggregate_features(app_b, selected_layers)
+
+    if metric == "jaccard":
+        return jaccard_similarity(features_a, features_b)
+    if metric == "cosine":
+        return cosine_similarity(features_a, features_b)
+    if metric == "containment":
+        return containment_similarity(features_a, features_b)
+    if metric == "dice":
+        return dice_similarity(features_a, features_b)
+    if metric == "overlap":
+        return overlap_similarity(features_a, features_b)
+    if metric == "shared_count":
+        return shared_count_similarity(features_a, features_b)
+    if metric in {"levenshtein", "edit_distance"}:
+        return levenshtein_similarity(features_a, features_b)
+    raise ValueError("Unsupported screening metric: {!r}".format(metric))
+
+
+def extract_screening_stage(config: dict) -> tuple[list[str], str, float]:
+    stages = config.get("stages")
+    if not isinstance(stages, dict):
+        raise ValueError("cascade-config must include object 'stages'")
+    screening = stages.get("screening")
+    if not isinstance(screening, dict):
+        raise ValueError("cascade-config must include object 'stages.screening'")
+
+    features = screening.get("features")
+    if not isinstance(features, list) or not features:
+        raise ValueError("'stages.screening.features' must be a non-empty list")
+
+    normalized_features = []
+    seen_features = set()
+    for feature in features:
+        feature_value = str(feature).strip().lower()
+        if feature_value not in M_STATIC_LAYERS:
+            raise ValueError("Unsupported feature layer in screening config: {!r}".format(feature))
+        if feature_value in seen_features:
+            continue
+        seen_features.add(feature_value)
+        normalized_features.append(feature_value)
+
+    metric_raw = screening.get("metric", "jaccard")
+    if not isinstance(metric_raw, str):
+        raise ValueError("'stages.screening.metric' must be a string")
+    metric = normalize_metric_name(metric_raw)
+
+    threshold_raw = screening.get("threshold", 0.0)
+    try:
+        threshold = float(threshold_raw)
+    except (TypeError, ValueError):
+        raise ValueError("'stages.screening.threshold' must be numeric") from None
+
+    return normalized_features, metric, threshold
+
+
+def validate_app_records(app_records: list[dict]) -> None:
+    if len(app_records) < 2:
+        raise ValueError("At least two apps are required to build candidate pairs")
+    seen_ids = set()
+    for app in app_records:
+        app_id = app["app_id"]
+        if app_id in seen_ids:
+            raise ValueError("Duplicate app_id detected: {!r}".format(app_id))
+        seen_ids.add(app_id)
+
+
+def build_candidate_list(
+    app_records: list[dict],
+    selected_layers: list[str],
+    metric: str,
+    threshold: float,
+    ins_block_sim_threshold: float,
+    ged_timeout_sec: int,
+    processes_count: int,
+    threads_count: int,
+) -> list[dict]:
+    records = sorted(app_records, key=lambda item: item["app_id"])
+    candidate_list = []
+    for app_a, app_b in combinations(records, 2):
+        score = calculate_pair_score(
+            app_a=app_a,
+            app_b=app_b,
+            metric=metric,
+            selected_layers=selected_layers,
+            ins_block_sim_threshold=ins_block_sim_threshold,
+            ged_timeout_sec=ged_timeout_sec,
+            processes_count=processes_count,
+            threads_count=threads_count,
+        )
+        if score < threshold:
+            continue
+        candidate_list.append(
+            {
+                "app_a": app_a["app_id"],
+                "app_b": app_b["app_id"],
+                "retrieval_score": float(score),
+                "features_used": list(selected_layers),
+            }
+        )
+    candidate_list.sort(
+        key=lambda item: (-item["retrieval_score"], item["app_a"], item["app_b"])
+    )
+    return candidate_list
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Run cascade-config screening stage and return candidate_list in JSON "
+            "with format [{app_a, app_b, retrieval_score, features_used}]."
+        )
+    )
+    parser.add_argument("cascade_config_path", help="Path to YAML cascade-config")
+    parser.add_argument(
+        "--apps-features-json",
+        default="",
+        help=(
+            "Optional path to JSON with app features. "
+            "If omitted, APKs are discovered under --apk-root."
+        ),
+    )
+    parser.add_argument(
+        "--apk-root",
+        default=str(Path(__file__).resolve().parents[1] / "apk"),
+        help="Root folder for APK auto-discovery when --apps-features-json is not provided.",
+    )
+    parser.add_argument(
+        "--output-json",
+        default="",
+        help="Optional path where candidate_list JSON will be saved.",
+    )
+    parser.add_argument("--ins-block-sim-threshold", type=float, default=0.80)
+    parser.add_argument("--ged-timeout-sec", type=int, default=30)
+    parser.add_argument("--processes-count", type=int, default=1)
+    parser.add_argument("--threads-count", type=int, default=2)
+    return parser.parse_args()
+
+
+def run_screening(
+    cascade_config_path: str | Path,
+    app_records: list[dict] | None = None,
+    apps_features_json_path: str | Path | None = None,
+    apk_root: str | Path | None = None,
+    ins_block_sim_threshold: float = 0.80,
+    ged_timeout_sec: int = 30,
+    processes_count: int = 1,
+    threads_count: int = 2,
+) -> list[dict]:
+    config_path = Path(cascade_config_path).expanduser().resolve()
+    config = load_yaml_or_json(config_path)
+    selected_layers, metric, threshold = extract_screening_stage(config)
+
+    if app_records is None:
+        if apps_features_json_path:
+            app_records = load_app_records_from_json(Path(apps_features_json_path).expanduser().resolve())
+        else:
+            resolved_apk_root = (
+                Path(apk_root).expanduser().resolve()
+                if apk_root
+                else Path(__file__).resolve().parents[1] / "apk"
+            )
+            app_records = discover_app_records_from_apk_root(resolved_apk_root)
+
+    validate_app_records(app_records)
+    return build_candidate_list(
+        app_records=app_records,
+        selected_layers=selected_layers,
+        metric=metric,
+        threshold=threshold,
+        ins_block_sim_threshold=ins_block_sim_threshold,
+        ged_timeout_sec=ged_timeout_sec,
+        processes_count=processes_count,
+        threads_count=threads_count,
+    )
+
+
+def main() -> None:
+    args = parse_args()
+    candidate_list = run_screening(
+        cascade_config_path=args.cascade_config_path,
+        apps_features_json_path=args.apps_features_json or None,
+        apk_root=args.apk_root,
+        ins_block_sim_threshold=args.ins_block_sim_threshold,
+        ged_timeout_sec=args.ged_timeout_sec,
+        processes_count=args.processes_count,
+        threads_count=args.threads_count,
+    )
+
+    payload = json.dumps(candidate_list, ensure_ascii=False, indent=2)
+    if args.output_json:
+        output_path = Path(args.output_json).expanduser().resolve()
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(payload + "\n", encoding="utf-8")
+    print(payload)
+
+
+if __name__ == "__main__":
+    main()
