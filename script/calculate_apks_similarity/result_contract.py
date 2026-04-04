@@ -121,15 +121,18 @@ def build_scores(
 
 
 def calculate_library_reduced_score(pair_records: list, dots_1: list, dots_2: list) -> float:
-    non_library_count_1 = sum(1 for dot in dots_1 if not is_library_like_dot(dot.name))
-    non_library_count_2 = sum(1 for dot in dots_2 if not is_library_like_dot(dot.name))
+    non_library_count_1 = sum(1 for dot in dots_1 if not is_library_like_graph(dot))
+    non_library_count_2 = sum(1 for dot in dots_2 if not is_library_like_graph(dot))
     denominator = max(non_library_count_1, non_library_count_2)
     if denominator == 0:
         return 0.0
 
+    library_like_first = {dot.name for dot in dots_1 if is_library_like_graph(dot)}
+    library_like_second = {dot.name for dot in dots_2 if is_library_like_graph(dot)}
+
     similarity_sum = 0.0
     for record in pair_records:
-        if is_library_like_dot(record["first"]) or is_library_like_dot(record["second"]):
+        if record["first"] in library_like_first or record["second"] in library_like_second:
             continue
         similarity_sum += record["similarity"]
     return similarity_sum / denominator
@@ -189,7 +192,7 @@ def build_unmatched_method_hints(pair_records: list, dots_1: list, dots_2: list,
     next_index = start_index
 
     for dot_index, dot in enumerate(dots_1):
-        if dot_index in matched_first or is_library_like_dot(dot.name):
+        if dot_index in matched_first or is_library_like_graph(dot):
             continue
         hints.append(
             build_new_method_call_hint(
@@ -204,7 +207,7 @@ def build_unmatched_method_hints(pair_records: list, dots_1: list, dots_2: list,
             break
 
     for dot_index, dot in enumerate(dots_2):
-        if dot_index in matched_second or is_library_like_dot(dot.name):
+        if dot_index in matched_second or is_library_like_graph(dot):
             continue
         hints.append(
             build_new_method_call_hint(
@@ -241,6 +244,16 @@ def is_library_like_dot(dot_name: str) -> bool:
     if class_name.endswith(".R") or class_name.endswith("$R") or ".R." in class_name or "$R$" in class_name:
         return True
     return any(class_name.startswith(prefix) for prefix in KNOWN_LIBRARY_PREFIXES)
+
+
+def is_library_like_graph(dot) -> bool:
+    noise_category = None
+    graph_attrs = getattr(dot, "graph", None)
+    if isinstance(graph_attrs, dict):
+        noise_category = graph_attrs.get("noise_category")
+    if noise_category == "library_like":
+        return True
+    return is_library_like_dot(dot.name)
 
 
 def extract_class_name(dot_name: str) -> str:

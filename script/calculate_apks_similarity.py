@@ -39,6 +39,30 @@ def save_analysis_result(payload: dict, output_root_dir: str):
     print("Analysis result is saved to {}".format(analysis_file))
 
 
+def save_noise_report(noise_report, file_path: str):
+    if not isinstance(noise_report, dict):
+        return None
+    noise_json = json.dumps(noise_report, indent=4)
+    with open(file_path, 'w') as outfile:
+        outfile.write(noise_json)
+    print("Noise report is saved to {}".format(file_path))
+    return file_path
+
+
+def build_code_representation(model_metadata: dict, artifact_path):
+    return {
+        "noise_report": model_metadata.get("noise_report"),
+        "noise_summary": model_metadata.get("noise_summary", {}),
+        "noise_warnings": model_metadata.get("noise_warnings", []),
+        "noise_report_artifact": artifact_path,
+        "total_dot_files": int(model_metadata.get("total_dot_files", 0)),
+        "included_cfg_count": int(model_metadata.get("included_cfg_count", 0)),
+        "excluded_cfg_count": int(model_metadata.get("excluded_cfg_count", 0)),
+        "excluded_cfg_by_category": model_metadata.get("excluded_cfg_by_category", {}),
+        "library_like_cfg_count": int(model_metadata.get("library_like_cfg_count", 0)),
+    }
+
+
 if __name__ == '__main__':
     start_time = time.time()
     print("Prepare")
@@ -77,18 +101,41 @@ if __name__ == '__main__':
     }
 
     print("Build model of first .input")
-    dots_1 = build_model(apk_1, output_1)
+    dots_1, model_meta_1 = build_model(apk_1, output_1, return_metadata=True)
     dots_1_name = list(map(lambda dot: dot.name, dots_1))
     print("First .input model: {}\n".format(dots_1_name))
     print("Build model of second .input")
-    dots_2 = build_model(apk_2, output_2)
+    dots_2, model_meta_2 = build_model(apk_2, output_2, return_metadata=True)
     dots_2_name = list(map(lambda dot: dot.name, dots_2))
     print("Second .input model: {}\n".format(dots_2_name))
 
+    noise_report_1_file = save_noise_report(
+        model_meta_1.get("noise_report"),
+        "{}/noise_report_app_a.json".format(output_root_dir),
+    )
+    noise_report_2_file = save_noise_report(
+        model_meta_2.get("noise_report"),
+        "{}/noise_report_app_b.json".format(output_root_dir),
+    )
+    representation_warnings.extend(model_meta_1.get("noise_warnings", []))
+    representation_warnings.extend(model_meta_2.get("noise_warnings", []))
+
     common_payload = {
         "apps": {
-            "app_a": {"apk_path": apk_1, "cfg_count": len(dots_1)},
-            "app_b": {"apk_path": apk_2, "cfg_count": len(dots_2)},
+            "app_a": {
+                "apk_path": apk_1,
+                "cfg_count": len(dots_1),
+                "representation": {
+                    "code": build_code_representation(model_meta_1, noise_report_1_file),
+                },
+            },
+            "app_b": {
+                "apk_path": apk_2,
+                "cfg_count": len(dots_2),
+                "representation": {
+                    "code": build_code_representation(model_meta_2, noise_report_2_file),
+                },
+            },
         },
         "representation_mode": representation_mode,
         "artifacts": {
@@ -96,6 +143,8 @@ if __name__ == '__main__':
             "m_comp_csv": "{}/m_comp.csv".format(output_root_dir),
             "dots_1_csv": "{}/dots_1.csv".format(output_root_dir),
             "dots_2_csv": "{}/dots_2.csv".format(output_root_dir),
+            "noise_report_app_a_json": noise_report_1_file,
+            "noise_report_app_b_json": noise_report_2_file,
             "sim_pairs_json": "{}/sim_pairs.json".format(output_root_dir),
             "analysis_result_json": "{}/analysis_result.json".format(output_root_dir),
         },
