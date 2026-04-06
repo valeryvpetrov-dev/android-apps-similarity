@@ -7,6 +7,7 @@ SOOT_OUT_DIR=$4
 
 java -cp "$SOOT_JAR_PATH" soot.tools.CFGViewer  \
  --graph=CompleteBlockGraph \
+ -num-threads 1 \
  -d "$SOOT_OUT_DIR" \
  -android-jars "$ANDROID_JARS_PATH" \
  -allow-phantom-refs \
