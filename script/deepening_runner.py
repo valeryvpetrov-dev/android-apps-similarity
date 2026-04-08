@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -17,6 +20,14 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from script.calculate_apks_similarity.build_model import build_model
+
+try:
+    from script.m_static_views import extract_all_features
+except Exception:
+    try:
+        from m_static_views import extract_all_features
+    except Exception:
+        extract_all_features = None
 
 
 APP_PATH_KEYS = (
@@ -42,6 +53,29 @@ B_SIDE_CANDIDATE_APK_KEYS = (
     "candidate_app_apk_path",
     "app_b_path",
 )
+A_SIDE_CANDIDATE_DECODED_KEYS = (
+    "app_a_decoded_dir",
+    "decoded_dir_a",
+    "query_decoded_dir",
+    "query_app_decoded_dir",
+)
+B_SIDE_CANDIDATE_DECODED_KEYS = (
+    "app_b_decoded_dir",
+    "decoded_dir_b",
+    "candidate_decoded_dir",
+    "candidate_app_decoded_dir",
+)
+APP_DECODED_DIR_KEYS = (
+    "decoded_dir",
+    "decoded_apk_dir",
+    "unpacked_dir",
+    "apk_decoded_dir",
+)
+DECODE_REQUIRED_LAYERS = {"component", "resource", "library"}
+DEFAULT_APKTOOL_CACHE_ROOT = (
+    Path(tempfile.gettempdir()) / "android-apps-similarity" / "decoded_apks"
+)
+FALLBACK_APKTOOL_JAR_DIR = Path(tempfile.gettempdir()) / "phd-bor005-tools"
 
 
 @contextmanager
@@ -464,6 +498,160 @@ def resolve_apk_path(candidate: dict[str, Any], app: Any, side: str) -> str | No
     return None
 
 
+def extract_decoded_dir_from_app(app: Any) -> str | None:
+    if not isinstance(app, dict):
+        return None
+    for key in APP_DECODED_DIR_KEYS:
+        value = app.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
+def resolve_decoded_dir_path(candidate: dict[str, Any], app: Any, side: str) -> str | None:
+    decoded_dir = extract_decoded_dir_from_app(app)
+    if decoded_dir is not None:
+        return decoded_dir
+
+    keys = A_SIDE_CANDIDATE_DECODED_KEYS if side == "a" else B_SIDE_CANDIDATE_DECODED_KEYS
+    value = first_present(candidate, keys)
+    if isinstance(value, str) and value:
+        return value
+
+    apps = candidate.get("apps")
+    if isinstance(apps, dict):
+        app_key = "app_a" if side == "a" else "app_b"
+        nested = apps.get(app_key)
+        decoded_dir = extract_decoded_dir_from_app(nested)
+        if decoded_dir is not None:
+            return decoded_dir
+
+        fallback_key = "query_app" if side == "a" else "candidate_app"
+        decoded_dir = extract_decoded_dir_from_app(apps.get(fallback_key))
+        if decoded_dir is not None:
+            return decoded_dir
+
+    return None
+
+
+def looks_like_decoded_dir(path: Path) -> bool:
+    return path.is_dir() and (
+        (path / "AndroidManifest.xml").is_file()
+        or (path / "res").is_dir()
+        or (path / "assets").is_dir()
+    )
+
+
+def build_decode_cache_dir(apk_path: str) -> Path:
+    apk_file = Path(apk_path).expanduser().resolve()
+    stats = apk_file.stat()
+    fingerprint = hashlib.sha256(
+        "{}|{}|{}".format(apk_file, stats.st_size, stats.st_mtime_ns).encode("utf-8")
+    ).hexdigest()[:16]
+    return DEFAULT_APKTOOL_CACHE_ROOT / "{}-{}".format(apk_file.stem, fingerprint)
+
+
+def resolve_apktool_command() -> list[str] | None:
+    apktool_path = os.environ.get("APKTOOL_PATH")
+    if apktool_path:
+        candidate = Path(apktool_path).expanduser().resolve()
+        if candidate.is_file():
+            return [str(candidate)]
+
+    discovered = shutil.which("apktool")
+    if discovered:
+        return [discovered]
+
+    jar_candidates: list[Path] = []
+    apktool_jar = os.environ.get("APKTOOL_JAR_PATH") or os.environ.get("APKTOOL_JAR")
+    if apktool_jar:
+        jar_candidates.append(Path(apktool_jar).expanduser().resolve())
+    if FALLBACK_APKTOOL_JAR_DIR.is_dir():
+        jar_candidates.extend(sorted(FALLBACK_APKTOOL_JAR_DIR.glob("apktool*.jar")))
+
+    java_path = shutil.which("java")
+    if java_path:
+        for candidate in jar_candidates:
+            if candidate.is_file():
+                return [java_path, "-jar", str(candidate)]
+
+    return None
+
+
+def materialize_decoded_dir(apk_path: str) -> str:
+    apk_file = Path(apk_path).expanduser().resolve()
+    if not apk_file.is_file():
+        raise FileNotFoundError("APK does not exist: {}".format(apk_file))
+
+    cache_dir = build_decode_cache_dir(str(apk_file))
+    if looks_like_decoded_dir(cache_dir):
+        return str(cache_dir)
+
+    command = resolve_apktool_command()
+    if command is None:
+        raise RuntimeError("apktool is not available; set APKTOOL_PATH or APKTOOL_JAR_PATH")
+
+    cache_dir.parent.mkdir(parents=True, exist_ok=True)
+    partial_dir = cache_dir.with_name(cache_dir.name + ".partial")
+    shutil.rmtree(partial_dir, ignore_errors=True)
+    shutil.rmtree(cache_dir, ignore_errors=True)
+
+    process = subprocess.run(
+        [*command, "d", "-f", str(apk_file), "-o", str(partial_dir)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    if process.returncode != 0:
+        shutil.rmtree(partial_dir, ignore_errors=True)
+        message = process.stderr.strip() or process.stdout.strip() or "apktool_failed"
+        raise RuntimeError(message)
+
+    partial_dir.rename(cache_dir)
+    return str(cache_dir)
+
+
+def resolve_or_materialize_decoded_dir(
+    candidate: dict[str, Any],
+    app: Any,
+    side: str,
+    apk_path: str,
+    decoded_cache: dict[str, str],
+) -> str:
+    explicit = resolve_decoded_dir_path(candidate, app, side)
+    if explicit:
+        explicit_path = Path(explicit).expanduser().resolve()
+        if looks_like_decoded_dir(explicit_path):
+            decoded_cache[apk_path] = str(explicit_path)
+            return str(explicit_path)
+        raise FileNotFoundError("Decoded APK directory does not exist: {}".format(explicit_path))
+
+    if apk_path in decoded_cache:
+        return decoded_cache[apk_path]
+
+    decoded_dir = materialize_decoded_dir(apk_path)
+    decoded_cache[apk_path] = decoded_dir
+    return decoded_dir
+
+
+def load_enhanced_features(
+    apk_path: str,
+    decoded_dir: str,
+    feature_cache: dict[tuple[str, str], dict[str, Any]],
+) -> dict[str, Any]:
+    cache_key = (apk_path, decoded_dir)
+    if cache_key in feature_cache:
+        return feature_cache[cache_key]
+
+    if extract_all_features is None:
+        raise RuntimeError("m_static_views.extract_all_features is unavailable")
+
+    features = extract_all_features(apk_path=apk_path, unpacked_dir=decoded_dir)
+    feature_cache[cache_key] = features
+    return features
+
+
 def build_code_layer(apk_path: str, cache: dict[str, int]) -> tuple[int, bool]:
     if apk_path in cache:
         return cache[apk_path], True
@@ -484,17 +672,51 @@ def enrich_candidate(
     candidate: dict[str, Any],
     layers_to_enrich: list[str],
     code_cache: dict[str, int],
+    decoded_cache: dict[str, str],
+    feature_cache: dict[tuple[str, str], dict[str, Any]],
 ) -> dict[str, Any]:
     app_a, app_b = extract_apps(candidate)
+    app_a_payload = dict(app_a) if isinstance(app_a, dict) else app_a
+    app_b_payload = dict(app_b) if isinstance(app_b, dict) else app_b
     start = time.perf_counter()
     enriched_views = []
+    apk_a = resolve_apk_path(candidate, app_a, "a")
+    apk_b = resolve_apk_path(candidate, app_b, "b")
+    decoded_a: str | None = None
+    decoded_b: str | None = None
+    decoded_error: Exception | None = None
+    features_a: dict[str, Any] | None = None
+    features_b: dict[str, Any] | None = None
+
+    if any(layer in DECODE_REQUIRED_LAYERS for layer in layers_to_enrich):
+        if apk_a is not None and apk_b is not None:
+            try:
+                decoded_a = resolve_or_materialize_decoded_dir(
+                    candidate=candidate,
+                    app=app_a,
+                    side="a",
+                    apk_path=apk_a,
+                    decoded_cache=decoded_cache,
+                )
+                decoded_b = resolve_or_materialize_decoded_dir(
+                    candidate=candidate,
+                    app=app_b,
+                    side="b",
+                    apk_path=apk_b,
+                    decoded_cache=decoded_cache,
+                )
+                if isinstance(app_a_payload, dict):
+                    app_a_payload["decoded_dir"] = decoded_a
+                if isinstance(app_b_payload, dict):
+                    app_b_payload["decoded_dir"] = decoded_b
+                features_a = load_enhanced_features(apk_a, decoded_a, feature_cache)
+                features_b = load_enhanced_features(apk_b, decoded_b, feature_cache)
+            except Exception as error:
+                decoded_error = error
 
     for layer in layers_to_enrich:
         layer_start = time.perf_counter()
         if layer == "code":
-            apk_a = resolve_apk_path(candidate, app_a, "a")
-            apk_b = resolve_apk_path(candidate, app_b, "b")
-
             if apk_a is None or apk_b is None:
                 enriched_views.append(
                     {
@@ -531,6 +753,53 @@ def enrich_candidate(
                 )
             continue
 
+        if layer == "metadata":
+            status = "success" if apk_a is not None and apk_b is not None else "missing_apk_path"
+            enriched_views.append(
+                {
+                    "view_id": "metadata",
+                    "view_status": status,
+                    "cost_ms": int(round((time.perf_counter() - layer_start) * 1000)),
+                }
+            )
+            continue
+
+        if layer in DECODE_REQUIRED_LAYERS:
+            if apk_a is None or apk_b is None:
+                enriched_views.append(
+                    {
+                        "view_id": layer,
+                        "view_status": "missing_apk_path",
+                        "cost_ms": int(round((time.perf_counter() - layer_start) * 1000)),
+                    }
+                )
+                continue
+
+            try:
+                if decoded_error is not None:
+                    raise decoded_error
+                _ = features_a.get(layer)
+                _ = features_b.get(layer)
+                enriched_views.append(
+                    {
+                        "view_id": layer,
+                        "view_status": "success",
+                        "app_a_decoded_dir": decoded_a,
+                        "app_b_decoded_dir": decoded_b,
+                        "cost_ms": int(round((time.perf_counter() - layer_start) * 1000)),
+                    }
+                )
+            except Exception as error:
+                enriched_views.append(
+                    {
+                        "view_id": layer,
+                        "view_status": "analysis_failed",
+                        "error": str(error),
+                        "cost_ms": int(round((time.perf_counter() - layer_start) * 1000)),
+                    }
+                )
+            continue
+
         enriched_views.append(
             {
                 "view_id": layer,
@@ -540,8 +809,12 @@ def enrich_candidate(
         )
 
     return {
-        "app_a": app_a,
-        "app_b": app_b,
+        "app_a": app_a_payload,
+        "app_b": app_b_payload,
+        "app_a_path": apk_a,
+        "app_b_path": apk_b,
+        "app_a_decoded_dir": app_a_payload.get("decoded_dir") if isinstance(app_a_payload, dict) else None,
+        "app_b_decoded_dir": app_b_payload.get("decoded_dir") if isinstance(app_b_payload, dict) else None,
         "enriched_views": enriched_views,
         "deepening_cost_ms": int(round((time.perf_counter() - start) * 1000)),
     }
@@ -562,12 +835,32 @@ def run_deepening(config_path: Path, candidates_path: Path) -> dict[str, Any]:
 
     screening_features = set(collect_stage_features(screening))
     deepening_features = collect_stage_features(deepening)
-    layers_to_enrich = [layer for layer in deepening_features if layer not in screening_features]
+    pairwise = stages.get("pairwise")
+    pairwise_features = collect_stage_features(pairwise) if isinstance(pairwise, dict) else []
+
+    layers_to_enrich = []
+    seen_layers = set()
+    for layer in [*deepening_features, *pairwise_features]:
+        if layer in seen_layers:
+            continue
+        if layer in screening_features and layer not in DECODE_REQUIRED_LAYERS:
+            continue
+        seen_layers.add(layer)
+        layers_to_enrich.append(layer)
 
     candidates = load_candidates(candidates_path)
     code_cache: dict[str, int] = {}
+    decoded_cache: dict[str, str] = {}
+    feature_cache: dict[tuple[str, str], dict[str, Any]] = {}
     enriched_candidates = [
-        enrich_candidate(candidate, layers_to_enrich, code_cache) for candidate in candidates
+        enrich_candidate(
+            candidate,
+            layers_to_enrich,
+            code_cache,
+            decoded_cache,
+            feature_cache,
+        )
+        for candidate in candidates
     ]
 
     return {

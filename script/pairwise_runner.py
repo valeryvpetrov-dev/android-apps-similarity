@@ -37,6 +37,14 @@ except Exception:
     from screening_runner import overlap_similarity
     from screening_runner import shared_count_similarity
 
+try:
+    from script.m_static_views import extract_all_features
+except Exception:
+    try:
+        from m_static_views import extract_all_features
+    except Exception:
+        extract_all_features = None
+
 
 APP_PATH_KEYS = (
     "apk_path",
@@ -61,6 +69,25 @@ B_SIDE_CANDIDATE_APK_KEYS = (
     "candidate_app_apk_path",
     "app_b_path",
 )
+APP_DECODED_DIR_KEYS = (
+    "decoded_dir",
+    "decoded_apk_dir",
+    "unpacked_dir",
+    "apk_decoded_dir",
+)
+A_SIDE_CANDIDATE_DECODED_KEYS = (
+    "app_a_decoded_dir",
+    "decoded_dir_a",
+    "query_decoded_dir",
+    "query_app_decoded_dir",
+)
+B_SIDE_CANDIDATE_DECODED_KEYS = (
+    "app_b_decoded_dir",
+    "decoded_dir_b",
+    "candidate_decoded_dir",
+    "candidate_app_decoded_dir",
+)
+DECODE_REQUIRED_LAYERS = {"component", "resource", "library"}
 
 SUPPORTED_METRICS = {
     "jaccard",
@@ -582,6 +609,42 @@ def aggregate_features(layers: dict[str, set[str]], selected_layers: list[str]) 
     return aggregated
 
 
+def extract_decoded_dir_from_app(app: Any) -> str | None:
+    if not isinstance(app, dict):
+        return None
+    for key in APP_DECODED_DIR_KEYS:
+        value = app.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
+def resolve_decoded_dir(candidate: dict[str, Any], app: Any, side: str) -> str | None:
+    decoded_dir = extract_decoded_dir_from_app(app)
+    if decoded_dir is not None:
+        return decoded_dir
+
+    keys = A_SIDE_CANDIDATE_DECODED_KEYS if side == "a" else B_SIDE_CANDIDATE_DECODED_KEYS
+    value = first_present(candidate, keys)
+    if isinstance(value, str) and value:
+        return value
+
+    apps = candidate.get("apps")
+    if isinstance(apps, dict):
+        app_key = "app_a" if side == "a" else "app_b"
+        nested = apps.get(app_key)
+        decoded_dir = extract_decoded_dir_from_app(nested)
+        if decoded_dir is not None:
+            return decoded_dir
+
+        fallback_key = "query_app" if side == "a" else "candidate_app"
+        decoded_dir = extract_decoded_dir_from_app(apps.get(fallback_key))
+        if decoded_dir is not None:
+            return decoded_dir
+
+    return None
+
+
 def levenshtein_distance(left: list[str], right: list[str]) -> int:
     if not left:
         return len(right)
@@ -628,16 +691,81 @@ def calculate_set_metric(metric: str, left: set[str], right: set[str]) -> float:
     raise PairwiseAnalysisError("Unsupported set metric: {!r}".format(metric))
 
 
-def load_layers_for_apk(apk_path: str, layer_cache: dict[str, dict[str, set[str]]]) -> dict[str, set[str]]:
-    if apk_path in layer_cache:
-        return layer_cache[apk_path]
+def stringify_tokens(tokens: set[Any]) -> set[str]:
+    return {str(token) for token in tokens}
+
+
+def flatten_component_features(features: dict[str, Any]) -> set[str]:
+    tokens: set[str] = set()
+    for component_type in ("activities", "services", "receivers", "providers"):
+        for component in features.get(component_type, []):
+            if not isinstance(component, dict):
+                continue
+            name = component.get("name")
+            if isinstance(name, str) and name:
+                tokens.add("{}:{}".format(component_type, name))
+
+    for permission in features.get("permissions", set()):
+        tokens.add("permission:{}".format(permission))
+    for feature_name in features.get("features", set()):
+        tokens.add("feature:{}".format(feature_name))
+    return tokens
+
+
+def flatten_resource_features(features: dict[str, Any]) -> set[str]:
+    tokens: set[str] = set()
+    for item in features.get("resource_digests", set()):
+        if not isinstance(item, tuple) or len(item) != 2:
+            continue
+        rel_path, digest = item
+        tokens.add("{}:{}".format(rel_path, digest))
+    return tokens
+
+
+def flatten_library_features(features: dict[str, Any]) -> set[str]:
+    libraries = features.get("libraries", {})
+    if not isinstance(libraries, dict):
+        return set()
+    return {"lib:{}".format(lib_id) for lib_id in libraries}
+
+
+def load_layers_for_pairwise(
+    apk_path: str,
+    decoded_dir: str | None,
+    selected_layers: list[str],
+    layer_cache: dict[tuple[str, str | None], dict[str, set[str]]],
+) -> dict[str, set[str]]:
+    cache_key = (apk_path, decoded_dir)
+    if cache_key in layer_cache:
+        return layer_cache[cache_key]
 
     apk_file = Path(apk_path)
     if not apk_file.is_file():
         raise PairwiseAnalysisError("APK does not exist: {}".format(apk_path))
 
-    layers = extract_layers_from_apk(apk_file)
-    layer_cache[apk_path] = layers
+    requires_decoded = any(layer in DECODE_REQUIRED_LAYERS for layer in selected_layers)
+    if requires_decoded and not decoded_dir:
+        raise PairwiseAnalysisError("missing_decoded_dir")
+
+    if extract_all_features is None:
+        raise PairwiseAnalysisError("m_static_views_unavailable")
+
+    try:
+        feature_bundle = extract_all_features(
+            apk_path=str(apk_file),
+            unpacked_dir=decoded_dir,
+        )
+    except Exception as error:
+        raise PairwiseAnalysisError("feature_bundle_error: {}".format(error)) from error
+
+    layers = {
+        "code": stringify_tokens(feature_bundle.get("code", set())),
+        "metadata": stringify_tokens(feature_bundle.get("metadata", set())),
+        "component": flatten_component_features(feature_bundle.get("component", {})),
+        "resource": flatten_resource_features(feature_bundle.get("resource", {})),
+        "library": flatten_library_features(feature_bundle.get("library", {})),
+    }
+    layer_cache[cache_key] = layers
     return layers
 
 
@@ -725,12 +853,14 @@ def calculate_ged_scores(
 def calculate_set_scores(
     apk_a: str,
     apk_b: str,
+    decoded_a: str | None,
+    decoded_b: str | None,
     selected_layers: list[str],
     metric: str,
-    layer_cache: dict[str, dict[str, set[str]]],
+    layer_cache: dict[tuple[str, str | None], dict[str, set[str]]],
 ) -> tuple[float, float]:
-    layers_a = load_layers_for_apk(apk_a, layer_cache)
-    layers_b = load_layers_for_apk(apk_b, layer_cache)
+    layers_a = load_layers_for_pairwise(apk_a, decoded_a, selected_layers, layer_cache)
+    layers_b = load_layers_for_pairwise(apk_b, decoded_b, selected_layers, layer_cache)
 
     full_left = aggregate_features(layers_a, selected_layers)
     full_right = aggregate_features(layers_b, selected_layers)
@@ -749,13 +879,15 @@ def calculate_set_scores(
 def calculate_pair_scores(
     apk_a: str,
     apk_b: str,
+    decoded_a: str | None,
+    decoded_b: str | None,
     selected_layers: list[str],
     metric: str,
     ins_block_sim_threshold: float,
     ged_timeout_sec: int,
     processes_count: int,
     threads_count: int,
-    layer_cache: dict[str, dict[str, set[str]]],
+    layer_cache: dict[tuple[str, str | None], dict[str, set[str]]],
     code_cache: dict[str, list],
 ) -> tuple[float, float, list[str]]:
     if metric == "ged":
@@ -796,6 +928,8 @@ def calculate_pair_scores(
             non_code_full, non_code_reduced = calculate_set_scores(
                 apk_a=apk_a,
                 apk_b=apk_b,
+                decoded_a=decoded_a,
+                decoded_b=decoded_b,
                 selected_layers=non_code_layers,
                 metric="cosine",
                 layer_cache=layer_cache,
@@ -814,6 +948,8 @@ def calculate_pair_scores(
     full, reduced = calculate_set_scores(
         apk_a=apk_a,
         apk_b=apk_b,
+        decoded_a=decoded_a,
+        decoded_b=decoded_b,
         selected_layers=selected_layers,
         metric=metric,
         layer_cache=layer_cache,
@@ -824,16 +960,16 @@ def calculate_pair_scores(
 def run_pairwise(
     config_path: Path,
     enriched_path: Path,
-    ins_block_sim_threshold: float,
-    ged_timeout_sec: int,
-    processes_count: int,
-    threads_count: int,
+    ins_block_sim_threshold: float = 0.80,
+    ged_timeout_sec: int = 30,
+    processes_count: int = 1,
+    threads_count: int = 2,
 ) -> list[dict[str, Any]]:
     config = load_config(config_path)
     selected_layers, metric, threshold = parse_pairwise_stage(config)
     candidates = load_enriched_candidates(enriched_path)
 
-    layer_cache: dict[str, dict[str, set[str]]] = {}
+    layer_cache: dict[tuple[str, str | None], dict[str, set[str]]] = {}
     code_cache: dict[str, list] = {}
     apk_discovery_cache: dict[str, str | None] = {}
 
@@ -870,9 +1006,14 @@ def run_pairwise(
             if not apk_a or not apk_b:
                 raise PairwiseAnalysisError("missing_apk_path")
 
+            decoded_a = resolve_decoded_dir(candidate, app_a_raw, "a")
+            decoded_b = resolve_decoded_dir(candidate, app_b_raw, "b")
+
             full_score, reduced_score, layers_used = calculate_pair_scores(
                 apk_a=apk_a,
                 apk_b=apk_b,
+                decoded_a=decoded_a,
+                decoded_b=decoded_b,
                 selected_layers=selected_layers,
                 metric=metric,
                 ins_block_sim_threshold=ins_block_sim_threshold,

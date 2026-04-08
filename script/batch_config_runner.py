@@ -656,7 +656,7 @@ def write_temp_candidates(
     app_a_record: dict[str, Any],
     app_b_record: dict[str, Any],
     screening_score: float,
-) -> tuple[Path, TemporaryDirectory[str]]:
+) -> tuple[Path, TemporaryDirectory]:
     tmp = TemporaryDirectory(prefix="batch_deepening_")
     temp_root = Path(tmp.name)
     candidates_path = temp_root / "candidates.json"
