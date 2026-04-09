@@ -22,6 +22,15 @@ LAYER_ALIASES = {
 MANIFEST_COMPONENT_PATTERN = re.compile(
     r"(?<![A-Za-z0-9_$.])(\.?[A-Za-z_][\w$]*(?:\.[A-Za-z_][\w$]*)*(?:Activity|Service|Receiver|Provider|Application))(?![A-Za-z0-9_$.])"
 )
+MANIFEST_PACKAGE_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9_$.])package(?:Name)?\s*(?:=|:)\s*[\"']?([A-Za-z0-9_$.]+)"
+)
+MANIFEST_VERSION_CODE_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9_$.])(?:android:)?versionCode\s*(?:=|:)\s*[\"']?([0-9]+)"
+)
+MANIFEST_SDK_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9_$.])(?:android:)?(minSdkVersion|targetSdkVersion)\s*(?:=|:)\s*[\"']?([0-9]+)"
+)
 
 
 def strip_yaml_comment(line: str) -> str:
@@ -354,11 +363,70 @@ def size_bucket(value: int) -> str:
 
 def decode_manifest_candidates(manifest_bytes: bytes) -> list[str]:
     candidates = []
-    for encoding in ("utf-8", "utf-16le"):
+    seen = set()
+    for encoding in ("utf-8", "utf-16le", "utf-16be"):
         decoded = manifest_bytes.decode(encoding, errors="ignore")
-        if decoded:
-            candidates.append(decoded)
+        for variant in (decoded, decoded.replace("\x00", "")):
+            cleaned = variant.strip()
+            if cleaned and cleaned not in seen:
+                seen.add(cleaned)
+                candidates.append(cleaned)
+
+    printable = "".join(
+        chr(byte) if 32 <= byte <= 126 else " "
+        for byte in manifest_bytes
+    )
+    printable = re.sub(r"\s+", " ", printable).strip()
+    if printable and printable not in seen:
+        candidates.append(printable)
+
     return candidates
+
+
+def extract_manifest_metadata_tokens(manifest_bytes: bytes) -> set[str]:
+    """Best-effort metadata token extraction from AndroidManifest.xml bytes.
+
+    The stdlib-only path cannot fully decode binary AXML, so this scans multiple
+    decoded views of the raw manifest bytes and extracts tokens only when the
+    relevant strings are visible in the APK payload.
+    """
+    package_name = ""
+    version_code = ""
+    min_sdk = ""
+    target_sdk = ""
+
+    for text in decode_manifest_candidates(manifest_bytes):
+        if not package_name:
+            match = MANIFEST_PACKAGE_PATTERN.search(text)
+            if match:
+                package_name = match.group(1).strip()
+
+        if not version_code:
+            match = MANIFEST_VERSION_CODE_PATTERN.search(text)
+            if match:
+                version_code = match.group(1).strip()
+
+        if not min_sdk or not target_sdk:
+            for match in MANIFEST_SDK_PATTERN.finditer(text):
+                sdk_key, sdk_value = match.groups()
+                if sdk_key == "minSdkVersion" and not min_sdk:
+                    min_sdk = sdk_value.strip()
+                elif sdk_key == "targetSdkVersion" and not target_sdk:
+                    target_sdk = sdk_value.strip()
+
+        if package_name and version_code and min_sdk and target_sdk:
+            break
+
+    tokens: set[str] = set()
+    if package_name:
+        tokens.add("package_name:{}".format(package_name))
+    if version_code:
+        tokens.add("version_code:{}".format(version_code))
+    if min_sdk:
+        tokens.add("min_sdk:{}".format(min_sdk))
+    if target_sdk:
+        tokens.add("target_sdk:{}".format(target_sdk))
+    return tokens
 
 
 def extract_layers_from_apk(apk_path: Path) -> dict[str, set[str]]:
@@ -372,17 +440,6 @@ def extract_layers_from_apk(apk_path: Path) -> dict[str, set[str]]:
         has_manifest = "AndroidManifest.xml" in entry_set
         has_resources_arsc = "resources.arsc" in entry_set
         manifest_component_features = set()
-        if has_manifest:
-            try:
-                manifest_bytes = archive.read("AndroidManifest.xml")
-                for text in decode_manifest_candidates(manifest_bytes):
-                    for match in MANIFEST_COMPONENT_PATTERN.findall(text):
-                        component = match.strip().replace("/", ".")
-                        if component:
-                            manifest_component_features.add("manifest_component:{}".format(component))
-            except KeyError:
-                has_manifest = False
-
         metadata = {
             "apk_name:{}".format(apk_path.stem),
             "entry_bin:{}".format(size_bucket(len(entries))),
@@ -390,6 +447,19 @@ def extract_layers_from_apk(apk_path: Path) -> dict[str, set[str]]:
             "manifest_present:{}".format(1 if has_manifest else 0),
             "resources_arsc_present:{}".format(1 if has_resources_arsc else 0),
         }
+        if has_manifest:
+            try:
+                manifest_bytes = archive.read("AndroidManifest.xml")
+                metadata.update(extract_manifest_metadata_tokens(manifest_bytes))
+                for text in decode_manifest_candidates(manifest_bytes):
+                    for match in MANIFEST_COMPONENT_PATTERN.findall(text):
+                        component = match.strip().replace("/", ".")
+                        if component:
+                            manifest_component_features.add("manifest_component:{}".format(component))
+            except KeyError:
+                has_manifest = False
+                metadata.discard("manifest_present:1")
+                metadata.add("manifest_present:0")
 
         resource = set()
         component = set(manifest_component_features)
