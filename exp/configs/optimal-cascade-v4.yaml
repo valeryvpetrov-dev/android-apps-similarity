@@ -1,0 +1,19 @@
+# optimal-cascade-v4.yaml
+# Extends v3 with SOTA-001 code_layer v2 (opcode n-gram TLSH).
+# code_layer.mode controls which code comparison strategy is used:
+#   v1_jaccard — DEX filename Jaccard (default, legacy)
+#   v2_tlsh    — opcode n-gram TLSH fuzzy hash (SOTA-001)
+#   ged        — graph edit distance (requires soot / decoded APK)
+
+code_layer:
+  mode: v2_tlsh       # v1_jaccard | v2_tlsh | ged
+  window: 5           # n-gram window size for v2_tlsh
+  norm_divisor: 300   # TLSH distance normalization divisor (300 ≈ 50% structural overlap)
+
+stages:
+  screening:
+    features: [code, metadata]
+    metric: jaccard
+    threshold: 0.3
+  pairwise:
+    features: [code, component, resource, library, metadata]

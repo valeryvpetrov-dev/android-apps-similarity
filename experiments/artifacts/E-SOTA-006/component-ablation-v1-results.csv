@@ -1,0 +1,7 @@
+pair_id,apk_a,apk_b,label,label_str,score_current,j_activities,j_services,j_receivers,j_providers,j_permissions,score_equal,score_activity_heavy,score_permission_heavy
+nonopt_vs_opt,simple_app-releaseNonOptimized.apk,simple_app-releaseOptimized.apk,1,clone,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+nonopt_vs_rename,simple_app-releaseNonOptimized.apk,simple_app-releaseRename.apk,1,clone,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+opt_vs_rename,simple_app-releaseOptimized.apk,simple_app-releaseRename.apk,1,clone,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+nonopt_vs_snake,simple_app-releaseNonOptimized.apk,snake.apk,0,non_clone,0.6,0.0,1.0,1.0,1.0,1.0,0.8,0.4,0.8
+rename_vs_snake,simple_app-releaseRename.apk,snake.apk,0,non_clone,0.6,0.0,1.0,1.0,1.0,1.0,0.8,0.4,0.8
+nonopt_vs_empty,simple_app-releaseNonOptimized.apk,simple_app-empty.apk,0,non_clone,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0

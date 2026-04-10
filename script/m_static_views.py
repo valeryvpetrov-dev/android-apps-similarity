@@ -203,10 +203,25 @@ def _compare_code(
     feat_a: Any,
     feat_b: Any,
     code_ged_score: float | None,
+    code_v2_hash_a: str | None = None,
+    code_v2_hash_b: str | None = None,
 ) -> dict:
-    """Compare code layer: use pre-computed GED if available, else Jaccard on DEX names."""
+    """Compare code layer.
+
+    Priority: GED > v2 TLSH > v1 Jaccard on DEX names.
+    """
     if code_ged_score is not None:
         return {"score": float(code_ged_score), "status": "ged"}
+    if code_v2_hash_a is not None or code_v2_hash_b is not None:
+        try:
+            from code_view_v2 import compare_code_v2
+        except ImportError:
+            try:
+                from script.code_view_v2 import compare_code_v2
+            except ImportError:
+                compare_code_v2 = None
+        if compare_code_v2 is not None:
+            return compare_code_v2(code_v2_hash_a, code_v2_hash_b)
     left = feat_a if isinstance(feat_a, set) else set()
     right = feat_b if isinstance(feat_b, set) else set()
     return {"score": _jaccard_on_sets(left, right), "status": "jaccard_dex"}
@@ -312,6 +327,8 @@ def compare_all(
     features_b: dict,
     layers: list[str] | None = None,
     code_ged_score: float | None = None,
+    code_v2_hash_a: str | None = None,
+    code_v2_hash_b: str | None = None,
 ) -> dict:
     """Compare two APKs across selected M_static layers.
 
@@ -324,6 +341,10 @@ def compare_all(
     code_ged_score:
         Pre-computed GED similarity for the code layer.  When provided
         the module uses it instead of computing Jaccard on DEX names.
+    code_v2_hash_a, code_v2_hash_b:
+        Optional TLSH hashes from ``extract_code_v2_hash`` (SOTA-001 v2 mode).
+        When provided and code_ged_score is None, v2 TLSH is used instead of
+        v1 Jaccard on DEX names.
 
     Returns
     -------
@@ -343,7 +364,11 @@ def compare_all(
         feat_b = features_b.get(layer, set())
 
         if layer == "code":
-            per_layer["code"] = _compare_code(feat_a, feat_b, code_ged_score)
+            per_layer["code"] = _compare_code(
+                feat_a, feat_b, code_ged_score,
+                code_v2_hash_a=code_v2_hash_a,
+                code_v2_hash_b=code_v2_hash_b,
+            )
 
         elif layer == "metadata":
             per_layer["metadata"] = _compare_layer_quick(layer, feat_a, feat_b)
@@ -418,6 +443,8 @@ def run_ablation(
     features_a: dict,
     features_b: dict,
     code_ged_score: float | None = None,
+    code_v2_hash_a: str | None = None,
+    code_v2_hash_b: str | None = None,
 ) -> dict:
     """Compare with multiple layer combinations for ablation analysis.
 
@@ -430,6 +457,8 @@ def run_ablation(
             features_b=features_b,
             layers=layer_list,
             code_ged_score=code_ged_score,
+            code_v2_hash_a=code_v2_hash_a,
+            code_v2_hash_b=code_v2_hash_b,
         )
     return results
 

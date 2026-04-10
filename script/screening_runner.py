@@ -504,6 +504,18 @@ def extract_layers_from_apk(apk_path: Path) -> dict[str, set[str]]:
         }
 
 
+def extract_code_v2_hash(apk_path: Path) -> str | None:
+    """Extract opcode n-gram TLSH hash for R_code v2. Returns None on error."""
+    try:
+        from code_view_v2 import extract_opcode_ngram_tlsh
+    except ImportError:
+        try:
+            from script.code_view_v2 import extract_opcode_ngram_tlsh
+        except ImportError:
+            return None
+    return extract_opcode_ngram_tlsh(apk_path)
+
+
 def discover_app_records_from_apk_root(apk_root: Path) -> list[dict]:
     apk_files = sorted(apk_root.rglob("*.apk"))
     records = []

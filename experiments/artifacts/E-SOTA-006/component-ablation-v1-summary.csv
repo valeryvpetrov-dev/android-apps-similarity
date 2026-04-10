@@ -1,0 +1,5 @@
+config,threshold_fixed,f1_t050,precision_t050,recall_t050,margin,mean_clone_score,mean_non_clone_score,optimal_threshold,f1_optimal,precision_optimal,recall_optimal,w_activities,w_services,w_receivers,w_providers,w_permissions
+current,0.5,0.6667,0.5,1.0,0.2667,1.0,0.7333,0.8,0.8571,0.75,1.0,0.4,0.2,0.2,0.1,0.1
+equal,0.5,0.6667,0.5,1.0,0.1333,1.0,0.8667,0.9,0.8571,0.75,1.0,0.2,0.2,0.2,0.2,0.2
+activity_heavy,0.5,0.8571,0.75,1.0,0.4,1.0,0.6,0.7,0.8571,0.75,1.0,0.6,0.1,0.1,0.1,0.1
+permission_heavy,0.5,0.6667,0.5,1.0,0.1333,1.0,0.8667,0.9,0.8571,0.75,1.0,0.2,0.2,0.1,0.1,0.4

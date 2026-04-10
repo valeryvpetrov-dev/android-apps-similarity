@@ -1,0 +1,33 @@
+# requirements.lock — SOTA-009 Reproducibility Lock
+# Generated: 2026-04-10
+# Python: 3.10+
+#
+# Purpose: Pin exact dependency versions for reproducible experiments.
+# To install: pip install -r requirements.lock
+#
+# To regenerate after environment changes:
+#   pip freeze > requirements.lock
+#   (then trim to project-relevant packages)
+
+# --- Core analysis dependencies ---
+matplotlib==3.7.1
+networkx==3.1
+numpy==1.24.3
+pydot==1.4.2
+pypdf==3.9.0
+scipy==1.13.1
+textdistance==4.5.0
+
+# --- SOTA-001: code_view_v2 dependencies ---
+# Install: pip install androguard py-tlsh
+androguard>=4.0.0
+py-tlsh>=4.7.2
+
+# --- Optional: fuzzy/approximate matching ---
+# datasketch>=1.5.3   # MinHash LSH (used in some experiments)
+
+# --- Notes ---
+# androguard: Dalvik opcode extraction via AnalyzeAPK()
+# py-tlsh: TLSH fuzzy hash (tlsh.hash / tlsh.diff)
+# Version pinning for androguard/py-tlsh to be tightened after
+# first successful run on target environment (run: pip freeze).
