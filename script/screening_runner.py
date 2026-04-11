@@ -537,6 +537,28 @@ def extract_code_v3_set(apk_path: Path):
             return None
 
 
+def extract_api_markov(apk_path):
+    """Extract API call Markov chain for R_api layer.
+
+    Returns a dict of {(from_family, to_family): probability} or None on error.
+    Inspired by MaMaDroid (NDSS 2017): API calls abstracted to package family,
+    transition matrix built as Markov chain, compared via cosine similarity.
+    Invariant to Java/Kotlin rewrite — both call the same Android framework APIs.
+    """
+    try:
+        from api_view import build_markov_chain
+        return build_markov_chain(Path(apk_path))
+    except Exception:
+        try:
+            import sys as _sys
+            import os as _os
+            _sys.path.insert(0, _os.path.dirname(__file__))
+            from api_view import build_markov_chain
+            return build_markov_chain(Path(apk_path))
+        except Exception:
+            return None
+
+
 def discover_app_records_from_apk_root(apk_root: Path) -> list[dict]:
     apk_files = sorted(apk_root.rglob("*.apk"))
     records = []

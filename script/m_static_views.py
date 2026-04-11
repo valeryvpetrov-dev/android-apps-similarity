@@ -70,16 +70,29 @@ except Exception:
         extract_library_features = None
         library_explanation_hints = None
 
+try:
+    from script.api_view import compare_api
+    from script.api_view import build_markov_chain
+except Exception:
+    try:
+        from api_view import compare_api
+        from api_view import build_markov_chain
+    except Exception:
+        compare_api = None
+        build_markov_chain = None
 
-ALL_LAYERS = ("code", "component", "resource", "metadata", "library")
+
+ALL_LAYERS = ("code", "component", "resource", "metadata", "library", "api")
 
 # Weights from cascade-config-schema-v1.
 # metadata is used as tiebreaker, not included in weighted score.
+# api layer weight is additive; existing weights renormalized when api is included.
 LAYER_WEIGHTS = {
     "code": 0.45,
     "component": 0.25,
     "resource": 0.20,
     "library": 0.10,
+    "api": 0.15,
 }
 
 # Predefined ablation configurations.
@@ -87,9 +100,11 @@ ABLATION_CONFIGS = {
     "code_only": ["code"],
     "code_metadata": ["code", "metadata"],
     "all_5_layers": ["code", "component", "resource", "metadata", "library"],
+    "all_6_layers": ["code", "component", "resource", "metadata", "library", "api"],
     "code_resource": ["code", "resource"],
     "code_component": ["code", "component"],
     "code_library": ["code", "library"],
+    "code_api": ["code", "api"],
     "resource_component_library": ["resource", "component", "library"],
 }
 
@@ -272,6 +287,15 @@ def _compare_component_enhanced(feat_a: dict, feat_b: dict) -> dict:
     }
 
 
+def _compare_api(chain_a=None, chain_b=None) -> dict:
+    """Compare API Markov chains via cosine similarity (R_api layer)."""
+    if chain_a is None and chain_b is None:
+        return {"score": 0.0, "status": "no_data"}
+    if compare_api is None:
+        return {"score": 0.0, "status": "not_available"}
+    return compare_api(chain_a, chain_b)
+
+
 def _compare_library_enhanced(feat_a: dict, feat_b: dict) -> dict:
     """Enhanced library comparison via library_view module."""
     if compare_libraries is None:
@@ -343,6 +367,8 @@ def compare_all(
     code_v2_hash_b: str | None = None,
     code_v3_set_a: Any | None = None,
     code_v3_set_b: Any | None = None,
+    api_chain_a: Any | None = None,
+    api_chain_b: Any | None = None,
 ) -> dict:
     """Compare two APKs across selected M_static layers.
 
@@ -351,7 +377,7 @@ def compare_all(
     features_a, features_b:
         Feature dicts produced by ``extract_all_features``.
     layers:
-        Optional subset of layers to use (default: all 5).
+        Optional subset of layers to use (default: all 6).
     code_ged_score:
         Pre-computed GED similarity for the code layer.  When provided
         the module uses it instead of computing Jaccard on DEX names.
@@ -363,6 +389,9 @@ def compare_all(
         Optional frozensets from ``extract_code_v3_set`` (MOSDroid v3 mode).
         When provided and code_ged_score is None, v3 method-opcode Jaccard is
         used (priority over v2 TLSH).
+    api_chain_a, api_chain_b:
+        Optional Markov chain dicts from ``build_markov_chain`` (MaMaDroid R_api mode).
+        When provided, enables API call transition cosine similarity.
 
     Returns
     -------
@@ -410,6 +439,9 @@ def compare_all(
                 per_layer["library"] = _compare_library_enhanced(feat_a, feat_b)
             else:
                 per_layer["library"] = _compare_layer_quick(layer, feat_a, feat_b)
+
+        elif layer == "api":
+            per_layer["api"] = _compare_api(api_chain_a, api_chain_b)
 
     # Weighted score — metadata excluded from weighted average.
     weighted_sum = 0.0
@@ -467,6 +499,8 @@ def run_ablation(
     code_v2_hash_b: str | None = None,
     code_v3_set_a: Any | None = None,
     code_v3_set_b: Any | None = None,
+    api_chain_a: Any | None = None,
+    api_chain_b: Any | None = None,
 ) -> dict:
     """Compare with multiple layer combinations for ablation analysis.
 
@@ -483,6 +517,8 @@ def run_ablation(
             code_v2_hash_b=code_v2_hash_b,
             code_v3_set_a=code_v3_set_a,
             code_v3_set_b=code_v3_set_b,
+            api_chain_a=api_chain_a,
+            api_chain_b=api_chain_b,
         )
     return results
 
