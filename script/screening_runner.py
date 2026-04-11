@@ -516,6 +516,27 @@ def extract_code_v2_hash(apk_path: Path) -> str | None:
     return extract_opcode_ngram_tlsh(apk_path)
 
 
+def extract_code_v3_set(apk_path: Path):
+    """Extract method opcode fingerprint (frozenset) for R_code v3.
+
+    Returns a frozenset of per-method opcode tuples, or None on error.
+    Invariant to DEX packaging (single-dex vs multi-dex).
+    Inspired by MOSDroid (Computers & Security, 2025).
+    """
+    try:
+        from code_view_v3 import extract_method_opcode_fingerprint
+        return extract_method_opcode_fingerprint(Path(apk_path))
+    except Exception:
+        try:
+            import sys as _sys
+            import os as _os
+            _sys.path.insert(0, _os.path.dirname(__file__))
+            from code_view_v3 import extract_method_opcode_fingerprint
+            return extract_method_opcode_fingerprint(Path(apk_path))
+        except Exception:
+            return None
+
+
 def discover_app_records_from_apk_root(apk_root: Path) -> list[dict]:
     apk_files = sorted(apk_root.rglob("*.apk"))
     records = []

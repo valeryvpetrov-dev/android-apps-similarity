@@ -205,13 +205,25 @@ def _compare_code(
     code_ged_score: float | None,
     code_v2_hash_a: str | None = None,
     code_v2_hash_b: str | None = None,
+    code_v3_set_a: Any | None = None,
+    code_v3_set_b: Any | None = None,
 ) -> dict:
     """Compare code layer.
 
-    Priority: GED > v2 TLSH > v1 Jaccard on DEX names.
+    Priority: GED > v3 method-opcode Jaccard > v2 TLSH > v1 Jaccard on DEX names.
     """
     if code_ged_score is not None:
         return {"score": float(code_ged_score), "status": "ged"}
+    if code_v3_set_a is not None or code_v3_set_b is not None:
+        try:
+            from code_view_v3 import compare_code_v3
+        except ImportError:
+            try:
+                from script.code_view_v3 import compare_code_v3
+            except ImportError:
+                compare_code_v3 = None
+        if compare_code_v3 is not None:
+            return compare_code_v3(code_v3_set_a, code_v3_set_b)
     if code_v2_hash_a is not None or code_v2_hash_b is not None:
         try:
             from code_view_v2 import compare_code_v2
@@ -329,6 +341,8 @@ def compare_all(
     code_ged_score: float | None = None,
     code_v2_hash_a: str | None = None,
     code_v2_hash_b: str | None = None,
+    code_v3_set_a: Any | None = None,
+    code_v3_set_b: Any | None = None,
 ) -> dict:
     """Compare two APKs across selected M_static layers.
 
@@ -345,6 +359,10 @@ def compare_all(
         Optional TLSH hashes from ``extract_code_v2_hash`` (SOTA-001 v2 mode).
         When provided and code_ged_score is None, v2 TLSH is used instead of
         v1 Jaccard on DEX names.
+    code_v3_set_a, code_v3_set_b:
+        Optional frozensets from ``extract_code_v3_set`` (MOSDroid v3 mode).
+        When provided and code_ged_score is None, v3 method-opcode Jaccard is
+        used (priority over v2 TLSH).
 
     Returns
     -------
@@ -368,6 +386,8 @@ def compare_all(
                 feat_a, feat_b, code_ged_score,
                 code_v2_hash_a=code_v2_hash_a,
                 code_v2_hash_b=code_v2_hash_b,
+                code_v3_set_a=code_v3_set_a,
+                code_v3_set_b=code_v3_set_b,
             )
 
         elif layer == "metadata":
@@ -445,6 +465,8 @@ def run_ablation(
     code_ged_score: float | None = None,
     code_v2_hash_a: str | None = None,
     code_v2_hash_b: str | None = None,
+    code_v3_set_a: Any | None = None,
+    code_v3_set_b: Any | None = None,
 ) -> dict:
     """Compare with multiple layer combinations for ablation analysis.
 
@@ -459,6 +481,8 @@ def run_ablation(
             code_ged_score=code_ged_score,
             code_v2_hash_a=code_v2_hash_a,
             code_v2_hash_b=code_v2_hash_b,
+            code_v3_set_a=code_v3_set_a,
+            code_v3_set_b=code_v3_set_b,
         )
     return results
 
