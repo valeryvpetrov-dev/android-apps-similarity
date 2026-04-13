@@ -633,4 +633,65 @@ def detect_library_like_v2(
     if best_tpl is not None:
         return (CATEGORY_LIBRARY, "v2:{}(coverage={:.2f})".format(best_tpl, best_coverage))
 
+
+# ---------------------------------------------------------------------------
+# Compatibility API (drop-in for library_view.py v1)
+# ---------------------------------------------------------------------------
+
+def extract_library_features_v2(apk_path: str, cache_dir: Optional[str] = None) -> Dict:
+    """Compat wrapper: same output shape as library_view.extract_library_features().
+
+    Works from raw APK file (not unpacked dir) via androguard.
+    Returns dict with keys: libraries, library_ratio, total_packages.
+    """
+    packages = extract_apk_packages(apk_path, cache_dir=cache_dir)
+    tpl_hits = detect_tpl_in_packages(packages)
+    detected = {k: v for k, v in tpl_hits.items() if v["detected"]}
+    libraries = {
+        tpl_id: {
+            "coverage": info["coverage"],
+            "matched_packages": info["matched_packages"],
+            "category": info["category"],
+        }
+        for tpl_id, info in detected.items()
+    }
+    return {
+        "libraries": libraries,
+        "app_packages": packages,
+        "library_ratio": len(detected) / max(len(tpl_hits), 1),
+        "total_packages": len(packages),
+        "v2": True,
+    }
+
+
+def compare_libraries_v2(features_a: Dict, features_b: Dict) -> Dict:
+    """Compat wrapper: compare two v2 feature dicts.
+
+    Returns Jaccard on detected TPL sets + shared/only_a/only_b.
+    """
+    libs_a = set(features_a.get("libraries", {}).keys())
+    libs_b = set(features_b.get("libraries", {}).keys())
+    shared = libs_a & libs_b
+    union = libs_a | libs_b
+    jaccard = len(shared) / len(union) if union else 0.0
+    return {
+        "jaccard": jaccard,
+        "shared_libraries": sorted(shared),
+        "only_in_a": sorted(libs_a - libs_b),
+        "only_in_b": sorted(libs_b - libs_a),
+        "library_count_a": len(libs_a),
+        "library_count_b": len(libs_b),
+        "v2": True,
+    }
+
+
+def library_explanation_hints_v2(comparison: Dict) -> List[Dict]:
+    """Compat wrapper: produce hint dicts from compare_libraries_v2() result."""
+    hints = []
+    for lib in comparison.get("only_in_b", []):
+        hints.append({"type": "NewLibraryAdded", "library": lib, "source": "library_v2"})
+    for lib in comparison.get("only_in_a", []):
+        hints.append({"type": "LibraryRemoved", "library": lib, "source": "library_v2"})
+    return hints
+
     return None

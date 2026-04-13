@@ -57,18 +57,38 @@ except Exception:
         extract_component_features = None
 
 try:
-    from script.library_view import compare_libraries
-    from script.library_view import extract_library_features
-    from script.library_view import library_explanation_hints
+    from script.library_view_v2 import (
+        extract_library_features_v2 as extract_library_features,
+        compare_libraries_v2 as compare_libraries,
+        library_explanation_hints_v2 as library_explanation_hints,
+    )
+    from script.library_view import extract_library_features as _extract_library_features_v1
+    _LIBRARY_V2 = True
 except Exception:
     try:
-        from library_view import compare_libraries
-        from library_view import extract_library_features
-        from library_view import library_explanation_hints
+        from library_view_v2 import (
+            extract_library_features_v2 as extract_library_features,
+            compare_libraries_v2 as compare_libraries,
+            library_explanation_hints_v2 as library_explanation_hints,
+        )
+        from library_view import extract_library_features as _extract_library_features_v1
+        _LIBRARY_V2 = True
     except Exception:
-        compare_libraries = None
-        extract_library_features = None
-        library_explanation_hints = None
+        try:
+            from script.library_view import compare_libraries
+            from script.library_view import extract_library_features
+            from script.library_view import library_explanation_hints
+        except Exception:
+            try:
+                from library_view import compare_libraries
+                from library_view import extract_library_features
+                from library_view import library_explanation_hints
+            except Exception:
+                compare_libraries = None
+                extract_library_features = None
+                library_explanation_hints = None
+        _extract_library_features_v1 = extract_library_features
+        _LIBRARY_V2 = False
 
 try:
     from script.api_view import compare_api
@@ -187,9 +207,22 @@ def _extract_enhanced(unpacked_dir: str, apk_path: str | None) -> dict:
         features["component"] = set()
 
     # Library view
-    if extract_library_features is not None:
+    if _LIBRARY_V2 and apk_path is not None and extract_library_features is not None:
+        # v2: works from APK file directly
+        try:
+            features["library"] = extract_library_features(apk_path)
+        except Exception:
+            features["library"] = set()
+    elif not _LIBRARY_V2 and extract_library_features is not None:
+        # v1: works from unpacked smali dir
         try:
             features["library"] = extract_library_features(unpacked_dir)
+        except Exception:
+            features["library"] = set()
+    elif _LIBRARY_V2 and apk_path is None and _extract_library_features_v1 is not None:
+        # v2 active but no apk_path: fall back to v1 for enhanced mode
+        try:
+            features["library"] = _extract_library_features_v1(unpacked_dir)
         except Exception:
             features["library"] = set()
     else:
@@ -301,6 +334,18 @@ def _compare_library_enhanced(feat_a: dict, feat_b: dict) -> dict:
     if compare_libraries is None:
         return {"score": 0.0, "status": "not_available"}
     comparison = compare_libraries(feat_a, feat_b)
+    if _LIBRARY_V2:
+        # v2 compat: keys from compare_libraries_v2
+        return {
+            "score": float(comparison.get("jaccard", 0.0)),
+            "status": "enhanced_v2",
+            "details": {
+                "weighted_library_score": comparison.get("jaccard", 0.0),
+                "shared_count": len(comparison.get("shared_libraries", [])),
+                "a_only_count": len(comparison.get("only_in_a", [])),
+                "b_only_count": len(comparison.get("only_in_b", [])),
+            },
+        }
     return {
         "score": float(comparison.get("library_jaccard_score", 0.0)),
         "status": "enhanced",
