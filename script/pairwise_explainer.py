@@ -57,7 +57,7 @@ TARGET_COMPONENT_SUFFIXES = ("Activity", "Service", "Receiver", "Provider")
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Generate pairwise explanation hints (LibraryImpact/NewMethodCall/ComponentChange/ResourceChange)."
+        description="Generate pairwise explanation hints (LibraryImpact/NewMethodCall/ComponentChange/ResourceChange/PermissionChange/NativeLibChange/CertificateMismatch/CodeRemoval)."
     )
     parser.add_argument("--enriched", required=True, help="Path to enriched pairwise JSON.")
     parser.add_argument("--output", required=True, help="Path to output JSON with explanation hints.")
@@ -623,12 +623,126 @@ def build_resource_change_hint(pair: dict) -> dict:
     }
 
 
+def build_permission_change_hint(pair: dict) -> dict:
+    """Detect permission changes between app_a and app_b."""
+    features_a = resolve_side_feature_set(pair, "component", "a")
+    features_b = resolve_side_feature_set(pair, "component", "b")
+
+    perms_a = {f for f in features_a if f.startswith("permission:") or f.startswith("uses-permission:")}
+    perms_b = {f for f in features_b if f.startswith("permission:") or f.startswith("uses-permission:")}
+
+    added = perms_b - perms_a
+    removed = perms_a - perms_b
+
+    elements = []
+    for p in sorted(added)[:4]:
+        name = p.split(":", 1)[1] if ":" in p else p
+        elements.append({"type": "permission", "value": name, "side": "app_b", "change": "added"})
+    for p in sorted(removed)[:4]:
+        name = p.split(":", 1)[1] if ":" in p else p
+        elements.append({"type": "permission", "value": name, "side": "app_a", "change": "removed"})
+
+    change_count = len(added) + len(removed)
+    severity = "high" if change_count >= 4 else "medium" if change_count >= 1 else "low"
+
+    elements = dedupe_elements(ensure_fallback_elements(elements, "file", "AndroidManifest.xml"))
+    description = (
+        f"Permission declarations differ between versions "
+        f"(added={len(added)}, removed={len(removed)})."
+    )
+    return {"hint_type": "PermissionChange", "severity": severity, "elements": elements, "description": description}
+
+
+def build_native_lib_change_hint(pair: dict) -> dict:
+    """Detect native library (.so) additions/removals."""
+    features_a = resolve_side_feature_set(pair, "resource", "a")
+    features_b = resolve_side_feature_set(pair, "resource", "b")
+
+    native_a = {f for f in features_a if ".so" in f.lower() or f.startswith("lib/")}
+    native_b = {f for f in features_b if ".so" in f.lower() or f.startswith("lib/")}
+
+    added = native_b - native_a
+    removed = native_a - native_b
+
+    elements = []
+    for lib in sorted(added)[:4]:
+        name = lib.split("/")[-1] if "/" in lib else lib
+        elements.append({"type": "file", "value": name, "side": "app_b", "change": "added"})
+    for lib in sorted(removed)[:4]:
+        name = lib.split("/")[-1] if "/" in lib else lib
+        elements.append({"type": "file", "value": name, "side": "app_a", "change": "removed"})
+
+    change_count = len(added) + len(removed)
+    severity = "high" if change_count >= 3 else "medium" if change_count >= 1 else "low"
+
+    elements = dedupe_elements(ensure_fallback_elements(elements, "file", "lib/*.so"))
+    description = (
+        f"Native library composition changed "
+        f"(added={len(added)}, removed={len(removed)})."
+    )
+    return {"hint_type": "NativeLibChange", "severity": severity, "elements": elements, "description": description}
+
+
+def build_certificate_mismatch_hint(pair: dict) -> dict:
+    """Detect certificate/signing differences via META-INF files."""
+    features_a = resolve_side_feature_set(pair, "resource", "a")
+    features_b = resolve_side_feature_set(pair, "resource", "b")
+
+    cert_a = {f for f in features_a if "META-INF" in f or "CERT" in f.upper() or "RSA" in f.upper()}
+    cert_b = {f for f in features_b if "META-INF" in f or "CERT" in f.upper() or "RSA" in f.upper()}
+
+    changed = (cert_a - cert_b) | (cert_b - cert_a)
+    mismatch = cert_a != cert_b
+
+    elements = []
+    for f in sorted(changed)[:4]:
+        name = f.split("/")[-1] if "/" in f else f
+        elements.append({"type": "file", "value": name, "side": "both"})
+
+    severity = "high" if mismatch and changed else "medium" if mismatch else "low"
+    elements = dedupe_elements(ensure_fallback_elements(elements, "file", "META-INF/"))
+    description = (
+        "Signing certificate or META-INF entries differ between versions "
+        f"(changed_entries={len(changed)}, mismatch={mismatch})."
+    )
+    return {"hint_type": "CertificateMismatch", "severity": severity, "elements": elements, "description": description}
+
+
+def build_code_removal_hint(pair: dict) -> dict:
+    """Detect code removed from app_a that is absent in app_b."""
+    dots_a = resolve_dot_names(pair, "a")
+    dots_b = resolve_dot_names(pair, "b")
+
+    set_a = {d for d in dots_a if not is_library_like_dot(d)}
+    set_b = {d for d in dots_b if not is_library_like_dot(d)}
+
+    removed = set_a - set_b
+
+    elements = []
+    for dot in sorted(removed)[:6]:
+        elements.append(element_from_dot(dot, "app_a"))
+
+    removal_count = len(removed)
+    severity = "high" if removal_count >= 10 else "medium" if removal_count >= 3 else "low"
+
+    elements = dedupe_elements(ensure_fallback_elements(elements, "class", "UnknownRemovedClass"))
+    description = (
+        f"Code present in app_a is absent in app_b, indicating deletion or refactoring "
+        f"(removed_classes={removal_count})."
+    )
+    return {"hint_type": "CodeRemoval", "severity": severity, "elements": elements, "description": description}
+
+
 def build_explanation_hints(pair: dict) -> list[dict]:
     hints = [
         build_library_impact_hint(pair),
         build_new_method_call_hint(pair),
         build_component_change_hint(pair),
         build_resource_change_hint(pair),
+        build_permission_change_hint(pair),
+        build_native_lib_change_hint(pair),
+        build_certificate_mismatch_hint(pair),
+        build_code_removal_hint(pair),
     ]
     return hints
 
