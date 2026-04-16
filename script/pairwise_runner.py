@@ -45,6 +45,15 @@ except Exception:
     except Exception:
         extract_all_features = None
 
+try:
+    from script.shared_data_store import discover_apk_by_stem
+    from script.shared_data_store import discover_decoded_dir_by_stem
+    from script.shared_data_store import resolve_path_ref
+except Exception:
+    from shared_data_store import discover_apk_by_stem  # type: ignore[no-redef]
+    from shared_data_store import discover_decoded_dir_by_stem  # type: ignore[no-redef]
+    from shared_data_store import resolve_path_ref  # type: ignore[no-redef]
+
 
 APP_PATH_KEYS = (
     "apk_path",
@@ -525,11 +534,14 @@ def extract_path_from_app(app: Any) -> str | None:
         for key in APP_PATH_KEYS:
             value = app.get(key)
             if isinstance(value, str) and value:
-                return value
+                return resolve_path_ref(value)
     if isinstance(app, str) and app:
-        path = Path(app)
+        resolved = resolve_path_ref(app)
+        if resolved is None:
+            return None
+        path = Path(resolved)
         if path.is_file() and path.suffix.lower() == ".apk":
-            return app
+            return resolved
     return None
 
 
@@ -545,7 +557,8 @@ def resolve_app_label(app: Any, fallback: str) -> str:
     if isinstance(app, str) and app.strip():
         value = app.strip()
         if value.lower().endswith(".apk"):
-            return Path(value).stem
+            resolved = resolve_path_ref(value) or value
+            return Path(resolved).stem
         return value
     return fallback
 
@@ -554,14 +567,16 @@ def discover_apk_path_by_app_label(app_label: str, cache: dict[str, str | None])
     if app_label in cache:
         return cache[app_label]
 
-    apk_root = PROJECT_ROOT / "apk"
     discovered = None
+    apk_root = PROJECT_ROOT / "apk"
     if apk_root.is_dir():
         candidates = sorted(apk_root.rglob("*.apk"))
         for apk_path in candidates:
             if apk_path.stem == app_label:
                 discovered = str(apk_path.resolve())
                 break
+    if discovered is None:
+        discovered = discover_apk_by_stem(app_label)
     cache[app_label] = discovered
     return discovered
 
@@ -580,7 +595,7 @@ def resolve_apk_path(
     keys = A_SIDE_CANDIDATE_APK_KEYS if side == "a" else B_SIDE_CANDIDATE_APK_KEYS
     value = first_present(candidate, keys)
     if isinstance(value, str) and value:
-        return value
+        return resolve_path_ref(value) or value
 
     apps = candidate.get("apps")
     if isinstance(apps, dict):
@@ -615,7 +630,7 @@ def extract_decoded_dir_from_app(app: Any) -> str | None:
     for key in APP_DECODED_DIR_KEYS:
         value = app.get(key)
         if isinstance(value, str) and value:
-            return value
+            return resolve_path_ref(value)
     return None
 
 
@@ -627,7 +642,7 @@ def resolve_decoded_dir(candidate: dict[str, Any], app: Any, side: str) -> str |
     keys = A_SIDE_CANDIDATE_DECODED_KEYS if side == "a" else B_SIDE_CANDIDATE_DECODED_KEYS
     value = first_present(candidate, keys)
     if isinstance(value, str) and value:
-        return value
+        return resolve_path_ref(value) or value
 
     apps = candidate.get("apps")
     if isinstance(apps, dict):
@@ -641,6 +656,10 @@ def resolve_decoded_dir(candidate: dict[str, Any], app: Any, side: str) -> str |
         decoded_dir = extract_decoded_dir_from_app(apps.get(fallback_key))
         if decoded_dir is not None:
             return decoded_dir
+
+    app_label = resolve_app_label(app, "")
+    if app_label:
+        return discover_decoded_dir_by_stem(app_label)
 
     return None
 

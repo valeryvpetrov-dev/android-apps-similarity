@@ -21,6 +21,10 @@ def write_text(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def touch_apk(path: Path) -> None:
+    path.write_bytes(b"fake_apk")
+
+
 class TestDeepeningRunnerEnhanced(unittest.TestCase):
     def test_run_deepening_enriches_pairwise_only_non_code_layers(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -144,6 +148,19 @@ stages:
             for entry in payload["enriched_candidates"][0]["enriched_views"]
         }
         self.assertEqual(statuses["resource"], "success")
+
+    def test_build_decode_cache_dir_uses_shared_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            apk_path = root / "app.alpha.apk"
+            touch_apk(apk_path)
+
+            with mock.patch.dict("os.environ", {"PHD_SHARED_DATA_ROOT": str(root / "shared")}):
+                cache_dir = deepening_runner.build_decode_cache_dir(str(apk_path))
+
+        self.assertIn(str((root / "shared").resolve()), str(cache_dir))
+        self.assertIn("decoded-cache", str(cache_dir))
+        self.assertIn("app.alpha", cache_dir.name)
 
 
 if __name__ == "__main__":
