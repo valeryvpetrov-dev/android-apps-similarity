@@ -98,9 +98,9 @@ def test_cosine_partial_overlap():
 # ── compare_api tests ─────────────────────────────────────────────────────────
 
 def test_compare_api_both_none():
-    """Both chains None -> score=1.0, status='both_empty'"""
+    """Both chains None -> score=0.0, status='both_empty'"""
     result = compare_api(None, None)
-    assert result["score"] == 1.0
+    assert result["score"] == 0.0
     assert result["status"] == "both_empty"
 
 

@@ -173,7 +173,7 @@ def compare_api(
     Returns: {"score": float [0..1], "status": str}
     """
     if chain_a is None and chain_b is None:
-        return {"score": 1.0, "status": "both_empty"}
+        return {"score": 0.0, "status": "both_empty"}
     if chain_a is None or chain_b is None:
         return {"score": 0.0, "status": "one_empty"}
 
