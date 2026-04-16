@@ -1048,6 +1048,251 @@ def run_pairwise(
     return results
 
 
+def resolve_pair_id(candidate: dict[str, Any], index: int) -> str:
+    value = candidate.get("pair_id")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return "PAIR-{:06d}".format(index + 1)
+
+
+def build_app_contract(app: Any, label: str) -> dict[str, Any]:
+    payload = {"app_id": label}
+    if isinstance(app, dict):
+        apk_path = extract_path_from_app(app)
+        decoded_dir = extract_decoded_dir_from_app(app)
+        if apk_path:
+            payload["apk_path"] = apk_path
+        if decoded_dir:
+            payload["decoded_dir"] = decoded_dir
+    return payload
+
+
+def normalize_detailed_analysis_status(summary_row: dict[str, Any]) -> str:
+    status = summary_row.get("status")
+    if status == "analysis_failed":
+        return "analysis_failed"
+    return "success"
+
+
+def infer_failure_reason(
+    candidate: dict[str, Any],
+    app_a_raw: Any,
+    app_b_raw: Any,
+    selected_layers: list[str],
+    analysis_status: str,
+) -> str | None:
+    if analysis_status != "analysis_failed":
+        return None
+
+    explicit = candidate.get("failure_reason")
+    if isinstance(explicit, str) and explicit.strip():
+        return explicit.strip()
+
+    requires_decoded = any(layer in DECODE_REQUIRED_LAYERS for layer in selected_layers)
+    if requires_decoded:
+        decoded_a = resolve_decoded_dir(candidate, app_a_raw, "a")
+        decoded_b = resolve_decoded_dir(candidate, app_b_raw, "b")
+        if not decoded_a or not decoded_b:
+            return "view_build_failed"
+
+    return "internal_pipeline_error"
+
+
+def build_detailed_scores(summary_row: dict[str, Any], analysis_status: str) -> dict[str, Any]:
+    if analysis_status == "analysis_failed":
+        return {
+            "similarity_score": None,
+            "full_similarity_score": None,
+            "library_reduced_score": None,
+            "selected_similarity_score": None,
+        }
+
+    full_score = summary_row.get("full_similarity_score")
+    reduced_score = summary_row.get("library_reduced_score")
+    selected_score = reduced_score if reduced_score is not None else full_score
+    return {
+        "similarity_score": selected_score,
+        "full_similarity_score": full_score,
+        "library_reduced_score": reduced_score,
+        "selected_similarity_score": selected_score,
+    }
+
+
+def build_detailed_views(
+    selected_layers: list[str],
+    views_used: list[str],
+    analysis_status: str,
+    failure_reason: str | None,
+) -> dict[str, Any]:
+    canonical_views = ("code", "api", "component", "resource", "library", "cfg_ged")
+    selected = set(selected_layers)
+    used = set(views_used)
+    views: dict[str, Any] = {}
+
+    for view in canonical_views:
+        if view not in selected and view != "cfg_ged":
+            views[view] = {
+                "view_status": "not_requested",
+                "warnings": [],
+                "errors": [],
+            }
+            continue
+
+        if view == "cfg_ged" and "code" not in selected:
+            views[view] = {
+                "view_status": "not_requested",
+                "warnings": [],
+                "errors": [],
+            }
+            continue
+
+        if analysis_status == "analysis_failed":
+            errors = []
+            if failure_reason == "view_build_failed" and view in DECODE_REQUIRED_LAYERS:
+                errors.append("missing_decoded_dir")
+            elif failure_reason:
+                errors.append(failure_reason)
+            views[view] = {
+                "view_status": "failed" if view in selected else "not_requested",
+                "warnings": [],
+                "errors": errors,
+            }
+            continue
+
+        view_status = "success" if view in used else "not_requested"
+        if view == "cfg_ged":
+            view_status = "success" if "code" in used else "not_requested"
+        views[view] = {
+            "view_status": view_status,
+            "warnings": [],
+            "errors": [],
+        }
+
+    return views
+
+
+def build_detailed_explanation(scores: dict[str, Any], analysis_status: str) -> dict[str, Any]:
+    full_score = scores.get("full_similarity_score")
+    reduced_score = scores.get("library_reduced_score")
+    library_impact_flag = False
+    if full_score is not None and reduced_score is not None:
+        library_impact_flag = bool(abs(float(full_score) - float(reduced_score)) >= 0.05)
+
+    return {
+        "explanation_status": "not_available",
+        "hint_count": 0,
+        "top_hint_types": [],
+        "hints": [],
+        "library_impact_flag": library_impact_flag if analysis_status != "analysis_failed" else False,
+    }
+
+
+def build_detailed_result(
+    candidate: dict[str, Any],
+    summary_row: dict[str, Any],
+    selected_layers: list[str],
+    metric: str,
+    threshold: float,
+    config_path: Path,
+    enriched_path: Path,
+    index: int,
+) -> dict[str, Any]:
+    app_a_raw, app_b_raw = extract_apps(candidate)
+    app_a_label = resolve_app_label(app_a_raw, "unknown_app_a")
+    app_b_label = resolve_app_label(app_b_raw, "unknown_app_b")
+    pair_id = resolve_pair_id(candidate, index)
+    representation_mode = str(candidate.get("representation_mode") or "R_multiview_partial")
+    analysis_status = normalize_detailed_analysis_status(summary_row)
+    failure_reason = infer_failure_reason(
+        candidate=candidate,
+        app_a_raw=app_a_raw,
+        app_b_raw=app_b_raw,
+        selected_layers=selected_layers,
+        analysis_status=analysis_status,
+    )
+    scores = build_detailed_scores(summary_row, analysis_status)
+    views_used = summary_row.get("views_used")
+    if not isinstance(views_used, list):
+        views_used = []
+
+    return {
+        "pair_id": pair_id,
+        "apps": {
+            "app_a": build_app_contract(app_a_raw, app_a_label),
+            "app_b": build_app_contract(app_b_raw, app_b_label),
+        },
+        "analysis_status": analysis_status,
+        "failure_reason": failure_reason,
+        "representation_mode": representation_mode,
+        "views": build_detailed_views(
+            selected_layers=selected_layers,
+            views_used=[str(view) for view in views_used],
+            analysis_status=analysis_status,
+            failure_reason=failure_reason,
+        ),
+        "scores": scores,
+        "explanation": build_detailed_explanation(scores, analysis_status),
+        "artifacts": {
+            "artifacts_path": candidate.get("artifacts_path") or "pairwise://{}".format(pair_id),
+            "enriched_candidates_ref": str(enriched_path),
+            "candidate_list_row_ref": candidate.get("candidate_list_row_ref"),
+            "screening_explanation_ref": candidate.get("screening_explanation_ref"),
+            "noise_summary_ref": candidate.get("noise_summary_ref"),
+            "noise_profile_ref": candidate.get("noise_profile_ref"),
+            "deepening_artifact_refs": candidate.get("deepening_artifact_refs") or [],
+        },
+        "run_context": {
+            "dataset_id": candidate.get("dataset_id"),
+            "prototype_id": candidate.get("prototype_id"),
+            "prototype_sha": candidate.get("prototype_sha"),
+            "representation_mode": representation_mode,
+            "config_ref": str(config_path),
+            "pairwise_config": {
+                "features": list(selected_layers),
+                "metric": metric,
+                "threshold": threshold,
+            },
+        },
+    }
+
+
+def run_pairwise_detailed(
+    config_path: Path,
+    enriched_path: Path,
+    ins_block_sim_threshold: float = 0.80,
+    ged_timeout_sec: int = 30,
+    processes_count: int = 1,
+    threads_count: int = 2,
+) -> list[dict[str, Any]]:
+    config = load_config(config_path)
+    selected_layers, metric, threshold = parse_pairwise_stage(config)
+    candidates = load_enriched_candidates(enriched_path)
+    summary_rows = run_pairwise(
+        config_path=config_path,
+        enriched_path=enriched_path,
+        ins_block_sim_threshold=ins_block_sim_threshold,
+        ged_timeout_sec=ged_timeout_sec,
+        processes_count=processes_count,
+        threads_count=threads_count,
+    )
+
+    detailed = []
+    for index, (candidate, summary_row) in enumerate(zip(candidates, summary_rows)):
+        detailed.append(
+            build_detailed_result(
+                candidate=candidate,
+                summary_row=summary_row,
+                selected_layers=selected_layers,
+                metric=metric,
+                threshold=threshold,
+                config_path=config_path,
+                enriched_path=enriched_path,
+                index=index,
+            )
+        )
+    return detailed
+
+
 def main() -> None:
     args = parse_args()
     payload = run_pairwise(
