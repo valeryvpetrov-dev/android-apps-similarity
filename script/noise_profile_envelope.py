@@ -39,6 +39,7 @@ DETECTOR_LADDER = (
 STATUS_SUCCESS = "success"
 STATUS_PARTIAL = "partial"
 STATUS_BLOCKED = "blocked"
+STATUS_FAILED = "failed"
 
 # Noise verdict (semantic result — "is this APK noisy?")
 NOISE_STATUS_CLEAN = "clean"

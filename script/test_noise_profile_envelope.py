@@ -41,6 +41,7 @@ from noise_profile_envelope import (
     NOISE_STATUS_UNKNOWN,
     SCHEMA_VERSION,
     STATUS_BLOCKED,
+    STATUS_FAILED,
     STATUS_PARTIAL,
     STATUS_SUCCESS,
     NoiseProfileEnvelope,
@@ -415,6 +416,12 @@ def test_add_noise_context_to_explanation_fields():
     # Original must not be mutated.
     assert "noise_context" not in explanation
     print("PASS: test_add_noise_context_to_explanation_fields")
+
+
+def test_status_failed_constant():
+    """STATUS_FAILED constant must exist and have value 'failed'."""
+    assert STATUS_FAILED == "failed"
+    print("PASS: test_status_failed_constant")
 
 
 def test_add_noise_context_reliability_degraded():

@@ -25,6 +25,7 @@ try:
         NOISE_STATUS_NOISY,
         NOISE_STATUS_UNKNOWN,
         STATUS_BLOCKED,
+        STATUS_FAILED,
         STATUS_PARTIAL,
         to_dict,
     )
@@ -35,6 +36,7 @@ except ImportError:
         NOISE_STATUS_NOISY,
         NOISE_STATUS_UNKNOWN,
         STATUS_BLOCKED,
+        STATUS_FAILED,
         STATUS_PARTIAL,
         to_dict,
     )
@@ -164,7 +166,7 @@ def add_noise_context_to_explanation(
 
     # Flag reliability issues.
     reliability_degraded = (
-        envelope.status in (STATUS_BLOCKED, STATUS_PARTIAL)
+        envelope.status in (STATUS_BLOCKED, STATUS_FAILED, STATUS_PARTIAL)
         or envelope.noise_status == NOISE_STATUS_UNKNOWN
         or bool(envelope.downstream_warnings)
     )
