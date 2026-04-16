@@ -124,6 +124,7 @@ def _find_original_apk(unpacked_dir: Path) -> Optional[Path]:
 def build_payload(
     apk_path: Path,
     use_library_v2: Optional[bool] = None,
+    include_noise_profile: bool = False,
 ) -> Dict[str, object]:
     """Build classification payload for an unpacked APK directory.
 
@@ -132,6 +133,7 @@ def build_payload(
         use_library_v2: If True, use v2 TPL detector (androguard 4.x).
                         If None, falls back to USE_LIBRARY_V2 env var.
                         If False or androguard unavailable, uses v1 prefix-match.
+        include_noise_profile: If True, attach noise_profile_envelope to output dict.
     """
     elements: List[Dict[str, str]] = []
     summary = {category: 0 for category in SUMMARY_ORDER}
@@ -173,12 +175,19 @@ def build_payload(
         )
         summary[category] += 1
 
-    return {
+    payload: Dict[str, object] = {
         "apk_path": str(apk_path),
         "timestamp": utc_timestamp(),
         "elements": elements,
         "summary": summary,
     }
+
+    if include_noise_profile:
+        from noise_profile import build_noise_profile, to_dict  # type: ignore[import]
+        envelope = build_noise_profile(payload)
+        payload["noise_profile_envelope"] = to_dict(envelope)
+
+    return payload
 
 
 def iter_files(apk_path: Path) -> Iterable[Path]:

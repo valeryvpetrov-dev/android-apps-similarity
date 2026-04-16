@@ -784,6 +784,34 @@ def validate_app_records(app_records: list[dict]) -> None:
         seen_ids.add(app_id)
 
 
+def _extract_noise_profile_fields(app_record: dict) -> tuple[list[str], str | None]:
+    """Extract downstream_warnings and noise_profile_ref from an app_record.
+
+    Looks for noise_profile_envelope stored either directly on the app_record
+    (e.g. loaded from representation store) or under the 'noise_profile_envelope' key.
+
+    Returns:
+        (downstream_warnings, noise_profile_ref)
+        - downstream_warnings: list of warning strings to merge into screening_warnings
+        - noise_profile_ref: compact string reference to the envelope (path or id), or None
+    """
+    envelope: dict | None = app_record.get("noise_profile_envelope")
+    if not isinstance(envelope, dict):
+        return [], None
+
+    warnings = envelope.get("downstream_warnings", [])
+    if not isinstance(warnings, list):
+        warnings = []
+
+    # Build a compact ref: detector_source + status + schema_version
+    detector = envelope.get("detector_source", "")
+    status = envelope.get("status", "")
+    schema = envelope.get("schema_version", "")
+    noise_profile_ref = "noise_profile:{}:{}:{}".format(schema, detector, status) if detector else None
+
+    return list(warnings), noise_profile_ref
+
+
 def build_candidate_list(
     app_records: list[dict],
     selected_layers: list[str],
@@ -809,17 +837,32 @@ def build_candidate_list(
         )
         if score < threshold:
             continue
+
+        # Thread noise_profile_envelope from query_app (app_a) into screening output.
+        noise_warnings, noise_profile_ref = _extract_noise_profile_fields(app_a)
+
+        screening_explanation: dict | None = None
+        if noise_profile_ref is not None:
+            screening_explanation = {"noise_profile_ref": noise_profile_ref}
+
         candidate_list.append(
             {
                 "app_a": app_a["app_id"],
                 "app_b": app_b["app_id"],
+                "query_app_id": app_a["app_id"],
+                "candidate_app_id": app_b["app_id"],
                 "retrieval_score": float(score),
                 "features_used": list(selected_layers),
+                "retrieval_features_used": list(selected_layers),
+                "screening_warnings": noise_warnings,
+                "screening_explanation": screening_explanation,
             }
         )
     candidate_list.sort(
         key=lambda item: (-item["retrieval_score"], item["app_a"], item["app_b"])
     )
+    for index, item in enumerate(candidate_list, start=1):
+        item["retrieval_rank"] = index
     return candidate_list
 
 
@@ -827,7 +870,10 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Run cascade-config screening stage and return candidate_list in JSON "
-            "with format [{app_a, app_b, retrieval_score, features_used}]."
+            "with screening handoff fields "
+            "[{app_a, app_b, query_app_id, candidate_app_id, retrieval_rank, "
+            "retrieval_score, features_used, retrieval_features_used, "
+            "screening_warnings, screening_explanation}]."
         )
     )
     parser.add_argument("cascade_config_path", help="Path to YAML cascade-config")
