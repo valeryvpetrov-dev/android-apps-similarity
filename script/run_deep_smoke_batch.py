@@ -4,11 +4,19 @@
 Loads a pairs JSON, runs deep pairwise verification for each pair using
 pairwise_runner, and writes results to an output JSON file.
 
-Usage:
+Usage (sequential, backward-compatible):
     python script/run_deep_smoke_batch.py \
         --pairs path/to/smoke_pairs.json \
         --config exp/configs/optimal-cascade-v4-pairwise-fix.yaml \
         --output path/to/results.json
+
+Usage (parallel, 4 workers):
+    python script/run_deep_smoke_batch.py \
+        --pairs path/to/smoke_pairs.json \
+        --config exp/configs/optimal-cascade-v4-pairwise-fix.yaml \
+        --output path/to/results.json \
+        --workers 4 \
+        --pair-timeout 600
 """
 from __future__ import annotations
 
@@ -16,6 +24,7 @@ import argparse
 import json
 import sys
 import tempfile
+from concurrent.futures import ProcessPoolExecutor, TimeoutError as FuturesTimeoutError, as_completed
 from pathlib import Path
 from typing import Any
 
@@ -79,6 +88,22 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=30,
         help="GED per-pair timeout in seconds (default: 30).",
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help=(
+            "Number of parallel worker processes (default: 1 = sequential). "
+            "When >1, uses ProcessPoolExecutor. "
+            "Recommended: set --ged-timeout-sec lower when using many workers."
+        ),
+    )
+    parser.add_argument(
+        "--pair-timeout",
+        type=int,
+        default=600,
+        help="Per-pair wall-clock timeout in seconds for parallel mode (default: 600).",
+    )
     return parser.parse_args(argv)
 
 
@@ -99,7 +124,7 @@ def run_batch(
     ins_block_sim_threshold: float = 0.80,
     ged_timeout_sec: int = 30,
 ) -> dict[str, Any]:
-    """Run pairwise verification for all pairs.
+    """Run pairwise verification for all pairs sequentially.
 
     Returns a dict with keys:
       - config_ref: str
@@ -143,6 +168,174 @@ def run_batch(
 
 
 # ---------------------------------------------------------------------------
+# Parallel batch support
+# ---------------------------------------------------------------------------
+
+def _worker_process_single_pair(
+    pair_json: str,
+    config_path_str: str,
+    ins_block_sim_threshold: float,
+    ged_timeout_sec: int,
+) -> str:
+    """Top-level worker function for ProcessPoolExecutor (pickle-compatible).
+
+    Processes a single pair JSON string and returns a result row JSON string.
+    Runs in a separate process — all imports happen inside this function to
+    ensure a clean process environment.
+    """
+    import json as _json
+    import sys as _sys
+    import tempfile as _tempfile
+    from pathlib import Path as _Path
+
+    _project_root = _Path(__file__).resolve().parent.parent
+    if str(_project_root) not in _sys.path:
+        _sys.path.insert(0, str(_project_root))
+
+    try:
+        from script.pairwise_runner import run_pairwise as _run_pairwise
+    except Exception:
+        from pairwise_runner import run_pairwise as _run_pairwise  # type: ignore[no-redef]
+
+    pair = _json.loads(pair_json)
+    config_path = _Path(config_path_str)
+
+    with _tempfile.NamedTemporaryFile(
+        mode="w", suffix=".json", delete=False, encoding="utf-8"
+    ) as tmp:
+        _json.dump([pair], tmp)
+        tmp_path = _Path(tmp.name)
+
+    try:
+        results = _run_pairwise(
+            config_path=config_path,
+            enriched_path=tmp_path,
+            ins_block_sim_threshold=ins_block_sim_threshold,
+            ged_timeout_sec=ged_timeout_sec,
+        )
+        row = results[0] if results else {
+            "app_a": "unknown",
+            "app_b": "unknown",
+            "full_similarity_score": None,
+            "library_reduced_score": None,
+            "status": "analysis_failed",
+            "views_used": [],
+        }
+    except Exception as exc:
+        row = {
+            "app_a": "unknown",
+            "app_b": "unknown",
+            "full_similarity_score": None,
+            "library_reduced_score": None,
+            "status": "analysis_failed",
+            "error": str(exc),
+            "views_used": [],
+        }
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+    return _json.dumps(row)
+
+
+def _make_failed_row(pair: dict[str, Any], reason: str) -> dict[str, Any]:
+    """Build a failed result row preserving app labels if resolvable."""
+    app_a = "unknown_app_a"
+    app_b = "unknown_app_b"
+    try:
+        from script.pairwise_runner import extract_apps, resolve_app_label
+        app_a_raw, app_b_raw = extract_apps(pair)
+        app_a = resolve_app_label(app_a_raw, "unknown_app_a")
+        app_b = resolve_app_label(app_b_raw, "unknown_app_b")
+    except Exception:
+        pass
+    return {
+        "app_a": app_a,
+        "app_b": app_b,
+        "full_similarity_score": None,
+        "library_reduced_score": None,
+        "status": "analysis_failed",
+        "error": reason,
+        "views_used": [],
+    }
+
+
+def run_parallel_batch(
+    pairs_path: Path,
+    config_path: Path,
+    workers: int,
+    ins_block_sim_threshold: float = 0.80,
+    ged_timeout_sec: int = 30,
+    pair_timeout: int = 600,
+) -> dict[str, Any]:
+    """Run pairwise verification in parallel using ProcessPoolExecutor.
+
+    Each worker processes one pair independently.
+    Failed pairs get status='analysis_failed'; remaining pairs continue.
+
+    Returns same contract as run_batch():
+      - config_ref, pairs_ref, pairwise_config, total, results
+    """
+    config = load_config(config_path)
+    selected_layers, metric, threshold = parse_pairwise_stage(config)
+
+    pairs = load_pairs(pairs_path)
+    total = len(pairs)
+
+    config_path_str = str(config_path)
+
+    # Map future -> (index, pair) to preserve order and allow failed row labeling
+    future_to_meta: dict[Any, tuple[int, dict[str, Any]]] = {}
+    results: list[dict[str, Any] | None] = [None] * total
+
+    with ProcessPoolExecutor(max_workers=workers) as executor:
+        for idx, pair in enumerate(pairs):
+            pair_json = json.dumps(pair)
+            future = executor.submit(
+                _worker_process_single_pair,
+                pair_json,
+                config_path_str,
+                ins_block_sim_threshold,
+                ged_timeout_sec,
+            )
+            future_to_meta[future] = (idx, pair)
+
+        completed = 0
+        for future in as_completed(future_to_meta):
+            idx, pair = future_to_meta[future]
+            completed += 1
+            try:
+                result_json = future.result(timeout=pair_timeout)
+                row = json.loads(result_json)
+            except FuturesTimeoutError:
+                row = _make_failed_row(pair, "pair_timeout")
+            except Exception as exc:
+                row = _make_failed_row(pair, str(exc))
+
+            results[idx] = row
+            print(
+                f"[{completed}/{total}] pair {idx} -> {row.get('status', 'unknown')}",
+                file=sys.stderr,
+            )
+
+    # Safeguard: fill any None slots (should not happen in normal flow)
+    for idx, row in enumerate(results):
+        if row is None:
+            results[idx] = _make_failed_row(pairs[idx], "unknown_worker_failure")
+
+    return {
+        "config_ref": str(config_path),
+        "pairs_ref": str(pairs_path),
+        "pairwise_config": {
+            "features": list(selected_layers),
+            "metric": metric,
+            "threshold": threshold,
+        },
+        "total": len(results),
+        "results": results,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
@@ -159,12 +352,31 @@ def main(argv: list[str] | None = None) -> None:
         print(f"ERROR: config file not found: {config_path}", file=sys.stderr)
         sys.exit(1)
 
-    batch_result = run_batch(
-        pairs_path=pairs_path,
-        config_path=config_path,
-        ins_block_sim_threshold=args.ins_block_sim_threshold,
-        ged_timeout_sec=args.ged_timeout_sec,
-    )
+    workers = args.workers
+    if workers < 1:
+        print("ERROR: --workers must be >= 1", file=sys.stderr)
+        sys.exit(1)
+
+    if workers == 1:
+        batch_result = run_batch(
+            pairs_path=pairs_path,
+            config_path=config_path,
+            ins_block_sim_threshold=args.ins_block_sim_threshold,
+            ged_timeout_sec=args.ged_timeout_sec,
+        )
+    else:
+        print(
+            f"Parallel mode: {workers} workers, pair-timeout={args.pair_timeout}s",
+            file=sys.stderr,
+        )
+        batch_result = run_parallel_batch(
+            pairs_path=pairs_path,
+            config_path=config_path,
+            workers=workers,
+            ins_block_sim_threshold=args.ins_block_sim_threshold,
+            ged_timeout_sec=args.ged_timeout_sec,
+            pair_timeout=args.pair_timeout,
+        )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(batch_result, indent=2), encoding="utf-8")
