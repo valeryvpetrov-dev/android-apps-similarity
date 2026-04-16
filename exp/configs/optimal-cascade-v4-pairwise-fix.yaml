@@ -1,0 +1,18 @@
+# optimal-cascade-v4-pairwise-fix.yaml
+# Fix for DEEP-002: adds metric and threshold to pairwise stage.
+# Without these fields pairwise_runner.parse_pairwise_stage raises ValueError.
+
+code_layer:
+  mode: v2_tlsh       # v1_jaccard | v2_tlsh | ged
+  window: 5           # n-gram window size for v2_tlsh
+  norm_divisor: 300   # TLSH distance normalization divisor (300 ≈ 50% structural overlap)
+
+stages:
+  screening:
+    features: [code, metadata]
+    metric: jaccard
+    threshold: 0.3
+  pairwise:
+    features: [code, component, resource, library, metadata]
+    metric: jaccard
+    threshold: 0.03
