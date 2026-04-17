@@ -28,6 +28,17 @@ from concurrent.futures import ProcessPoolExecutor, TimeoutError as FuturesTimeo
 from pathlib import Path
 from typing import Any
 
+# Mute androguard v4 loguru + stdlib DEBUG spam (applies per-worker via module import).
+try:
+    from loguru import logger as _loguru_logger  # type: ignore[import]
+    _loguru_logger.remove()
+    _loguru_logger.add(sys.stderr, level="WARNING")
+except ImportError:
+    pass
+import logging as _stdlib_logging
+for _mod in ("androguard", "androguard.core", "androguard.analysis"):
+    _stdlib_logging.getLogger(_mod).setLevel(_stdlib_logging.WARNING)
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
