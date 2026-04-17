@@ -35,10 +35,22 @@ if str(_SCRIPT_DIR) not in sys.path:
 
 from code_view_v2 import compare_code_v2, extract_opcode_ngram_tlsh  # noqa: E402
 
+# Silence loguru (used by androguard 4.x) — it floods stderr with XREF DEBUG.
+try:
+    from loguru import logger as _loguru_logger  # type: ignore[import]
+    _loguru_logger.remove()
+    _loguru_logger.add(sys.stderr, level="WARNING")
+except ImportError:
+    pass
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
+# Also mute noisy stdlib loggers from androguard / its deps.
+for _mod in ("androguard", "androguard.core", "androguard.analysis"):
+    logging.getLogger(_mod).setLevel(logging.WARNING)
+
 logger = logging.getLogger("exec075-ab")
 
 
