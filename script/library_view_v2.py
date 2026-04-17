@@ -217,6 +217,152 @@ TPL_CATALOG_V2: Dict[str, Dict] = {
             "com.google.android.material.button",
             "com.google.android.material.chip",
             "com.google.android.material.dialog",
+            "com.google.android.material.appbar",
+            "com.google.android.material.bottomnavigation",
+            "com.google.android.material.bottomsheet",
+            "com.google.android.material.card",
+            "com.google.android.material.floatingactionbutton",
+            "com.google.android.material.navigation",
+            "com.google.android.material.progressindicator",
+            "com.google.android.material.snackbar",
+            "com.google.android.material.tabs",
+            "com.google.android.material.textfield",
+        }),
+    },
+    # --- Jetpack Compose (EXEC-075: added to fix NC-033/FPR from shared Compose code) ---
+    "androidx_compose_runtime": {
+        "category": "ui",
+        "packages": frozenset({
+            "androidx.compose.runtime",
+            "androidx.compose.runtime.internal",
+            "androidx.compose.runtime.snapshots",
+            "androidx.compose.runtime.saveable",
+        }),
+    },
+    "androidx_compose_ui": {
+        "category": "ui",
+        "packages": frozenset({
+            "androidx.compose.ui",
+            "androidx.compose.ui.graphics",
+            "androidx.compose.ui.layout",
+            "androidx.compose.ui.node",
+            "androidx.compose.ui.platform",
+            "androidx.compose.ui.semantics",
+            "androidx.compose.ui.text",
+            "androidx.compose.ui.unit",
+            "androidx.compose.ui.input",
+            "androidx.compose.ui.draw",
+            "androidx.compose.ui.geometry",
+        }),
+    },
+    "androidx_compose_foundation": {
+        "category": "ui",
+        "packages": frozenset({
+            "androidx.compose.foundation",
+            "androidx.compose.foundation.layout",
+            "androidx.compose.foundation.lazy",
+            "androidx.compose.foundation.gestures",
+            "androidx.compose.foundation.shape",
+            "androidx.compose.foundation.text",
+        }),
+    },
+    "androidx_compose_material": {
+        "category": "ui",
+        "packages": frozenset({
+            "androidx.compose.material",
+            "androidx.compose.material.icons",
+            "androidx.compose.material.ripple",
+            "androidx.compose.material3",
+            "androidx.compose.material3.tokens",
+        }),
+    },
+    "androidx_compose_animation": {
+        "category": "ui",
+        "packages": frozenset({
+            "androidx.compose.animation",
+            "androidx.compose.animation.core",
+        }),
+    },
+    # --- AndroidX core (EXEC-075: shared across virtually all modern apps) ---
+    "androidx_core": {
+        "category": "androidx_platform",
+        "packages": frozenset({
+            "androidx.core",
+            "androidx.core.app",
+            "androidx.core.content",
+            "androidx.core.graphics",
+            "androidx.core.os",
+            "androidx.core.util",
+            "androidx.core.view",
+            "androidx.core.widget",
+        }),
+    },
+    "androidx_appcompat": {
+        "category": "androidx_platform",
+        "packages": frozenset({
+            "androidx.appcompat",
+            "androidx.appcompat.app",
+            "androidx.appcompat.widget",
+            "androidx.appcompat.view",
+            "androidx.appcompat.content",
+        }),
+    },
+    "androidx_lifecycle": {
+        "category": "androidx_platform",
+        "packages": frozenset({
+            "androidx.lifecycle",
+            "androidx.lifecycle.viewmodel",
+            "androidx.lifecycle.livedata",
+            "androidx.lifecycle.runtime",
+            "androidx.lifecycle.process",
+        }),
+    },
+    "androidx_activity_fragment": {
+        "category": "androidx_platform",
+        "packages": frozenset({
+            "androidx.activity",
+            "androidx.activity.compose",
+            "androidx.activity.result",
+            "androidx.fragment",
+            "androidx.fragment.app",
+        }),
+    },
+    "androidx_recyclerview": {
+        "category": "ui",
+        "packages": frozenset({
+            "androidx.recyclerview",
+            "androidx.recyclerview.widget",
+        }),
+    },
+    "androidx_workmanager": {
+        "category": "androidx_platform",
+        "packages": frozenset({
+            "androidx.work",
+            "androidx.work.impl",
+            "androidx.work.impl.background",
+            "androidx.work.impl.utils",
+        }),
+    },
+    "androidx_datastore": {
+        "category": "androidx_platform",
+        "packages": frozenset({
+            "androidx.datastore",
+            "androidx.datastore.preferences",
+            "androidx.datastore.core",
+        }),
+    },
+    # --- AndroidX Media3 (EXEC-075: modern ExoPlayer, covers NC-034 audio-libs case) ---
+    "androidx_media3": {
+        "category": "media",
+        "packages": frozenset({
+            "androidx.media3",
+            "androidx.media3.common",
+            "androidx.media3.exoplayer",
+            "androidx.media3.session",
+            "androidx.media3.ui",
+            "androidx.media3.extractor",
+            "androidx.media3.datasource",
+            "androidx.media3.decoder",
         }),
     },
     # --- Platform / Kotlin ---

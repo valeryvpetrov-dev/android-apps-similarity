@@ -254,7 +254,8 @@ def test_detect_tpl_min_matches_filter():
 # ---------------------------------------------------------------------------
 
 def test_tpl_catalog_v2_has_enough_entries():
-    assert len(TPL_CATALOG_V2) >= 40
+    # EXEC-075: expanded catalog (Compose, AndroidX platform, Media3) → 50+
+    assert len(TPL_CATALOG_V2) >= 50
 
 
 def test_tpl_catalog_v2_all_have_packages():
@@ -262,3 +263,54 @@ def test_tpl_catalog_v2_all_have_packages():
         assert "packages" in meta, f"{tpl_id} missing 'packages'"
         assert len(meta["packages"]) > 0, f"{tpl_id} has empty packages"
         assert "category" in meta, f"{tpl_id} missing 'category'"
+
+
+# ---------------------------------------------------------------------------
+# EXEC-075: Expanded catalog — Compose / AndroidX platform / Media3
+# ---------------------------------------------------------------------------
+
+def test_exec075_compose_groups_present():
+    """Jetpack Compose must be covered (NC-033 root cause)."""
+    compose_groups = [
+        "androidx_compose_runtime",
+        "androidx_compose_ui",
+        "androidx_compose_foundation",
+        "androidx_compose_material",
+        "androidx_compose_animation",
+    ]
+    for g in compose_groups:
+        assert g in TPL_CATALOG_V2, f"Missing Compose group: {g}"
+
+
+def test_exec075_androidx_platform_groups_present():
+    """AndroidX platform libs (core/appcompat/lifecycle) — shared across all modern apps."""
+    platform_groups = [
+        "androidx_core",
+        "androidx_appcompat",
+        "androidx_lifecycle",
+        "androidx_activity_fragment",
+        "androidx_workmanager",
+        "androidx_datastore",
+    ]
+    for g in platform_groups:
+        assert g in TPL_CATALOG_V2, f"Missing AndroidX platform group: {g}"
+
+
+def test_exec075_media3_present():
+    """AndroidX Media3 (modern ExoPlayer) — covers NC-034 audio-libs case."""
+    assert "androidx_media3" in TPL_CATALOG_V2
+
+
+def test_exec075_compose_ui_detects_real_package_layout():
+    """Sanity: a typical Compose-UI class would be flagged as library."""
+    compose_apk_packages = frozenset({
+        "androidx.compose.ui",
+        "androidx.compose.ui.platform",
+        "androidx.compose.runtime",
+        "com.myapp.screens",  # app-specific
+    })
+    results = detect_tpl_in_packages(
+        compose_apk_packages, threshold=0.10, min_matches=1
+    )
+    assert results.get("androidx_compose_ui", {}).get("detected") is True
+    assert results.get("androidx_compose_runtime", {}).get("detected") is True

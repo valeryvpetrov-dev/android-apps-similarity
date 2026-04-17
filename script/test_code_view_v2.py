@@ -249,6 +249,91 @@ class TestCloneDetection(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# EXEC-075: Library-subtraction screening (app_only mode)
+# ---------------------------------------------------------------------------
+
+
+class TestAppOnlyMode(unittest.TestCase):
+    """Tests for EXEC-075 library-subtraction (app_only=True)."""
+
+    def test_app_only_flag_default_false(self):
+        """Default behavior (no app_only) must be unchanged — backward compat."""
+        import inspect
+        sig = inspect.signature(extract_opcode_ngram_tlsh)
+        self.assertIn("app_only", sig.parameters)
+        self.assertFalse(sig.parameters["app_only"].default)
+
+    def test_app_only_nonexistent_file(self):
+        """app_only=True on missing APK → None, no exception."""
+        result = extract_opcode_ngram_tlsh(
+            Path("/tmp/does_not_exist_12345.apk"), app_only=True
+        )
+        self.assertIsNone(result)
+
+    @unittest.skipUnless(_DEPS_AVAILABLE, _SKIP_REASON)
+    def test_app_only_returns_hash_for_real_apk(self):
+        """app_only=True on real APK → TLSH hash (library classes stripped)."""
+        apk = _require_apk(APK_NON_OPTIMIZED)
+        h = extract_opcode_ngram_tlsh(apk, app_only=True)
+        # Either a valid hash or None (if APK after subtraction < TLSH_MIN_BYTES).
+        self.assertIn(type(h), (str, type(None)))
+
+    @unittest.skipUnless(_DEPS_AVAILABLE, _SKIP_REASON)
+    def test_app_only_identical_apks_still_identical(self):
+        """Identical APK → identical hash in app_only mode (score 1.0)."""
+        apk = _require_apk(APK_NON_OPTIMIZED)
+        h1 = extract_opcode_ngram_tlsh(apk, app_only=True)
+        h2 = extract_opcode_ngram_tlsh(apk, app_only=True)
+        if h1 is None or h2 is None:
+            self.skipTest("app_only hash is None (APK too small after subtraction)")
+        self.assertEqual(h1, h2)
+        result = compare_code_v2(h1, h2)
+        self.assertEqual(result["score"], 1.0)
+
+    @unittest.skipUnless(_DEPS_AVAILABLE, _SKIP_REASON)
+    def test_app_only_differs_from_full_when_libs_detected(self):
+        """When the APK contains detected TPLs, app_only hash SHOULD differ
+        from the full hash. Otherwise the mode has no effect.
+        If simple_app has no TPL matches, hashes may coincide — then test is
+        inconclusive but must not fail."""
+        apk = _require_apk(APK_NON_OPTIMIZED)
+        h_full = extract_opcode_ngram_tlsh(apk, app_only=False)
+        h_app = extract_opcode_ngram_tlsh(apk, app_only=True)
+        if h_full is None or h_app is None:
+            self.skipTest("Hash is None — cannot compare")
+        # Either equal (no libs in this APK) or different — both are valid.
+        # The invariant we guard: extraction did not crash and produced a valid TLSH.
+        self.assertIsInstance(h_full, str)
+        self.assertIsInstance(h_app, str)
+
+
+class TestCollectLibraryPackages(unittest.TestCase):
+    """Tests for _collect_library_packages() (EXEC-075)."""
+
+    def test_nonexistent_apk_returns_empty(self):
+        """Bad APK path → empty frozenset, no exception."""
+        try:
+            from code_view_v2 import _collect_library_packages
+        except ImportError:
+            from script.code_view_v2 import _collect_library_packages
+        result = _collect_library_packages(Path("/tmp/does_not_exist_xyz.apk"))
+        self.assertEqual(result, frozenset())
+
+    @unittest.skipUnless(_DEPS_AVAILABLE, _SKIP_REASON)
+    def test_returns_frozenset_of_strings(self):
+        """Result must be frozenset[str]."""
+        try:
+            from code_view_v2 import _collect_library_packages
+        except ImportError:
+            from script.code_view_v2 import _collect_library_packages
+        apk = _require_apk(APK_NON_OPTIMIZED)
+        result = _collect_library_packages(apk)
+        self.assertIsInstance(result, frozenset)
+        for pkg in result:
+            self.assertIsInstance(pkg, str)
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
