@@ -504,8 +504,13 @@ def extract_layers_from_apk(apk_path: Path) -> dict[str, set[str]]:
         }
 
 
-def extract_code_v2_hash(apk_path: Path) -> str | None:
-    """Extract opcode n-gram TLSH hash for R_code v2. Returns None on error."""
+def extract_code_v2_hash(apk_path: Path, app_only: bool = False) -> str | None:
+    """Extract opcode n-gram TLSH hash for R_code v2. Returns None on error.
+
+    EXEC-075: When ``app_only=True``, opcodes from detected third-party
+    libraries (Jetpack Compose, Material3, OkHttp, etc.) are excluded before
+    hashing. This reduces screening FPR caused by shared-library overlap.
+    """
     try:
         from code_view_v2 import extract_opcode_ngram_tlsh
     except ImportError:
@@ -513,7 +518,7 @@ def extract_code_v2_hash(apk_path: Path) -> str | None:
             from script.code_view_v2 import extract_opcode_ngram_tlsh
         except ImportError:
             return None
-    return extract_opcode_ngram_tlsh(apk_path)
+    return extract_opcode_ngram_tlsh(apk_path, app_only=app_only)
 
 
 def extract_code_v3_set(apk_path: Path):

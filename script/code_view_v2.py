@@ -65,22 +65,82 @@ TLSH_MIN_BYTES: int = 50
 # Core extraction
 # ---------------------------------------------------------------------------
 
-def _extract_opcodes_from_apk(apk_path: Path) -> list[str]:
+def _collect_library_packages(apk_path: Path) -> frozenset:
+    """Return flat set of packages belonging to detected third-party libraries.
+
+    EXEC-075: Used for library-subtraction screening (app_only mode).
+    If detection fails, returns empty frozenset — caller falls back to full opcode extraction.
+    """
+    try:
+        from library_view_v2 import extract_apk_packages, detect_tpl_in_packages
+    except ImportError:
+        logger.warning("library_view_v2 not importable; library-subtraction disabled")
+        return frozenset()
+
+    try:
+        apk_packages = extract_apk_packages(str(apk_path))
+        tpl_hits = detect_tpl_in_packages(apk_packages)
+    except Exception as exc:
+        logger.warning("library detection failed for %s: %s", apk_path, exc)
+        return frozenset()
+
+    library_packages: set = set()
+    for tpl_id, hit in tpl_hits.items():
+        if hit.get("detected"):
+            library_packages.update(hit.get("matched_packages", set()))
+    return frozenset(library_packages)
+
+
+def _extract_opcodes_from_apk(
+    apk_path: Path,
+    app_only: bool = False,
+) -> list[str]:
     """Return flat list of Dalvik opcode names across all methods in APK.
 
     Uses androguard AnalyzeAPK which parses all DEX files inside the APK.
     Each instruction's mnemonic (opcode name) is collected in method order.
+
+    Args:
+        apk_path: Path to the .apk file.
+        app_only: If True (EXEC-075), skip methods whose declaring class belongs
+                  to a detected third-party library (via library_view_v2). This
+                  isolates app-specific code and reduces TLSH FPR caused by
+                  shared libraries (Jetpack Compose, Material3, etc.).
     """
     if not _ANDROGUARD_AVAILABLE:
         raise RuntimeError("androguard is not available")
 
+    library_packages: frozenset = frozenset()
+    if app_only:
+        library_packages = _collect_library_packages(apk_path)
+
+    # Lazy import to avoid hard dependency when app_only=False.
+    try:
+        from library_view_v2 import _smali_class_to_package
+    except ImportError:
+        _smali_class_to_package = None  # type: ignore[assignment]
+
     _, _, dx = AnalyzeAPK(str(apk_path))
     opcodes: list[str] = []
+    skipped_library_methods = 0
 
     for method in dx.get_methods():
         # Skip external methods (Android framework / library calls) — no bytecode
         if method.is_external():
             continue
+
+        # EXEC-075: library-subtraction — skip methods of detected TPL classes.
+        if app_only and library_packages and _smali_class_to_package is not None:
+            class_name = method.get_class_name()
+            pkg = _smali_class_to_package(class_name) if class_name else None
+            if pkg is not None:
+                # exact match or prefix match ("androidx.compose.ui.node.X" vs "androidx.compose.ui")
+                if pkg in library_packages or any(
+                    pkg.startswith(lp + ".") for lp in library_packages
+                ):
+                    skipped_library_methods += 1
+                    continue
+
         encoded_method = method.get_method()
         try:
             code = encoded_method.get_code()
@@ -93,6 +153,13 @@ def _extract_opcodes_from_apk(apk_path: Path) -> list[str]:
             continue
         for instr in bc.get_instructions():
             opcodes.append(instr.get_name())
+
+    if app_only and skipped_library_methods > 0:
+        logger.info(
+            "%s: library-subtraction skipped %d methods of detected TPLs",
+            apk_path.name,
+            skipped_library_methods,
+        )
 
     return opcodes
 
@@ -110,12 +177,19 @@ def _ngrams_to_bytes(ngrams: list[tuple[str, ...]]) -> bytes:
     return " | ".join(parts).encode("utf-8", errors="replace")
 
 
-def extract_opcode_ngram_tlsh(apk_path: Path, window: int = NGRAM_WINDOW) -> Optional[str]:
+def extract_opcode_ngram_tlsh(
+    apk_path: Path,
+    window: int = NGRAM_WINDOW,
+    app_only: bool = False,
+) -> Optional[str]:
     """Extract TLSH hash from Dalvik opcode n-grams of an APK.
 
     Args:
         apk_path: Path to the .apk file.
         window:   N-gram window size (default 5).
+        app_only: EXEC-075. If True, exclude methods of detected third-party
+                  libraries from the opcode stream before hashing. Reduces
+                  screening FPR caused by shared-library TLSH overlap.
 
     Returns:
         TLSH hash string, or None on error / insufficient data.
@@ -135,7 +209,7 @@ def extract_opcode_ngram_tlsh(apk_path: Path, window: int = NGRAM_WINDOW) -> Opt
         return None
 
     try:
-        opcodes = _extract_opcodes_from_apk(apk_path)
+        opcodes = _extract_opcodes_from_apk(apk_path, app_only=app_only)
     except Exception as exc:
         logger.error("Failed to extract opcodes from %s: %s", apk_path, exc)
         return None
