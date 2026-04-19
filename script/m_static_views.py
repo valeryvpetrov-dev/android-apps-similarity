@@ -118,18 +118,40 @@ except Exception:
         extract_code_view_v4 = None
         compare_code_v4 = None
 
+try:
+    from script.code_view_v4_shingled import compare_code_v4_shingled
+except Exception:
+    try:
+        from code_view_v4_shingled import compare_code_v4_shingled
+    except Exception:
+        compare_code_v4_shingled = None
 
-ALL_LAYERS = ("code", "component", "resource", "metadata", "library", "api")
+
+ALL_LAYERS = (
+    "code",
+    "component",
+    "resource",
+    "metadata",
+    "library",
+    "api",
+    "code_v4",
+    "code_v4_shingled",
+)
 
 # Weights from cascade-config-schema-v1.
 # metadata is used as tiebreaker, not included in weighted score.
 # api layer weight is additive; existing weights renormalized when api is included.
+# code_v4 / code_v4_shingled are registered with weight 0.0 — layers are plumbed
+# through aggregation but are not part of the default weighted score until
+# calibrated by EXEC-086. Existing weights are intentionally unchanged.
 LAYER_WEIGHTS = {
     "code": 0.45,
     "component": 0.25,
     "resource": 0.20,
     "library": 0.10,
     "api": 0.15,
+    "code_v4": 0.0,
+    "code_v4_shingled": 0.0,
 }
 
 # Predefined ablation configurations.
@@ -143,6 +165,9 @@ ABLATION_CONFIGS = {
     "code_library": ["code", "library"],
     "code_api": ["code", "api"],
     "resource_component_library": ["resource", "component", "library"],
+    "code_only_v4": ["code_v4"],
+    "code_only_v4_shingled": ["code_v4_shingled"],
+    "all_code_variants": ["code", "code_v4", "code_v4_shingled"],
 }
 
 
@@ -177,6 +202,17 @@ def extract_all_features(
     `mode` — method-level fuzzy fingerprint of opcode sequences via
     code_view_v4. Empty stub (`mode="v4_unavailable"`) when apk_path is
     absent or code_view_v4 dependency is unavailable.
+
+    Layers ``code_v4`` and ``code_v4_shingled`` are now first-class
+    entries in :data:`ALL_LAYERS` and can be selected via
+    ``selected_layers`` when calling ``compare_all`` / ``run_ablation``.
+    Per-layer comparison is dispatched through
+    :func:`compare_m_static_layer`, which delegates ``code_v4`` to
+    :func:`compare_code_v4` and ``code_v4_shingled`` to
+    :func:`compare_code_v4_shingled`. Their default weight in
+    :data:`LAYER_WEIGHTS` is ``0.0`` until calibration (EXEC-086), so
+    they are plumbed through aggregation without affecting the default
+    weighted score.
     """
     if unpacked_dir is not None:
         return _extract_enhanced(unpacked_dir, apk_path)
@@ -415,6 +451,62 @@ def _compare_library_enhanced(feat_a: dict, feat_b: dict) -> dict:
             "b_only_count": len(comparison.get("b_only", [])),
         },
     }
+
+
+def compare_m_static_layer(
+    layer_name: str,
+    features_a: Any,
+    features_b: Any,
+) -> dict:
+    """Dispatch a single-layer comparison to the appropriate backend.
+
+    EXEC-082a-SCORING: exposes a uniform entry point so callers can ask
+    for any registered layer by name without having to know which helper
+    implements it. New fuzzy-fingerprint layers ``code_v4`` /
+    ``code_v4_shingled`` delegate to ``compare_code_v4`` /
+    ``compare_code_v4_shingled``; other layers fall back to the existing
+    Jaccard-on-sets path (``_compare_layer_quick``).
+
+    Parameters
+    ----------
+    layer_name:
+        One of the values in :data:`ALL_LAYERS`.
+    features_a, features_b:
+        Side-specific payloads. For ``code_v4`` / ``code_v4_shingled``
+        this is the bundle produced by ``extract_code_view_v4``
+        (``{"method_fingerprints": ..., "total_methods": ..., "mode": ...}``).
+        For set-valued layers it is a plain ``set``.
+
+    Returns
+    -------
+    dict
+        Always contains ``score`` (``float``) and ``status`` (``str``);
+        ``code_v4``-family results additionally propagate
+        ``matched_methods`` / ``union_methods`` as returned by the
+        underlying comparator.
+    """
+    if layer_name == "code_v4":
+        if compare_code_v4 is None:
+            return {"score": 0.0, "status": "v4_unavailable"}
+        result = compare_code_v4(features_a, features_b)
+        return {
+            "score": float(result.get("score", 0.0)),
+            "status": result.get("status", "jaccard_ok"),
+            "matched_methods": result.get("matched_methods", 0),
+            "union_methods": result.get("union_methods", 0),
+        }
+    if layer_name == "code_v4_shingled":
+        if compare_code_v4_shingled is None:
+            return {"score": 0.0, "status": "v4_shingled_unavailable"}
+        result = compare_code_v4_shingled(features_a, features_b)
+        return {
+            "score": float(result.get("score", 0.0)),
+            "status": result.get("status", "jaccard_ok"),
+            "matched_methods": result.get("matched_methods", 0),
+            "union_methods": result.get("union_methods", 0),
+        }
+    # Fallback for the legacy set-valued layers.
+    return _compare_layer_quick(layer_name, features_a, features_b)
 
 
 def _collect_hints(
