@@ -7,6 +7,7 @@ import os
 import re
 import sys
 import tempfile
+from concurrent.futures import ProcessPoolExecutor, TimeoutError as FuturesTimeoutError
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -1006,6 +1007,194 @@ def calculate_pair_scores(
     return full, reduced, list(selected_layers)
 
 
+def _compute_pair_row_with_caches(
+    candidate: dict[str, Any],
+    selected_layers: list[str],
+    metric: str,
+    threshold: float,
+    ins_block_sim_threshold: float,
+    ged_timeout_sec: int,
+    processes_count: int,
+    threads_count: int,
+    layer_cache: dict[tuple[str, str | None], dict[str, set[str]]],
+    code_cache: dict[str, list],
+    apk_discovery_cache: dict[str, str | None],
+) -> dict[str, Any]:
+    """Compute a single pair_row using provided caches.
+
+    This is the canonical body of `run_pairwise` per-candidate loop. It is
+    called both from the sequential path (with shared caches) and from the
+    isolated subprocess worker (with empty caches).
+    """
+    app_a_raw, app_b_raw = extract_apps(candidate)
+    app_a = resolve_app_label(app_a_raw, "unknown_app_a")
+    app_b = resolve_app_label(app_b_raw, "unknown_app_b")
+
+    pair_row: dict[str, Any] = {
+        "app_a": app_a,
+        "app_b": app_b,
+        "full_similarity_score": None,
+        "library_reduced_score": None,
+        "status": "analysis_failed",
+        "views_used": list(selected_layers),
+        "signature_match": {"score": 0.0, "status": "missing"},
+    }
+
+    apk_a = None
+    apk_b = None
+    try:
+        apk_a = resolve_apk_path(
+            candidate=candidate,
+            app=app_a_raw,
+            side="a",
+            app_label=app_a,
+            discovery_cache=apk_discovery_cache,
+        )
+        apk_b = resolve_apk_path(
+            candidate=candidate,
+            app=app_b_raw,
+            side="b",
+            app_label=app_b,
+            discovery_cache=apk_discovery_cache,
+        )
+        if not apk_a or not apk_b:
+            raise PairwiseAnalysisError("missing_apk_path")
+
+        decoded_a = resolve_decoded_dir(candidate, app_a_raw, "a")
+        decoded_b = resolve_decoded_dir(candidate, app_b_raw, "b")
+
+        full_score, reduced_score, layers_used = calculate_pair_scores(
+            apk_a=apk_a,
+            apk_b=apk_b,
+            decoded_a=decoded_a,
+            decoded_b=decoded_b,
+            selected_layers=selected_layers,
+            metric=metric,
+            ins_block_sim_threshold=ins_block_sim_threshold,
+            ged_timeout_sec=ged_timeout_sec,
+            processes_count=processes_count,
+            threads_count=threads_count,
+            layer_cache=layer_cache,
+            code_cache=code_cache,
+        )
+
+        decision_score = reduced_score
+        status = "success" if decision_score >= threshold else "low_similarity"
+        pair_row.update(
+            {
+                "full_similarity_score": float(full_score),
+                "library_reduced_score": float(reduced_score),
+                "status": status,
+                "views_used": layers_used,
+            }
+        )
+    except Exception:
+        pair_row.update(
+            {
+                "full_similarity_score": None,
+                "library_reduced_score": None,
+                "status": "analysis_failed",
+            }
+        )
+
+    pair_row["signature_match"] = collect_signature_match(apk_a, apk_b)
+    return pair_row
+
+
+def _build_timeout_row(
+    candidate: dict[str, Any],
+    selected_layers: list[str],
+    pair_timeout_sec: int,
+) -> dict[str, Any]:
+    """Build an incident pair_row for a pair that exceeded the hard timeout.
+
+    Per D-2026-04-094, timeout is an incident, not a normal mode. The row
+    preserves app labels (via extract_apps + resolve_app_label) and carries
+    `analysis_failed_reason = "budget_exceeded"` plus a `timeout_info` block.
+    """
+    try:
+        app_a_raw, app_b_raw = extract_apps(candidate)
+        app_a = resolve_app_label(app_a_raw, "unknown_app_a")
+        app_b = resolve_app_label(app_b_raw, "unknown_app_b")
+    except Exception:
+        app_a = "unknown_app_a"
+        app_b = "unknown_app_b"
+
+    return {
+        "app_a": app_a,
+        "app_b": app_b,
+        "full_similarity_score": None,
+        "library_reduced_score": None,
+        "status": "analysis_failed",
+        "analysis_failed_reason": "budget_exceeded",
+        "views_used": list(selected_layers),
+        "signature_match": {"score": 0.0, "status": "missing"},
+        "timeout_info": {
+            "pair_timeout_sec": pair_timeout_sec,
+            "stage": "pairwise",
+        },
+    }
+
+
+def _pair_worker_isolated(
+    candidate_json: str,
+    config_path_str: str,
+    ins_block_sim_threshold: float,
+    ged_timeout_sec: int,
+    processes_count: int,
+    threads_count: int,
+) -> str:
+    """Top-level worker for ProcessPoolExecutor (pickle-compatible).
+
+    Computes a single pair_row with fresh empty caches and returns its
+    JSON-serialized form. Imports happen inside the function to keep a
+    clean subprocess environment.
+    """
+    import json as _json
+    import sys as _sys
+    from pathlib import Path as _Path
+
+    _project_root = _Path(__file__).resolve().parent.parent
+    if str(_project_root) not in _sys.path:
+        _sys.path.insert(0, str(_project_root))
+
+    try:
+        from script.pairwise_runner import (
+            _compute_pair_row_with_caches as _compute,
+            load_config as _load_config,
+            parse_pairwise_stage as _parse_pairwise_stage,
+        )
+    except Exception:
+        from pairwise_runner import (  # type: ignore[no-redef]
+            _compute_pair_row_with_caches as _compute,
+            load_config as _load_config,
+            parse_pairwise_stage as _parse_pairwise_stage,
+        )
+
+    candidate = _json.loads(candidate_json)
+    config = _load_config(_Path(config_path_str))
+    selected_layers, metric, threshold = _parse_pairwise_stage(config)
+
+    layer_cache: dict[tuple[str, str | None], dict[str, set[str]]] = {}
+    code_cache: dict[str, list] = {}
+    apk_discovery_cache: dict[str, str | None] = {}
+
+    row = _compute(
+        candidate=candidate,
+        selected_layers=selected_layers,
+        metric=metric,
+        threshold=threshold,
+        ins_block_sim_threshold=ins_block_sim_threshold,
+        ged_timeout_sec=ged_timeout_sec,
+        processes_count=processes_count,
+        threads_count=threads_count,
+        layer_cache=layer_cache,
+        code_cache=code_cache,
+        apk_discovery_cache=apk_discovery_cache,
+    )
+    return _json.dumps(row)
+
+
 def run_pairwise(
     config_path: Path,
     enriched_path: Path,
@@ -1013,6 +1202,7 @@ def run_pairwise(
     ged_timeout_sec: int = 30,
     processes_count: int = 1,
     threads_count: int = 2,
+    pair_timeout_sec: int | None = None,
 ) -> list[dict[str, Any]]:
     config = load_config(config_path)
     selected_layers, metric, threshold = parse_pairwise_stage(config)
@@ -1022,80 +1212,63 @@ def run_pairwise(
     code_cache: dict[str, list] = {}
     apk_discovery_cache: dict[str, str | None] = {}
 
+    use_hard_timeout = isinstance(pair_timeout_sec, int) and pair_timeout_sec > 0
+
     results: list[dict[str, Any]] = []
     for candidate in candidates:
-        app_a_raw, app_b_raw = extract_apps(candidate)
-        app_a = resolve_app_label(app_a_raw, "unknown_app_a")
-        app_b = resolve_app_label(app_b_raw, "unknown_app_b")
-
-        pair_row: dict[str, Any] = {
-            "app_a": app_a,
-            "app_b": app_b,
-            "full_similarity_score": None,
-            "library_reduced_score": None,
-            "status": "analysis_failed",
-            "views_used": list(selected_layers),
-            "signature_match": {"score": 0.0, "status": "missing"},
-        }
-
-        apk_a = None
-        apk_b = None
-        try:
-            apk_a = resolve_apk_path(
+        if use_hard_timeout:
+            candidate_json = json.dumps(candidate)
+            config_path_str = str(config_path)
+            try:
+                with ProcessPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(
+                        _pair_worker_isolated,
+                        candidate_json,
+                        config_path_str,
+                        ins_block_sim_threshold,
+                        ged_timeout_sec,
+                        processes_count,
+                        threads_count,
+                    )
+                    result_json = future.result(timeout=pair_timeout_sec)
+                pair_row = json.loads(result_json)
+            except FuturesTimeoutError:
+                pair_row = _build_timeout_row(
+                    candidate=candidate,
+                    selected_layers=selected_layers,
+                    pair_timeout_sec=pair_timeout_sec,
+                )
+            except Exception:
+                try:
+                    app_a_raw, app_b_raw = extract_apps(candidate)
+                    app_a = resolve_app_label(app_a_raw, "unknown_app_a")
+                    app_b = resolve_app_label(app_b_raw, "unknown_app_b")
+                except Exception:
+                    app_a = "unknown_app_a"
+                    app_b = "unknown_app_b"
+                pair_row = {
+                    "app_a": app_a,
+                    "app_b": app_b,
+                    "full_similarity_score": None,
+                    "library_reduced_score": None,
+                    "status": "analysis_failed",
+                    "views_used": list(selected_layers),
+                    "signature_match": {"score": 0.0, "status": "missing"},
+                }
+        else:
+            pair_row = _compute_pair_row_with_caches(
                 candidate=candidate,
-                app=app_a_raw,
-                side="a",
-                app_label=app_a,
-                discovery_cache=apk_discovery_cache,
-            )
-            apk_b = resolve_apk_path(
-                candidate=candidate,
-                app=app_b_raw,
-                side="b",
-                app_label=app_b,
-                discovery_cache=apk_discovery_cache,
-            )
-            if not apk_a or not apk_b:
-                raise PairwiseAnalysisError("missing_apk_path")
-
-            decoded_a = resolve_decoded_dir(candidate, app_a_raw, "a")
-            decoded_b = resolve_decoded_dir(candidate, app_b_raw, "b")
-
-            full_score, reduced_score, layers_used = calculate_pair_scores(
-                apk_a=apk_a,
-                apk_b=apk_b,
-                decoded_a=decoded_a,
-                decoded_b=decoded_b,
                 selected_layers=selected_layers,
                 metric=metric,
+                threshold=threshold,
                 ins_block_sim_threshold=ins_block_sim_threshold,
                 ged_timeout_sec=ged_timeout_sec,
                 processes_count=processes_count,
                 threads_count=threads_count,
                 layer_cache=layer_cache,
                 code_cache=code_cache,
+                apk_discovery_cache=apk_discovery_cache,
             )
-
-            decision_score = reduced_score
-            status = "success" if decision_score >= threshold else "low_similarity"
-            pair_row.update(
-                {
-                    "full_similarity_score": float(full_score),
-                    "library_reduced_score": float(reduced_score),
-                    "status": status,
-                    "views_used": layers_used,
-                }
-            )
-        except Exception:
-            pair_row.update(
-                {
-                    "full_similarity_score": None,
-                    "library_reduced_score": None,
-                    "status": "analysis_failed",
-                }
-            )
-
-        pair_row["signature_match"] = collect_signature_match(apk_a, apk_b)
 
         results.append(pair_row)
 
