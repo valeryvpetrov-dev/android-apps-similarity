@@ -22,11 +22,13 @@ DEFAULT_TIMEOUT_SEC = 60
 # Gate policy (HARD — D-2026-04-19):
 PACK_DETECTED_POLICY = "blocked"        # жёсткая: детектор библиотек НЕ запускается
 OBFUSCATOR_DETECTED_POLICY = "libloom"  # переключаемся на устойчивый детектор
+MANIPULATOR_DETECTED_POLICY = "libloom"  # по умолчанию тот же, что для obfuscator
 CLEAN_POLICY = "prefix_catalog"         # дешёвый путь
 
 # Gate status vocabulary
 GATE_BLOCKED = "blocked"
 GATE_OBFUSCATOR_DETECTED = "obfuscator_detected"
+GATE_MANIPULATOR_DETECTED = "manipulator_detected"
 GATE_CLEAN = "clean"
 
 # Recommended detector vocabulary
@@ -54,6 +56,7 @@ def _empty_classification() -> dict:
         "compilers": [],
         "anti_debug": [],
         "anti_vm": [],
+        "manipulators": [],
         "apkid_version": None,
         "rules_sha256": None,
         "status": "ok",
@@ -91,6 +94,7 @@ def _parse_apkid_json(payload: dict) -> dict:
     compilers: list[str] = []
     anti_debug: list[str] = []
     anti_vm: list[str] = []
+    manipulators: list[str] = []
 
     for entry in payload.get("files", []):
         matches = entry.get("matches", {}) or {}
@@ -108,6 +112,8 @@ def _parse_apkid_json(payload: dict) -> dict:
                 anti_debug.extend(str(v) for v in values)
             if "anti_vm" in key_lower or "anti-vm" in key_lower:
                 anti_vm.extend(str(v) for v in values)
+            if "manipulator" in key_lower:
+                manipulators.extend(str(v) for v in values)
 
     # Deduplicate while preserving order.
     result["packers"] = list(dict.fromkeys(packers))
@@ -115,6 +121,7 @@ def _parse_apkid_json(payload: dict) -> dict:
     result["compilers"] = list(dict.fromkeys(compilers))
     result["anti_debug"] = list(dict.fromkeys(anti_debug))
     result["anti_vm"] = list(dict.fromkeys(anti_vm))
+    result["manipulators"] = list(dict.fromkeys(manipulators))
     return result
 
 
@@ -127,6 +134,7 @@ def detect_classifiers(apk_path: str, timeout_sec: int = DEFAULT_TIMEOUT_SEC) ->
         "compilers": list[str],
         "anti_debug": list[str],
         "anti_vm": list[str],
+        "manipulators": list[str],
         "apkid_version": str | None,
         "rules_sha256": str | None,
         "status": "ok" | "not_available" | "timeout" | "subprocess_error",
@@ -191,18 +199,25 @@ def detect_classifiers(apk_path: str, timeout_sec: int = DEFAULT_TIMEOUT_SEC) ->
 def decide_gate(classification: dict) -> dict:
     """Maps APKiD classification into a gate decision.
 
-    Policy (HARD — D-2026-04-19):
-      - packer detected   -> gate_status=blocked, recommended=none
+    Policy (HARD — D-2026-04-19, + APKID-ADAPTER-EXT manipulator signal):
+      - packer detected       -> gate_status=blocked, recommended=none
         (детектор библиотек НЕ запускается)
-      - obfuscator only   -> gate_status=obfuscator_detected, recommended=libloom
-      - clean (no signal) -> gate_status=clean, recommended=prefix_catalog
+      - obfuscator only       -> gate_status=obfuscator_detected, recommended=libloom
+      - manipulator only      -> gate_status=manipulator_detected, recommended=libloom
+        (Manipulator-правила APKiD фиксируют необычные манипуляции с ресурсами
+        или метаданными APK (например, `Resources Confusion`). Такая манипуляция
+        часто сопровождает обфускацию, но не равна ей. Отдельный gate_status
+        позволяет отчётности быть точной, а downstream детектор выбрать
+        устойчивый путь (`LIBLOOM`) без ложной блокировки.)
+      - clean (no signal)     -> gate_status=clean, recommended=prefix_catalog
 
     Returns: {
-        "gate_status": "blocked" | "obfuscator_detected" | "clean",
+        "gate_status": "blocked" | "obfuscator_detected"
+                     | "manipulator_detected" | "clean",
         "recommended_detector": "none" | "libloom" | "prefix_catalog",
         "reason": str,
         "apkid_signals": {
-            "packers": [...], "obfuscators": [...], ...
+            "packers": [...], "obfuscators": [...], "manipulators": [...], ...
         }
     }
     """
@@ -211,6 +226,7 @@ def decide_gate(classification: dict) -> dict:
     compilers = list(classification.get("compilers", []) or [])
     anti_debug = list(classification.get("anti_debug", []) or [])
     anti_vm = list(classification.get("anti_vm", []) or [])
+    manipulators = list(classification.get("manipulators", []) or [])
 
     signals = {
         "packers": packers,
@@ -218,6 +234,7 @@ def decide_gate(classification: dict) -> dict:
         "compilers": compilers,
         "anti_debug": anti_debug,
         "anti_vm": anti_vm,
+        "manipulators": manipulators,
     }
 
     # Packer — приоритетнее всего (жёсткая политика).
@@ -237,9 +254,19 @@ def decide_gate(classification: dict) -> dict:
             "apkid_signals": signals,
         }
 
+    # Manipulator — слабый сигнал обфускатора (APKID-ADAPTER-EXT).
+    # Нет packer и нет obfuscator, но есть manipulator-правила APKiD.
+    if manipulators:
+        return {
+            "gate_status": GATE_MANIPULATOR_DETECTED,
+            "recommended_detector": RECOMMENDED_LIBLOOM,
+            "reason": "manipulator detected: {}".format(", ".join(manipulators)),
+            "apkid_signals": signals,
+        }
+
     return {
         "gate_status": GATE_CLEAN,
         "recommended_detector": RECOMMENDED_PREFIX_CATALOG,
-        "reason": "no packer/obfuscator detected",
+        "reason": "no packer/obfuscator/manipulator detected",
         "apkid_signals": signals,
     }

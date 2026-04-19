@@ -201,6 +201,128 @@ class DecideGatePackerAndObfuscatorTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# APKID-ADAPTER-EXT: manipulator as weak obfuscator signal
+# ---------------------------------------------------------------------------
+
+class DetectClassifiersManipulatorKeyTests(unittest.TestCase):
+    """detect_classifiers возвращает ключ `manipulators` в dict-ответе."""
+
+    def _fake_completed(self, stdout: str, returncode: int = 0) -> subprocess.CompletedProcess:
+        return subprocess.CompletedProcess(
+            args=["apkid"], returncode=returncode, stdout=stdout, stderr=""
+        )
+
+    def test_detect_classifiers_result_has_manipulators_key(self) -> None:
+        """Через мок subprocess — ключ `manipulators` присутствует в ответе."""
+        payload = {
+            "apkid_version": "3.1.0",
+            "rules_sha256": "abc123",
+            "files": [
+                {
+                    "filename": "input.apk",
+                    "matches": {
+                        "compiler": ["r8"],
+                    },
+                }
+            ],
+        }
+        stdout = json.dumps(payload)
+        with mock.patch.object(apkid_adapter, "apkid_available", return_value=True):
+            with mock.patch.object(
+                apkid_adapter.subprocess,
+                "run",
+                return_value=self._fake_completed(stdout),
+            ):
+                result = apkid_adapter.detect_classifiers("/tmp/any.apk")
+
+        self.assertIn("manipulators", result)
+        self.assertIsInstance(result["manipulators"], list)
+        self.assertEqual(result["manipulators"], [])
+
+
+class DetectClassifiersManipulatorPayloadTests(unittest.TestCase):
+    """detect_classifiers агрегирует manipulator-правила из сырого APKiD JSON."""
+
+    def _fake_completed(self, stdout: str, returncode: int = 0) -> subprocess.CompletedProcess:
+        return subprocess.CompletedProcess(
+            args=["apkid"], returncode=returncode, stdout=stdout, stderr=""
+        )
+
+    def test_detect_classifiers_extracts_resources_confusion(self) -> None:
+        """Вход с `manipulator: ["Resources Confusion"]` → manipulators == ["Resources Confusion"]."""
+        payload = {
+            "apkid_version": "3.1.0",
+            "rules_sha256": "abc123",
+            "files": [
+                {
+                    "filename": "input.apk",
+                    "matches": {
+                        "manipulator": ["Resources Confusion"],
+                    },
+                },
+                {
+                    "filename": "input.apk!classes.dex",
+                    "matches": {
+                        "compiler": ["r8"],
+                    },
+                },
+            ],
+        }
+        stdout = json.dumps(payload)
+        with mock.patch.object(apkid_adapter, "apkid_available", return_value=True):
+            with mock.patch.object(
+                apkid_adapter.subprocess,
+                "run",
+                return_value=self._fake_completed(stdout),
+            ):
+                result = apkid_adapter.detect_classifiers("/tmp/any.apk")
+
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["manipulators"], ["Resources Confusion"])
+        # Соседние категории остались пустыми.
+        self.assertEqual(result["packers"], [])
+        self.assertEqual(result["obfuscators"], [])
+
+
+class DecideGateManipulatorTests(unittest.TestCase):
+    """Manipulator без packer/obfuscator → manipulator_detected + libloom."""
+
+    def test_decide_gate_manipulator_only_routes_to_libloom(self) -> None:
+        classification = {
+            "packers": [],
+            "obfuscators": [],
+            "compilers": ["r8"],
+            "anti_debug": [],
+            "anti_vm": [],
+            "manipulators": ["Resources Confusion"],
+        }
+        decision = apkid_adapter.decide_gate(classification)
+        self.assertEqual(decision["gate_status"], "manipulator_detected")
+        self.assertEqual(decision["recommended_detector"], "libloom")
+        self.assertIn("Resources Confusion", decision["reason"])
+        self.assertEqual(
+            decision["apkid_signals"]["manipulators"], ["Resources Confusion"]
+        )
+
+
+class DecideGatePackerBeatsManipulatorTests(unittest.TestCase):
+    """Packer + manipulator одновременно → blocked (packer приоритетнее)."""
+
+    def test_decide_gate_packer_wins_over_manipulator(self) -> None:
+        classification = {
+            "packers": ["pack"],
+            "obfuscators": [],
+            "compilers": ["r8"],
+            "anti_debug": [],
+            "anti_vm": [],
+            "manipulators": ["X"],
+        }
+        decision = apkid_adapter.decide_gate(classification)
+        self.assertEqual(decision["gate_status"], "blocked")
+        self.assertEqual(decision["recommended_detector"], "none")
+
+
+# ---------------------------------------------------------------------------
 # apply_apkid_gate() — envelope integration
 # ---------------------------------------------------------------------------
 
