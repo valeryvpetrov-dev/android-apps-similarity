@@ -46,6 +46,36 @@ except Exception:
         extract_all_features = None
 
 try:
+    from script.signing_view import compare_signatures
+    from script.signing_view import extract_apk_signature_hash
+except Exception:
+    try:
+        from signing_view import compare_signatures
+        from signing_view import extract_apk_signature_hash
+    except Exception:
+        compare_signatures = None
+        extract_apk_signature_hash = None
+
+
+def collect_signature_match(apk_a: str | None, apk_b: str | None) -> dict:
+    """Compute signature match signal between two APK paths.
+
+    Returns a dict with keys `score` and `status` (match/mismatch/missing)
+    using compare_signatures from signing_view. If the dependency is
+    unavailable or either apk_path is missing, returns a safe default.
+    """
+    if compare_signatures is None or extract_apk_signature_hash is None:
+        return {"score": 0.0, "status": "missing"}
+    if not apk_a or not apk_b:
+        return {"score": 0.0, "status": "missing"}
+    try:
+        hash_a = extract_apk_signature_hash(Path(apk_a))
+        hash_b = extract_apk_signature_hash(Path(apk_b))
+    except Exception:
+        return {"score": 0.0, "status": "missing"}
+    return compare_signatures(hash_a, hash_b)
+
+try:
     from script.shared_data_store import discover_apk_by_stem
     from script.shared_data_store import discover_decoded_dir_by_stem
     from script.shared_data_store import resolve_path_ref
@@ -1005,8 +1035,11 @@ def run_pairwise(
             "library_reduced_score": None,
             "status": "analysis_failed",
             "views_used": list(selected_layers),
+            "signature_match": {"score": 0.0, "status": "missing"},
         }
 
+        apk_a = None
+        apk_b = None
         try:
             apk_a = resolve_apk_path(
                 candidate=candidate,
@@ -1061,6 +1094,8 @@ def run_pairwise(
                     "status": "analysis_failed",
                 }
             )
+
+        pair_row["signature_match"] = collect_signature_match(apk_a, apk_b)
 
         results.append(pair_row)
 
