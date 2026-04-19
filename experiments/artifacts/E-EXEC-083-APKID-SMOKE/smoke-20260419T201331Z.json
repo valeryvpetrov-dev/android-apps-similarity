@@ -1,0 +1,33 @@
+{
+  "apkid_version": "3.1.0",
+  "apk_path": "apk/simple_app/simple_app-releaseNonOptimized.apk",
+  "classification": {
+    "packers": [],
+    "obfuscators": [],
+    "compilers": [
+      "r8"
+    ],
+    "anti_debug": [],
+    "anti_vm": [],
+    "apkid_version": "3.1.0",
+    "rules_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "status": "ok",
+    "elapsed_sec": 0.0458615829993505,
+    "raw_stdout": "{\"apkid_version\": \"3.1.0\", \"files\": [{\"filename\": \"apk/simple_app/simple_app-releaseNonOptimized.apk\", \"matches\": {\"manipulator\": [\"Resources Confusion\"]}}, {\"filename\": \"apk/simple_app/simple_app-releaseNonOptimized.apk!classes.dex\", \"matches\": {\"compiler\": [\"r8\"]}}], \"rules_sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"}\n"
+  },
+  "gate": {
+    "gate_status": "clean",
+    "recommended_detector": "prefix_catalog",
+    "reason": "no packer/obfuscator detected",
+    "apkid_signals": {
+      "packers": [],
+      "obfuscators": [],
+      "compilers": [
+        "r8"
+      ],
+      "anti_debug": [],
+      "anti_vm": []
+    }
+  },
+  "timestamp": "2026-04-19T20:13:31.284548+00:00"
+}
