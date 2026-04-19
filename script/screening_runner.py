@@ -10,6 +10,11 @@ from itertools import combinations
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+try:
+    from script.evidence_formatter import collect_evidence_from_screening_layers
+except Exception:
+    from evidence_formatter import collect_evidence_from_screening_layers  # type: ignore[no-redef]
+
 
 M_STATIC_LAYERS = ("code", "component", "resource", "metadata", "library")
 LAYER_ALIASES = {
@@ -1070,6 +1075,12 @@ def build_candidate_list(
         }
         if per_view_scores is not None:
             row["per_view_scores"] = per_view_scores
+            # EXEC-088-WRITERS: единый формат Evidence для первичного отбора.
+            # Записывается параллельно с per_view_scores; при ged-метрике
+            # (per_view_scores отсутствует) evidence тоже не добавляется.
+            row["evidence"] = collect_evidence_from_screening_layers(
+                per_view_scores, stage_name="screening"
+            )
         candidate_list.append(row)
     candidate_list.sort(
         key=lambda item: (-item["retrieval_score"], item["app_a"], item["app_b"])

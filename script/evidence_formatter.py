@@ -174,3 +174,50 @@ def collect_evidence_from_screening_layers(
             )
         )
     return evidence
+
+
+def collect_all_evidence(
+    screening_result: dict | None, pair_row: dict | None
+) -> list[dict]:
+    """Собрать объединённый Evidence с обоих этапов.
+
+    EXEC-088-WRITERS: reader для интерпретации результата. Берёт уже
+    записанное поле `evidence` из `screening_result` (писатель
+    `screening_runner`) и из `pair_row` (писатель `pairwise_runner`),
+    сохраняет `source_stage` ('screening'/'pairwise'/'signing') каждой
+    записи и дедуплицирует по ключу (source_stage, signal_type, ref).
+    При дубликатах сохраняется первая встреченная запись.
+
+    Оба аргумента могут быть None. Нестандартные входы (не-dict)
+    игнорируются. При обоих None возвращает [].
+    """
+    combined: list[dict] = []
+    for stage_row in (screening_result, pair_row):
+        if not isinstance(stage_row, dict):
+            continue
+        stage_evidence = stage_row.get("evidence")
+        if not isinstance(stage_evidence, list):
+            continue
+        for item in stage_evidence:
+            if not isinstance(item, dict):
+                continue
+            combined.append(item)
+
+    deduplicated: list[dict] = []
+    seen: set[tuple[str, str, str]] = set()
+    for item in combined:
+        source_stage = item.get("source_stage")
+        signal_type = item.get("signal_type")
+        ref = item.get("ref")
+        if (
+            not isinstance(source_stage, str)
+            or not isinstance(signal_type, str)
+            or not isinstance(ref, str)
+        ):
+            continue
+        key = (source_stage, signal_type, ref)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduplicated.append(item)
+    return deduplicated
