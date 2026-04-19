@@ -778,6 +778,97 @@ def extract_screening_stage(config: dict) -> tuple[list[str], str, float]:
     return normalized_features, metric, threshold
 
 
+def extract_candidate_index_params(
+    config: dict,
+    default_features: list[str],
+    metric: str,
+) -> dict | None:
+    """Return normalized candidate_index params or None if not configured.
+
+    Parses ``stages.screening.candidate_index`` according to
+    ``system/cascade-config-schema-v1.md``. Returns a dict with keys
+    ``type``, ``num_perm``, ``bands``, ``seed``, ``features`` or
+    ``None`` if the block is absent. Raises ``ValueError`` for malformed
+    configuration (unsupported type, non-jaccard metric, bands does not
+    divide num_perm, unknown feature layer).
+    """
+    stages = config.get("stages")
+    if not isinstance(stages, dict):
+        return None
+    screening = stages.get("screening")
+    if not isinstance(screening, dict):
+        return None
+    block = screening.get("candidate_index")
+    if block is None:
+        return None
+    if not isinstance(block, dict):
+        raise ValueError("'stages.screening.candidate_index' must be a mapping")
+
+    index_type = str(block.get("type", "")).strip().lower()
+    if index_type != "minhash_lsh":
+        raise ValueError(
+            "Unsupported candidate_index.type: {!r}; only 'minhash_lsh' is supported".format(
+                block.get("type")
+            )
+        )
+    if metric != "jaccard":
+        raise ValueError(
+            "candidate_index.type=minhash_lsh requires stages.screening.metric=jaccard, got {!r}".format(metric)
+        )
+
+    try:
+        num_perm = int(block.get("num_perm", 128))
+    except (TypeError, ValueError):
+        raise ValueError("'candidate_index.num_perm' must be an integer") from None
+    if num_perm <= 0:
+        raise ValueError("'candidate_index.num_perm' must be positive")
+
+    try:
+        bands = int(block.get("bands", 32))
+    except (TypeError, ValueError):
+        raise ValueError("'candidate_index.bands' must be an integer") from None
+    if bands <= 0:
+        raise ValueError("'candidate_index.bands' must be positive")
+    if num_perm % bands != 0:
+        raise ValueError(
+            "'candidate_index.bands' ({}) must divide 'num_perm' ({}) without remainder".format(
+                bands, num_perm
+            )
+        )
+
+    try:
+        seed = int(block.get("seed", 42))
+    except (TypeError, ValueError):
+        raise ValueError("'candidate_index.seed' must be an integer") from None
+
+    features_raw = block.get("features")
+    if features_raw is None:
+        selected_features = list(default_features)
+    else:
+        if not isinstance(features_raw, list) or not features_raw:
+            raise ValueError("'candidate_index.features' must be a non-empty list when provided")
+        selected_features = []
+        seen = set()
+        for feature in features_raw:
+            feature_value = str(feature).strip().lower()
+            if feature_value not in M_STATIC_LAYERS:
+                raise ValueError(
+                    "Unsupported feature layer in candidate_index.features: {!r}".format(feature)
+                )
+            if feature_value in seen:
+                continue
+            seen.add(feature_value)
+            selected_features.append(feature_value)
+
+    return {
+        "type": index_type,
+        "num_perm": num_perm,
+        "bands": bands,
+        "seed": seed,
+        "features": selected_features,
+    }
+
+
 def validate_app_records(app_records: list[dict]) -> None:
     if len(app_records) < 2:
         raise ValueError("At least two apps are required to build candidate pairs")
@@ -817,6 +908,53 @@ def _extract_noise_profile_fields(app_record: dict) -> tuple[list[str], str | No
     return list(warnings), noise_profile_ref
 
 
+def _pair_key(app_a_id: str, app_b_id: str) -> tuple[str, str]:
+    if app_a_id <= app_b_id:
+        return (app_a_id, app_b_id)
+    return (app_b_id, app_a_id)
+
+
+def _build_candidate_pairs_via_lsh(
+    records: list[dict],
+    candidate_index_params: dict,
+) -> set[tuple[str, str]]:
+    """Build the set of candidate (app_a_id, app_b_id) pairs via MinHash/LSH.
+
+    Returns pairs with ``app_a_id < app_b_id`` to match the
+    deterministic order produced by ``itertools.combinations`` over
+    records sorted by ``app_id``.
+    """
+    from minhash_lsh import (
+        LSHIndex,
+        MinHashSignature,
+    )
+
+    num_perm = candidate_index_params["num_perm"]
+    bands = candidate_index_params["bands"]
+    seed = candidate_index_params["seed"]
+    index_features = candidate_index_params["features"]
+
+    signatures: dict[str, "MinHashSignature"] = {}
+    index = LSHIndex(num_perm=num_perm, bands=bands)
+    for record in records:
+        feature_set = aggregate_features(record, index_features)
+        signature = MinHashSignature.from_features(
+            feature_set, num_perm=num_perm, seed=seed
+        )
+        signatures[record["app_id"]] = signature
+        index.add(record["app_id"], signature)
+
+    candidate_pairs: set[tuple[str, str]] = set()
+    for record in records:
+        query_id = record["app_id"]
+        candidate_ids = index.query(signatures[query_id])
+        for candidate_id in candidate_ids:
+            if candidate_id == query_id:
+                continue
+            candidate_pairs.add(_pair_key(query_id, candidate_id))
+    return candidate_pairs
+
+
 def build_candidate_list(
     app_records: list[dict],
     selected_layers: list[str],
@@ -826,10 +964,19 @@ def build_candidate_list(
     ged_timeout_sec: int,
     processes_count: int,
     threads_count: int,
+    candidate_index_params: dict | None = None,
 ) -> list[dict]:
     records = sorted(app_records, key=lambda item: item["app_id"])
+
+    allowed_pairs: set[tuple[str, str]] | None = None
+    if candidate_index_params is not None and metric == "jaccard":
+        allowed_pairs = _build_candidate_pairs_via_lsh(records, candidate_index_params)
+
     candidate_list = []
     for app_a, app_b in combinations(records, 2):
+        if allowed_pairs is not None:
+            if _pair_key(app_a["app_id"], app_b["app_id"]) not in allowed_pairs:
+                continue
         score = calculate_pair_score(
             app_a=app_a,
             app_b=app_b,
@@ -920,6 +1067,9 @@ def run_screening(
     config_path = Path(cascade_config_path).expanduser().resolve()
     config = load_yaml_or_json(config_path)
     selected_layers, metric, threshold = extract_screening_stage(config)
+    candidate_index_params = extract_candidate_index_params(
+        config, default_features=selected_layers, metric=metric
+    )
 
     if app_records is None:
         if apps_features_json_path:
@@ -942,6 +1092,7 @@ def run_screening(
         ged_timeout_sec=ged_timeout_sec,
         processes_count=processes_count,
         threads_count=threads_count,
+        candidate_index_params=candidate_index_params,
     )
 
 
