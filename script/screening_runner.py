@@ -19,6 +19,16 @@ except Exception:
 
 logger = logging.getLogger(__name__)
 
+# EXEC-091: high-confidence shortcut
+# Если на этапе первичного отбора оценка сходства очень высока и цифровая
+# подпись APK совпадает — кандидат помечается как shortcut_applied=True с
+# шорткат-статусом SHORTCUT_STATUS. Решение о пропуске углублённого сравнения
+# принимает downstream (deepening_runner/pairwise_runner) по этим флагам.
+HIGH_CONFIDENCE_SCORE_THRESHOLD = 0.95  # library_reduced или агрегированная
+SHORTCUT_REQUIRES_SIGNATURE_MATCH = True  # жёсткое требование совпадения подписи
+SHORTCUT_STATUS = "success_shortcut"
+SHORTCUT_REASON_HIGH_CONFIDENCE = "high_confidence_signature_match"
+
 M_STATIC_LAYERS = ("code", "component", "resource", "metadata", "library")
 LAYER_ALIASES = {
     "code": ("code", "code_features", "graph_names", "code_graph_names"),
@@ -1097,6 +1107,69 @@ def validate_app_records(app_records: list[dict]) -> None:
         seen_ids.add(app_id)
 
 
+def collect_signature_match(apk_a_path: str | Path | None, apk_b_path: str | Path | None) -> dict:
+    """EXEC-091: посчитать signature_match для пары APK на этапе первичного отбора.
+
+    Если у пары кандидатов доступны пути к обоим APK — считаем хеш подписи
+    каждого и сравниваем через ``compare_signatures`` из signing_view. Если
+    хотя бы один путь пуст или файл отсутствует/не даёт хеша — возвращаем
+    ``{"score": 0.0, "status": "missing"}``.
+
+    Попытка импорта сначала из ``pairwise_runner`` (если там появится
+    каноничная функция в будущем), иначе — локальный fallback на
+    ``signing_view.extract_apk_signature_hash`` + ``compare_signatures``.
+    """
+    if apk_a_path is None or apk_b_path is None:
+        return {"score": 0.0, "status": "missing"}
+
+    path_a = Path(str(apk_a_path))
+    path_b = Path(str(apk_b_path))
+
+    # Предпочитаем каноничную реализацию из pairwise_runner, если появится.
+    try:
+        from pairwise_runner import collect_signature_match as _canonical  # type: ignore
+        if _canonical is not collect_signature_match:  # защита от рекурсии
+            return _canonical(path_a, path_b)  # type: ignore[misc]
+    except Exception:
+        pass
+
+    try:
+        from signing_view import extract_apk_signature_hash, compare_signatures
+    except ImportError:
+        try:
+            from script.signing_view import (  # type: ignore
+                extract_apk_signature_hash,
+                compare_signatures,
+            )
+        except ImportError:
+            return {"score": 0.0, "status": "missing"}
+
+    hash_a = extract_apk_signature_hash(path_a)
+    hash_b = extract_apk_signature_hash(path_b)
+    return compare_signatures(hash_a, hash_b)
+
+
+def _compute_shortcut_flags(
+    aggregated_score: float,
+    signature_match: dict,
+) -> tuple[bool, str | None, str | None]:
+    """EXEC-091: решить, применять ли сокращённый путь.
+
+    Возвращает кортеж ``(shortcut_applied, shortcut_reason, shortcut_status)``.
+    ``shortcut_applied=True`` требует одновременно:
+      - ``aggregated_score >= HIGH_CONFIDENCE_SCORE_THRESHOLD``;
+      - ``signature_match.status == 'match'`` (если
+        ``SHORTCUT_REQUIRES_SIGNATURE_MATCH=True``).
+    """
+    if aggregated_score < HIGH_CONFIDENCE_SCORE_THRESHOLD:
+        return False, None, None
+    if SHORTCUT_REQUIRES_SIGNATURE_MATCH:
+        status = signature_match.get("status") if isinstance(signature_match, dict) else None
+        if status != "match":
+            return False, None, None
+    return True, SHORTCUT_REASON_HIGH_CONFIDENCE, SHORTCUT_STATUS
+
+
 def _extract_noise_profile_fields(app_record: dict) -> tuple[list[str], str | None]:
     """Extract downstream_warnings and noise_profile_ref from an app_record.
 
@@ -1227,6 +1300,16 @@ def build_candidate_list(
         except ValueError:
             per_view_scores = None
 
+        # EXEC-091: рассчитать signature_match и флаги сокращённого пути
+        # при высоком доверии + совпадении подписи.
+        signature_match = collect_signature_match(
+            app_a.get("apk_path"), app_b.get("apk_path")
+        )
+        shortcut_applied, shortcut_reason, shortcut_status = _compute_shortcut_flags(
+            aggregated_score=float(score),
+            signature_match=signature_match,
+        )
+
         row = {
             "app_a": app_a["app_id"],
             "app_b": app_b["app_id"],
@@ -1237,6 +1320,10 @@ def build_candidate_list(
             "retrieval_features_used": list(selected_layers),
             "screening_warnings": noise_warnings,
             "screening_explanation": screening_explanation,
+            "signature_match": signature_match,
+            "shortcut_applied": shortcut_applied,
+            "shortcut_reason": shortcut_reason,
+            "shortcut_status": shortcut_status,
         }
         if per_view_scores is not None:
             row["per_view_scores"] = per_view_scores
