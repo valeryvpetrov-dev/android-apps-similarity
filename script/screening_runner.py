@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import math
 import re
 import zipfile
@@ -15,6 +16,8 @@ try:
 except Exception:
     from evidence_formatter import collect_evidence_from_screening_layers  # type: ignore[no-redef]
 
+
+logger = logging.getLogger(__name__)
 
 M_STATIC_LAYERS = ("code", "component", "resource", "metadata", "library")
 LAYER_ALIASES = {
@@ -36,6 +39,19 @@ MANIFEST_VERSION_CODE_PATTERN = re.compile(
 MANIFEST_SDK_PATTERN = re.compile(
     r"(?<![A-Za-z0-9_$.])(?:android:)?(minSdkVersion|targetSdkVersion)\s*(?:=|:)\s*[\"']?([0-9]+)"
 )
+MANIFEST_PERMISSION_PATTERN = re.compile(
+    r"android\.permission\.([A-Z][A-Z0-9_]*)"
+)
+MANIFEST_HARDWARE_FEATURE_PATTERN = re.compile(
+    r"android\.hardware\.([A-Za-z0-9_][A-Za-z0-9_.]*)"
+)
+MANIFEST_SOFTWARE_FEATURE_PATTERN = re.compile(
+    r"android\.software\.([A-Za-z0-9_][A-Za-z0-9_.]*)"
+)
+DEX_MAGIC_PREFIX = b"dex\n"
+DEX_MAGIC_SUFFIX = b"\x00"
+DEX_VERSION_LENGTH = 3
+APK_SIG_V1_EXTENSIONS = (".RSA", ".DSA", ".EC")
 
 
 def strip_yaml_comment(line: str) -> str:
@@ -434,6 +450,132 @@ def extract_manifest_metadata_tokens(manifest_bytes: bytes) -> set[str]:
     return tokens
 
 
+def _extract_dex_version_token(archive: zipfile.ZipFile) -> str | None:
+    """Read first 8 bytes of classes.dex and return a 'dex_version:NNN' token.
+
+    Returns None silently if classes.dex is absent, header unreadable, or
+    magic prefix does not match the expected ``dex\\n`` signature.
+    """
+    try:
+        header = archive.read("classes.dex")[:8]
+    except (KeyError, zipfile.BadZipFile, OSError) as exc:
+        logger.warning("screening_runner: cannot read classes.dex: %s", exc)
+        return None
+    if len(header) < 8:
+        return None
+    if not header.startswith(DEX_MAGIC_PREFIX):
+        return None
+    version_bytes = header[4:4 + DEX_VERSION_LENGTH]
+    if header[7:8] != DEX_MAGIC_SUFFIX:
+        return None
+    try:
+        version = version_bytes.decode("ascii")
+    except UnicodeDecodeError:
+        return None
+    if len(version) != DEX_VERSION_LENGTH or not version.isdigit():
+        return None
+    return "dex_version:{}".format(version)
+
+
+def _detect_signing_scheme(archive: zipfile.ZipFile) -> str | None:
+    """Return 'v1' if META-INF has .RSA/.DSA/.EC, 'v2' if APK Sig Block v2/v3 present.
+
+    Returns None when neither is detected. Safe to call on any zip.
+    """
+    try:
+        for name in archive.namelist():
+            if not name.startswith("META-INF/"):
+                continue
+            upper = name.upper()
+            if upper.endswith(APK_SIG_V1_EXTENSIONS):
+                return "v1"
+    except (zipfile.BadZipFile, OSError) as exc:
+        logger.warning("screening_runner: cannot enumerate META-INF: %s", exc)
+    return None
+
+
+def _extract_signing_tokens(apk_path: Path, archive: zipfile.ZipFile) -> set[str]:
+    """Build signing_* tokens via signing_view module.
+
+    Produces up to three tokens:
+      - signing_present:0|1
+      - signing_scheme:v1|v2  (omitted if no signature)
+      - signing_prefix:XXXXXXXX (first 8 hex chars; omitted if no signature)
+    Each lookup is wrapped so one failure cannot mask the others.
+    """
+    tokens: set[str] = set()
+    signing_hash: str | None = None
+    try:
+        try:
+            from signing_view import (
+                extract_apk_signature_hash,
+                extract_apk_signatures_v2_fingerprint,
+            )
+        except ImportError:
+            from script.signing_view import (  # type: ignore
+                extract_apk_signature_hash,
+                extract_apk_signatures_v2_fingerprint,
+            )
+        signing_hash = extract_apk_signature_hash(apk_path)
+    except Exception as exc:  # pragma: no cover - defensive guard
+        logger.warning("screening_runner: signature hash failed for %s: %s", apk_path, exc)
+        signing_hash = None
+
+    if signing_hash:
+        tokens.add("signing_present:1")
+    else:
+        tokens.add("signing_present:0")
+        return tokens
+
+    try:
+        scheme = _detect_signing_scheme(archive)
+        if scheme is None:
+            # Fallback path via APK Sig Block 42 implies v2/v3 scheme
+            try:
+                v2_hash = extract_apk_signatures_v2_fingerprint(apk_path)
+            except Exception:  # pragma: no cover
+                v2_hash = None
+            if v2_hash:
+                scheme = "v2"
+        if scheme:
+            tokens.add("signing_scheme:{}".format(scheme))
+    except Exception as exc:  # pragma: no cover
+        logger.warning("screening_runner: scheme detection failed: %s", exc)
+
+    try:
+        prefix = signing_hash[:8]
+        if len(prefix) == 8 and all(ch in "0123456789abcdefABCDEF" for ch in prefix):
+            tokens.add("signing_prefix:{}".format(prefix.lower()))
+    except Exception as exc:  # pragma: no cover
+        logger.warning("screening_runner: prefix extraction failed: %s", exc)
+
+    return tokens
+
+
+def _extract_permission_feature_tokens(manifest_bytes: bytes) -> set[str]:
+    """Scan AndroidManifest bytes across decoded candidates for perms/features.
+
+    Works on both plain-text XML and binary AXML: strings like
+    ``android.permission.INTERNET`` are extracted from any decoded view.
+    """
+    tokens: set[str] = set()
+    try:
+        for text in decode_manifest_candidates(manifest_bytes):
+            for name in MANIFEST_PERMISSION_PATTERN.findall(text):
+                tokens.add("uses_permission:{}".format(name))
+            for full in MANIFEST_HARDWARE_FEATURE_PATTERN.findall(text):
+                tail = full.rsplit(".", 1)[-1]
+                if tail:
+                    tokens.add("uses_feature:{}".format(tail))
+            for full in MANIFEST_SOFTWARE_FEATURE_PATTERN.findall(text):
+                tail = full.rsplit(".", 1)[-1]
+                if tail:
+                    tokens.add("uses_feature:{}".format(tail))
+    except Exception as exc:  # pragma: no cover
+        logger.warning("screening_runner: permission/feature scan failed: %s", exc)
+    return tokens
+
+
 def extract_layers_from_apk(apk_path: Path) -> dict[str, set[str]]:
     with zipfile.ZipFile(apk_path, "r") as archive:
         entries = [entry for entry in archive.namelist() if entry and not entry.endswith("/")]
@@ -452,10 +594,33 @@ def extract_layers_from_apk(apk_path: Path) -> dict[str, set[str]]:
             "manifest_present:{}".format(1 if has_manifest else 0),
             "resources_arsc_present:{}".format(1 if has_resources_arsc else 0),
         }
+
+        # EXEC-R_metadata_v2: DEX version token
+        try:
+            if "classes.dex" in entry_set:
+                dex_version_token = _extract_dex_version_token(archive)
+                if dex_version_token:
+                    metadata.add(dex_version_token)
+        except Exception as exc:  # pragma: no cover
+            logger.warning("screening_runner: dex_version token failed: %s", exc)
+
+        # EXEC-R_metadata_v2: signing tokens (present / scheme / prefix)
+        try:
+            metadata.update(_extract_signing_tokens(apk_path, archive))
+        except Exception as exc:  # pragma: no cover
+            logger.warning("screening_runner: signing tokens failed: %s", exc)
+
         if has_manifest:
             try:
                 manifest_bytes = archive.read("AndroidManifest.xml")
                 metadata.update(extract_manifest_metadata_tokens(manifest_bytes))
+                # EXEC-R_metadata_v2: permission / feature tokens
+                try:
+                    metadata.update(_extract_permission_feature_tokens(manifest_bytes))
+                except Exception as exc:  # pragma: no cover
+                    logger.warning(
+                        "screening_runner: permission/feature tokens failed: %s", exc
+                    )
                 for text in decode_manifest_candidates(manifest_bytes):
                     for match in MANIFEST_COMPONENT_PATTERN.findall(text):
                         component = match.strip().replace("/", ".")
