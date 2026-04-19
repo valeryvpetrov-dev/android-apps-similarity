@@ -445,6 +445,31 @@ def first_present(mapping: dict[str, Any], keys: tuple[str, ...]) -> Any:
     return None
 
 
+def extract_per_view_scores(candidate: dict[str, Any]) -> dict[str, float] | None:
+    """Read ``per_view_scores`` from an enriched_candidate (EXEC-087.1).
+
+    The field can live either at the top level of the candidate row (as emitted
+    by ``screening_runner.build_candidate_list``) or under the legacy ``apps``
+    wrapper. Missing / malformed values yield ``None`` so downstream logic can
+    omit the field entirely.
+    """
+    for container in (candidate, candidate.get("apps") if isinstance(candidate.get("apps"), dict) else None):
+        if not isinstance(container, dict):
+            continue
+        raw = container.get("per_view_scores")
+        if not isinstance(raw, dict) or not raw:
+            continue
+        coerced: dict[str, float] = {}
+        for key, value in raw.items():
+            try:
+                coerced[str(key)] = float(value)
+            except (TypeError, ValueError):
+                continue
+        if coerced:
+            return coerced
+    return None
+
+
 def extract_apps(candidate: dict[str, Any]) -> tuple[Any, Any]:
     if "app_a" in candidate and "app_b" in candidate:
         return candidate["app_a"], candidate["app_b"]
@@ -718,6 +743,7 @@ def enrich_candidate(
     app_a, app_b = extract_apps(candidate)
     app_a_payload = dict(app_a) if isinstance(app_a, dict) else app_a
     app_b_payload = dict(app_b) if isinstance(app_b, dict) else app_b
+    prior_per_view_scores = extract_per_view_scores(candidate)
     start = time.perf_counter()
     enriched_views = []
     apk_a = resolve_apk_path(candidate, app_a, "a")
@@ -848,7 +874,7 @@ def enrich_candidate(
             }
         )
 
-    return {
+    result: dict[str, Any] = {
         "app_a": app_a_payload,
         "app_b": app_b_payload,
         "app_a_path": apk_a,
@@ -858,6 +884,9 @@ def enrich_candidate(
         "enriched_views": enriched_views,
         "deepening_cost_ms": int(round((time.perf_counter() - start) * 1000)),
     }
+    if prior_per_view_scores is not None:
+        result["prior_per_view_scores"] = prior_per_view_scores
+    return result
 
 
 def run_deepening(config_path: Path, candidates_path: Path) -> dict[str, Any]:

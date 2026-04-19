@@ -697,6 +697,53 @@ def calculate_cfg_ged_similarity(
         return float(similarity_score)
 
 
+def compute_per_view_scores(
+    app_a: dict,
+    app_b: dict,
+    layers: list[str],
+    metric: str,
+) -> dict[str, float]:
+    """Compute per-layer similarity scores for a pair of apps.
+
+    Uses the same set-based metric selected for screening, but applied layer-by-layer
+    instead of the union of all selected layers. The result is a mapping
+    {layer: score} suitable for downstream deepening/pairwise calibration
+    (per EXEC-086 logistic regression).
+
+    Empty features on both sides yield 0.0 by convention of the underlying
+    metric functions (``jaccard_similarity`` returns 0.0 on empty union, etc.).
+    Non set-based metrics ("ged") are not supported here and raise ValueError.
+    """
+    normalized_metric = normalize_metric_name(metric)
+    if normalized_metric == "ged":
+        raise ValueError(
+            "compute_per_view_scores does not support metric 'ged'; "
+            "only set-based screening metrics are supported."
+        )
+
+    metric_fn = {
+        "jaccard": jaccard_similarity,
+        "cosine": cosine_similarity,
+        "containment": containment_similarity,
+        "dice": dice_similarity,
+        "overlap": overlap_similarity,
+        "shared_count": shared_count_similarity,
+        "levenshtein": levenshtein_similarity,
+        "edit_distance": levenshtein_similarity,
+    }.get(normalized_metric)
+    if metric_fn is None:
+        raise ValueError(
+            "Unsupported metric for per-view scores: {!r}".format(metric)
+        )
+
+    scores: dict[str, float] = {}
+    for layer in layers:
+        features_a = aggregate_features(app_a, [layer])
+        features_b = aggregate_features(app_b, [layer])
+        scores[layer] = float(metric_fn(features_a, features_b))
+    return scores
+
+
 def calculate_pair_score(
     app_a: dict,
     app_b: dict,
@@ -997,19 +1044,33 @@ def build_candidate_list(
         if noise_profile_ref is not None:
             screening_explanation = {"noise_profile_ref": noise_profile_ref}
 
-        candidate_list.append(
-            {
-                "app_a": app_a["app_id"],
-                "app_b": app_b["app_id"],
-                "query_app_id": app_a["app_id"],
-                "candidate_app_id": app_b["app_id"],
-                "retrieval_score": float(score),
-                "features_used": list(selected_layers),
-                "retrieval_features_used": list(selected_layers),
-                "screening_warnings": noise_warnings,
-                "screening_explanation": screening_explanation,
-            }
-        )
+        # EXEC-087.1: compute per-layer scores so downstream stages can reuse
+        # screening evidence (e.g. for EXEC-086 per-view weight calibration).
+        per_view_scores: dict[str, float] | None
+        try:
+            per_view_scores = compute_per_view_scores(
+                app_a=app_a,
+                app_b=app_b,
+                layers=list(selected_layers),
+                metric=metric,
+            )
+        except ValueError:
+            per_view_scores = None
+
+        row = {
+            "app_a": app_a["app_id"],
+            "app_b": app_b["app_id"],
+            "query_app_id": app_a["app_id"],
+            "candidate_app_id": app_b["app_id"],
+            "retrieval_score": float(score),
+            "features_used": list(selected_layers),
+            "retrieval_features_used": list(selected_layers),
+            "screening_warnings": noise_warnings,
+            "screening_explanation": screening_explanation,
+        }
+        if per_view_scores is not None:
+            row["per_view_scores"] = per_view_scores
+        candidate_list.append(row)
     candidate_list.sort(
         key=lambda item: (-item["retrieval_score"], item["app_a"], item["app_b"])
     )
