@@ -9,8 +9,12 @@ import sys
 import tempfile
 from concurrent.futures import ProcessPoolExecutor, TimeoutError as FuturesTimeoutError
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+
+DETAILED_JSON_SCHEMA_VERSION = "deep-004-v1"
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -177,6 +181,15 @@ def parse_args() -> argparse.Namespace:
         help="Path to enriched_candidates JSON produced by deepening_runner.",
     )
     parser.add_argument("--output", required=True, help="Path to output JSON.")
+    parser.add_argument(
+        "--detailed-output",
+        required=False,
+        default=None,
+        help=(
+            "Optional path for DEEP-004 detailed JSON report (schema_version "
+            "{!r}). Written in addition to --output.".format(DETAILED_JSON_SCHEMA_VERSION)
+        ),
+    )
     parser.add_argument("--ins-block-sim-threshold", type=float, default=0.80)
     parser.add_argument("--ged-timeout-sec", type=int, default=30)
     parser.add_argument("--processes-count", type=int, default=1)
@@ -1528,6 +1541,94 @@ def run_pairwise_detailed(
     return detailed
 
 
+_DETAILED_JSON_REQUIRED_FIELDS: tuple[str, ...] = (
+    "app_a",
+    "app_b",
+    "status",
+    "analysis_failed_reason",
+    "full_similarity_score",
+    "library_reduced_score",
+    "views_used",
+    "signature_match",
+    "evidence",
+    "timeout_info",
+)
+
+
+def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str, Any]:
+    """Shape a single pair_row into a DEEP-004 detailed JSON item.
+
+    Guarantees:
+      - required fields always present (None-filled when absent in pair_row);
+      - pair_id is stable sequential "PAIR-{index+1:06d}" unless pair_row
+        already carries a non-empty str pair_id;
+      - any extra fields from pair_row are preserved verbatim (forward-compat).
+    """
+    item: dict[str, Any] = {}
+    existing_pair_id = pair_row.get("pair_id") if isinstance(pair_row, dict) else None
+    if isinstance(existing_pair_id, str) and existing_pair_id.strip():
+        item["pair_id"] = existing_pair_id.strip()
+    else:
+        item["pair_id"] = "PAIR-{:06d}".format(index + 1)
+
+    for field in _DETAILED_JSON_REQUIRED_FIELDS:
+        item[field] = pair_row.get(field) if isinstance(pair_row, dict) else None
+
+    # Preserve any additional fields without loss.
+    if isinstance(pair_row, dict):
+        for key, value in pair_row.items():
+            if key in item:
+                continue
+            if key == "pair_id":
+                continue
+            item[key] = value
+
+    item["schema_version"] = DETAILED_JSON_SCHEMA_VERSION
+    return item
+
+
+def export_pairwise_detailed_json(results: list[dict], output_path: Path) -> None:
+    """Export DEEP-004 detailed JSON report for machine-readable audit.
+
+    Top-level object shape (schema_version = "deep-004-v1"):
+        {
+          "schema_version": "deep-004-v1",
+          "total_pairs": int,
+          "generated_at": "<ISO-8601 UTC>",
+          "pairs": [<detailed pair item>, ...]
+        }
+
+    Each detailed pair item preserves every field of the source pair_row
+    and adds a stable sequential `pair_id` plus per-item `schema_version`.
+    No field from pair_row is dropped (forward-compat with future extensions).
+    """
+    if not isinstance(results, list):
+        raise TypeError("export_pairwise_detailed_json: results must be a list.")
+
+    items: list[dict[str, Any]] = []
+    for index, row in enumerate(results):
+        if not isinstance(row, dict):
+            raise TypeError(
+                "export_pairwise_detailed_json: pair_row at index {} is not a dict.".format(index)
+            )
+        items.append(_build_detailed_json_item(row, index))
+
+    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    payload: dict[str, Any] = {
+        "schema_version": DETAILED_JSON_SCHEMA_VERSION,
+        "total_pairs": len(items),
+        "generated_at": generated_at,
+        "pairs": items,
+    }
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
 def main() -> None:
     args = parse_args()
     payload = run_pairwise(
@@ -1541,6 +1642,12 @@ def main() -> None:
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    if args.detailed_output:
+        export_pairwise_detailed_json(
+            results=payload,
+            output_path=Path(args.detailed_output),
+        )
 
 
 if __name__ == "__main__":
