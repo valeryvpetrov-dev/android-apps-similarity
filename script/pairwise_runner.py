@@ -66,6 +66,14 @@ try:
 except Exception:
     from evidence_formatter import collect_evidence_from_pairwise  # type: ignore[no-redef]
 
+try:
+    from script.timeout_incident_registry import record_timeout_incident
+except Exception:
+    try:
+        from timeout_incident_registry import record_timeout_incident  # type: ignore[no-redef]
+    except Exception:
+        record_timeout_incident = None  # type: ignore[assignment]
+
 
 def collect_signature_match(apk_a: str | None, apk_b: str | None) -> dict:
     """Compute signature match signal between two APK paths.
@@ -1258,6 +1266,14 @@ def run_pairwise(
                     selected_layers=selected_layers,
                     pair_timeout_sec=pair_timeout_sec,
                 )
+                # D-2026-04-094: каждый таймаут — инцидент, не штатный режим.
+                # Журнал инцидентов отделён от pair_row и не должен валить
+                # прогон при ошибке записи (disk full, permission, и т.п.).
+                if record_timeout_incident is not None:
+                    try:
+                        record_timeout_incident(pair_row)
+                    except Exception:
+                        pass
             except Exception:
                 try:
                     app_a_raw, app_b_raw = extract_apps(candidate)

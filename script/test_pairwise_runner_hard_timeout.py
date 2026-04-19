@@ -117,7 +117,14 @@ def _run_with_timeout_path(
             result_value=result_value,
         )
 
-        with mock.patch.object(pairwise_runner, "ProcessPoolExecutor", fake_executor):
+        # Изолируем запись журнала инцидентов от реальной файловой системы:
+        # подменяем record_timeout_incident пустышкой, иначе тесты пишут
+        # в experiments/artifacts/E-EXEC-090-TIMEOUT-INCIDENTS/.
+        with mock.patch.object(
+            pairwise_runner, "ProcessPoolExecutor", fake_executor
+        ), mock.patch.object(
+            pairwise_runner, "record_timeout_incident", mock.MagicMock()
+        ):
             payload = pairwise_runner.run_pairwise(
                 config_path=config_path,
                 enriched_path=enriched_path,
@@ -171,6 +178,49 @@ class TestHardTimeoutIncidentRow(unittest.TestCase):
         )
         self.assertIsNone(row["full_similarity_score"])
         self.assertIsNone(row["library_reduced_score"])
+
+
+class TestHardTimeoutCallsIncidentRegistry(unittest.TestCase):
+    """EXEC-090-INCIDENTS: при таймауте run_pairwise вызывает record_timeout_incident."""
+
+    def test_hard_timeout_invokes_record_timeout_incident_once(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            apk_a = root / "a.apk"
+            apk_b = root / "b.apk"
+            touch_apk(apk_a)
+            touch_apk(apk_b)
+            config_path, enriched_path = _build_enriched_pair_file(root, apk_a, apk_b)
+
+            fake_executor = _FakeProcessPoolExecutor(
+                raise_exc=pairwise_runner.FuturesTimeoutError(),
+            )
+
+            recorder = mock.MagicMock(return_value={})
+            with mock.patch.object(
+                pairwise_runner, "ProcessPoolExecutor", fake_executor
+            ), mock.patch.object(
+                pairwise_runner, "record_timeout_incident", recorder
+            ):
+                pairwise_runner.run_pairwise(
+                    config_path=config_path,
+                    enriched_path=enriched_path,
+                    ins_block_sim_threshold=0.8,
+                    ged_timeout_sec=30,
+                    processes_count=1,
+                    threads_count=2,
+                    pair_timeout_sec=5,
+                )
+
+            recorder.assert_called_once()
+            call_args = recorder.call_args
+            # Первый позиционный аргумент — pair_row; проверим ключевые поля.
+            pair_row_arg = call_args.args[0]
+            self.assertEqual(pair_row_arg["status"], "analysis_failed")
+            self.assertEqual(
+                pair_row_arg["analysis_failed_reason"], "budget_exceeded"
+            )
+            self.assertIn("timeout_info", pair_row_arg)
 
 
 class TestNoPairTimeoutBackwardCompat(unittest.TestCase):
