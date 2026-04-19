@@ -484,6 +484,39 @@ def test_e2e_arbitrate_inject_propagate_chain():
 
 
 # ---------------------------------------------------------------------------
+# APKiD gate integration (EXEC-083-APKID-ADAPTER)
+# Обёрнуто в unittest.TestCase, чтобы запускаться через
+# `python3 -m unittest script.test_noise_profile_envelope`.
+# ---------------------------------------------------------------------------
+
+import unittest
+from unittest import mock
+
+
+class ApkidGateIntegrationTests(unittest.TestCase):
+    """Envelope строится без падений при моке отсутствующего apkid."""
+
+    def test_apply_apkid_gate_when_apkid_missing(self) -> None:
+        """При `apkid_available=False` envelope получает clean-маршрут."""
+        from script import apkid_adapter
+        from script import noise_profile_envelope
+
+        with mock.patch.object(apkid_adapter, "apkid_available", return_value=False):
+            classification = apkid_adapter.detect_classifiers("/tmp/no-apk.apk")
+            decision = apkid_adapter.decide_gate(classification)
+
+        self.assertEqual(classification["status"], "not_available")
+        self.assertEqual(decision["gate_status"], "clean")
+
+        envelope = {"schema_version": SCHEMA_VERSION, "status": STATUS_SUCCESS}
+        merged = noise_profile_envelope.apply_apkid_gate(decision, envelope)
+
+        self.assertEqual(merged["apkid_gate_status"], "clean")
+        self.assertEqual(merged["apkid_recommended_detector"], "prefix_catalog")
+        self.assertFalse(merged.get("detector_blocked", False))
+
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 

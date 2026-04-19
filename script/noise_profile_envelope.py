@@ -280,6 +280,52 @@ def _try_offline_profile_fingerprint_v1(apk_record: dict) -> Optional[NoiseProfi
     )
 
 
+# ---------------------------------------------------------------------------
+# APKiD gate integration (EXEC-083-APKID-ADAPTER, hard policy D-2026-04-19)
+# ---------------------------------------------------------------------------
+
+def apply_apkid_gate(apkid_result: dict, envelope: dict) -> dict:
+    """Встраивает результат gate-решения в profile envelope.
+
+    Если gate_status='blocked', добавляет в envelope пометку
+    `detector_blocked=True` и `detector_block_reason='packer_detected'`.
+    Остальные случаи записываются как informational (recommended_detector).
+
+    Args:
+        apkid_result: dict из apkid_adapter.decide_gate(...).
+        envelope: dict-представление NoiseProfileEnvelope (из to_dict)
+                  или произвольный dict с metadata.
+
+    Returns:
+        Новый dict, расширенный полями:
+          - apkid_gate_status
+          - apkid_recommended_detector
+          - apkid_reason
+          - apkid_signals
+          - detector_blocked        (только при blocked)
+          - detector_block_reason   (только при blocked)
+    """
+    if not isinstance(envelope, dict):
+        raise TypeError("apply_apkid_gate expects envelope as dict")
+
+    merged = dict(envelope)
+    gate_status = apkid_result.get("gate_status")
+    recommended = apkid_result.get("recommended_detector")
+    reason = apkid_result.get("reason", "")
+    signals = dict(apkid_result.get("apkid_signals", {}) or {})
+
+    merged["apkid_gate_status"] = gate_status
+    merged["apkid_recommended_detector"] = recommended
+    merged["apkid_reason"] = reason
+    merged["apkid_signals"] = signals
+
+    if gate_status == "blocked":
+        merged["detector_blocked"] = True
+        merged["detector_block_reason"] = "packer_detected"
+
+    return merged
+
+
 def _build_envelope_from_summary(
     summary: dict,
     elements: list,
