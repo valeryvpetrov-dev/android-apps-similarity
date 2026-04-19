@@ -987,21 +987,32 @@ def build_screening_explanation(
         confidence=confidence,
     )
 
+    explanation: dict[str, Any] = {
+        "format_version": FORMAT_VERSION,
+        "query_app_id": app_a,
+        "candidate_app_id": app_b,
+        "retrieval_rank": retrieval_rank,
+        "matched_layers": matched_layers,
+        "dominant_signals": [clean_signal(signal) for signal in dominant_signals],
+        "filtered_as_noise": filtered_as_noise,
+        "retrieval_score": retrieval_score,
+        "confidence": confidence,
+        "explanation_text": explanation_text,
+    }
+
+    # EXEC-088-WRITERS: прокинуть единый формат Evidence, если писатель
+    # screening_runner уже записал его на candidate row. Контракт сохраняется
+    # (поле добавляется только при наличии непустого списка dict).
+    raw_evidence = row.get("evidence")
+    if isinstance(raw_evidence, list):
+        filtered_evidence = [item for item in raw_evidence if isinstance(item, dict)]
+        if filtered_evidence:
+            explanation["evidence"] = filtered_evidence
+
     return {
         "app_a": app_a,
         "app_b": app_b,
-        "screening_explanation": {
-            "format_version": FORMAT_VERSION,
-            "query_app_id": app_a,
-            "candidate_app_id": app_b,
-            "retrieval_rank": retrieval_rank,
-            "matched_layers": matched_layers,
-            "dominant_signals": [clean_signal(signal) for signal in dominant_signals],
-            "filtered_as_noise": filtered_as_noise,
-            "retrieval_score": retrieval_score,
-            "confidence": confidence,
-            "explanation_text": explanation_text,
-        },
+        "screening_explanation": explanation,
     }
 
 

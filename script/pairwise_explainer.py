@@ -751,14 +751,21 @@ def build_output_rows(pair_rows: list[dict]) -> list[dict]:
     output_rows: list[dict] = []
     for pair in pair_rows:
         app_a, app_b = resolve_pair_ids(pair)
-        output_rows.append(
-            {
-                "app_a": app_a,
-                "app_b": app_b,
-                "similarity_score": resolve_similarity_score(pair),
-                "explanation_hints": build_explanation_hints(pair),
-            }
-        )
+        row: dict[str, Any] = {
+            "app_a": app_a,
+            "app_b": app_b,
+            "similarity_score": resolve_similarity_score(pair),
+            "explanation_hints": build_explanation_hints(pair),
+        }
+        # EXEC-088-WRITERS: прокинуть единый формат Evidence, если писатель
+        # pairwise_runner уже записал его на pair_row. Добавляется только
+        # при наличии непустого списка dict-записей.
+        raw_evidence = pair.get("evidence")
+        if isinstance(raw_evidence, list):
+            filtered_evidence = [item for item in raw_evidence if isinstance(item, dict)]
+            if filtered_evidence:
+                row["evidence"] = filtered_evidence
+        output_rows.append(row)
     return output_rows
 
 
