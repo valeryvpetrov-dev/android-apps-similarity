@@ -515,6 +515,34 @@ class ApkidGateIntegrationTests(unittest.TestCase):
         self.assertEqual(merged["apkid_recommended_detector"], "prefix_catalog")
         self.assertFalse(merged.get("detector_blocked", False))
 
+    def test_apply_apkid_gate_manipulator_sets_warning_no_block(self) -> None:
+        """При manipulator_detected envelope получает manipulator_warning,
+        detector_blocked НЕ выставляется (APKID-ADAPTER-EXT)."""
+        from script import noise_profile_envelope
+
+        decision = {
+            "gate_status": "manipulator_detected",
+            "recommended_detector": "libloom",
+            "reason": "manipulator detected: Resources Confusion",
+            "apkid_signals": {
+                "packers": [],
+                "obfuscators": [],
+                "compilers": ["r8"],
+                "anti_debug": [],
+                "anti_vm": [],
+                "manipulators": ["Resources Confusion"],
+            },
+        }
+        envelope = {"schema_version": SCHEMA_VERSION, "status": STATUS_SUCCESS}
+
+        merged = noise_profile_envelope.apply_apkid_gate(decision, envelope)
+
+        self.assertEqual(merged["apkid_gate_status"], "manipulator_detected")
+        self.assertEqual(merged["apkid_recommended_detector"], "libloom")
+        self.assertEqual(merged.get("manipulator_warning"), ["Resources Confusion"])
+        self.assertFalse(merged.get("detector_blocked", False))
+        self.assertNotIn("detector_block_reason", merged)
+
 
 # ---------------------------------------------------------------------------
 # Runner

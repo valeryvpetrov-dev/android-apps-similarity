@@ -291,6 +291,11 @@ def apply_apkid_gate(apkid_result: dict, envelope: dict) -> dict:
     `detector_blocked=True` и `detector_block_reason='packer_detected'`.
     Остальные случаи записываются как informational (recommended_detector).
 
+    Для gate_status='manipulator_detected' (APKID-ADAPTER-EXT) в envelope
+    дополнительно записывается `manipulator_warning: list[str]` со списком
+    конкретных manipulator-правил APKiD. detector_blocked при этом
+    НЕ выставляется — detector остаётся работать по recommended=libloom.
+
     Args:
         apkid_result: dict из apkid_adapter.decide_gate(...).
         envelope: dict-представление NoiseProfileEnvelope (из to_dict)
@@ -304,6 +309,7 @@ def apply_apkid_gate(apkid_result: dict, envelope: dict) -> dict:
           - apkid_signals
           - detector_blocked        (только при blocked)
           - detector_block_reason   (только при blocked)
+          - manipulator_warning     (только при manipulator_detected)
     """
     if not isinstance(envelope, dict):
         raise TypeError("apply_apkid_gate expects envelope as dict")
@@ -322,6 +328,10 @@ def apply_apkid_gate(apkid_result: dict, envelope: dict) -> dict:
     if gate_status == "blocked":
         merged["detector_blocked"] = True
         merged["detector_block_reason"] = "packer_detected"
+
+    if gate_status == "manipulator_detected":
+        manipulators = list(signals.get("manipulators", []) or [])
+        merged["manipulator_warning"] = manipulators
 
     return merged
 
