@@ -101,6 +101,14 @@ except Exception:
         compare_api = None
         build_markov_chain = None
 
+try:
+    from script.signing_view import extract_apk_signature_hash
+except Exception:
+    try:
+        from signing_view import extract_apk_signature_hash
+    except Exception:
+        extract_apk_signature_hash = None
+
 
 ALL_LAYERS = ("code", "component", "resource", "metadata", "library", "api")
 
@@ -151,13 +159,26 @@ def extract_all_features(
 
     Returns
     -------
-    dict with keys: code, component, resource, metadata, library, mode.
+    dict with keys: code, component, resource, metadata, library, signing, mode.
+    `signing` is a dict with key `hash` holding the SHA-256 of the APK
+    signature certificate, or None if apk_path was not provided or the
+    APK has no recognisable signature.
     """
     if unpacked_dir is not None:
         return _extract_enhanced(unpacked_dir, apk_path)
     if apk_path is not None:
         return _extract_quick(apk_path)
     raise ValueError("Either apk_path or unpacked_dir must be provided.")
+
+
+def _extract_signing(apk_path: str | None) -> dict:
+    """Return signing signal bundle for the given APK, or a null stub."""
+    if apk_path is None or extract_apk_signature_hash is None:
+        return {"hash": None}
+    try:
+        return {"hash": extract_apk_signature_hash(Path(apk_path))}
+    except Exception:
+        return {"hash": None}
 
 
 def _extract_quick(apk_path: str) -> dict:
@@ -170,6 +191,7 @@ def _extract_quick(apk_path: str) -> dict:
         "resource": layers.get("resource", set()),
         "metadata": layers.get("metadata", set()),
         "library": layers.get("library", set()),
+        "signing": _extract_signing(str(resolved)),
         "mode": "quick",
     }
 
@@ -227,6 +249,9 @@ def _extract_enhanced(unpacked_dir: str, apk_path: str | None) -> dict:
             features["library"] = set()
     else:
         features["library"] = set()
+
+    # Signing signal: only available from the APK ZIP itself.
+    features["signing"] = _extract_signing(apk_path)
 
     return features
 
