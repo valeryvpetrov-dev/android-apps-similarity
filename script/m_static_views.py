@@ -109,6 +109,15 @@ except Exception:
     except Exception:
         extract_apk_signature_hash = None
 
+try:
+    from script.code_view_v4 import extract_code_view_v4, compare_code_v4
+except Exception:
+    try:
+        from code_view_v4 import extract_code_view_v4, compare_code_v4
+    except Exception:
+        extract_code_view_v4 = None
+        compare_code_v4 = None
+
 
 ALL_LAYERS = ("code", "component", "resource", "metadata", "library", "api")
 
@@ -159,10 +168,15 @@ def extract_all_features(
 
     Returns
     -------
-    dict with keys: code, component, resource, metadata, library, signing, mode.
+    dict with keys: code, component, resource, metadata, library, signing,
+    code_v4, mode.
     `signing` is a dict with key `hash` holding the SHA-256 of the APK
     signature certificate, or None if apk_path was not provided or the
     APK has no recognisable signature.
+    `code_v4` is a dict with keys `method_fingerprints`, `total_methods`,
+    `mode` — method-level fuzzy fingerprint of opcode sequences via
+    code_view_v4. Empty stub (`mode="v4_unavailable"`) when apk_path is
+    absent or code_view_v4 dependency is unavailable.
     """
     if unpacked_dir is not None:
         return _extract_enhanced(unpacked_dir, apk_path)
@@ -181,6 +195,22 @@ def _extract_signing(apk_path: str | None) -> dict:
         return {"hash": None}
 
 
+def _extract_code_v4(apk_path: str | None) -> dict:
+    """Return code_view_v4 bundle or a null stub.
+
+    EXEC-082a-INTEGRATION: method-level fuzzy fingerprint signal is
+    available only when apk_path is provided and code_view_v4
+    dependency is importable. Otherwise an empty stub is returned to
+    keep the feature bundle contract stable.
+    """
+    if apk_path is None or extract_code_view_v4 is None:
+        return {"method_fingerprints": {}, "total_methods": 0, "mode": "v4_unavailable"}
+    try:
+        return extract_code_view_v4(apk_path)
+    except Exception:
+        return {"method_fingerprints": {}, "total_methods": 0, "mode": "v4_unavailable"}
+
+
 def _extract_quick(apk_path: str) -> dict:
     """Quick extraction: string-set layers from APK ZIP."""
     resolved = Path(apk_path).expanduser().resolve()
@@ -192,6 +222,7 @@ def _extract_quick(apk_path: str) -> dict:
         "metadata": layers.get("metadata", set()),
         "library": layers.get("library", set()),
         "signing": _extract_signing(str(resolved)),
+        "code_v4": _extract_code_v4(str(resolved)),
         "mode": "quick",
     }
 
@@ -252,6 +283,9 @@ def _extract_enhanced(unpacked_dir: str, apk_path: str | None) -> dict:
 
     # Signing signal: only available from the APK ZIP itself.
     features["signing"] = _extract_signing(apk_path)
+
+    # code_view_v4: method-level fuzzy fingerprint; only from APK ZIP.
+    features["code_v4"] = _extract_code_v4(apk_path)
 
     return features
 
