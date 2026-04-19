@@ -57,6 +57,11 @@ except Exception:
         compare_signatures = None
         extract_apk_signature_hash = None
 
+try:
+    from script.evidence_formatter import collect_evidence_from_pairwise
+except Exception:
+    from evidence_formatter import collect_evidence_from_pairwise  # type: ignore[no-redef]
+
 
 def collect_signature_match(apk_a: str | None, apk_b: str | None) -> dict:
     """Compute signature match signal between two APK paths.
@@ -1098,6 +1103,7 @@ def _compute_pair_row_with_caches(
         )
 
     pair_row["signature_match"] = collect_signature_match(apk_a, apk_b)
+    pair_row["evidence"] = collect_evidence_from_pairwise(pair_row)
     return pair_row
 
 
@@ -1129,6 +1135,7 @@ def _build_timeout_row(
         "analysis_failed_reason": "budget_exceeded",
         "views_used": list(selected_layers),
         "signature_match": {"score": 0.0, "status": "missing"},
+        "evidence": [],
         "timeout_info": {
             "pair_timeout_sec": pair_timeout_sec,
             "stage": "pairwise",
@@ -1254,6 +1261,7 @@ def run_pairwise(
                     "status": "analysis_failed",
                     "views_used": list(selected_layers),
                     "signature_match": {"score": 0.0, "status": "missing"},
+                    "evidence": [],
                 }
         else:
             pair_row = _compute_pair_row_with_caches(
