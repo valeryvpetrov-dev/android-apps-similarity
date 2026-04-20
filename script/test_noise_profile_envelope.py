@@ -545,6 +545,234 @@ class ApkidGateIntegrationTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# LIBLOOM integration (EXEC-083-LIBLOOM-INTEGRATION)
+# ---------------------------------------------------------------------------
+
+
+class ApplyLibloomDetectionTests(unittest.TestCase):
+    """Контракт apply_libloom_detection — primary-детектор при not-blocked."""
+
+    # Моки замещают libloom_adapter.detect_libraries на уровне модуля
+    # (функция импортирует его через `from script import libloom_adapter`
+    # внутри тела — mock.patch на script.libloom_adapter.detect_libraries
+    # корректно перехватывает этот вызов).
+
+    def _ok_result(self, libraries: list | None = None) -> dict:
+        return {
+            "status": "ok",
+            "libraries": list(libraries or [
+                {"name": "com.squareup.okhttp3", "version": ["4.9.0"], "similarity": 0.97},
+            ]),
+            "unknown_packages": [],
+            "elapsed_sec": 12.34,
+            "raw_stdout": None,
+            "raw_stderr": None,
+            "appname": "com.example.app",
+            "error_reason": None,
+        }
+
+    def test_blocked_gate_skips_libloom(self) -> None:
+        """gate_status='blocked' → detect_libraries НЕ вызывается,
+        envelope не получает libloom_*-полей."""
+        from script import libloom_adapter
+        from script import noise_profile_envelope
+
+        apkid_result = {"gate_status": "blocked"}
+        envelope = {"schema_version": SCHEMA_VERSION, "status": STATUS_BLOCKED,
+                    "detector_blocked": True,
+                    "detector_block_reason": "packer_detected"}
+
+        with mock.patch.object(libloom_adapter, "detect_libraries") as detect:
+            merged = noise_profile_envelope.apply_libloom_detection(
+                apk_path="/tmp/blocked.apk",
+                apkid_result=apkid_result,
+                libloom_jar_path="/opt/LIBLOOM.jar",
+                libs_profile_dir="/opt/libs_profile",
+                envelope=envelope,
+            )
+
+        detect.assert_not_called()
+        self.assertNotIn("libloom_status", merged)
+        self.assertNotIn("libloom_libraries", merged)
+        # Исходные поля из apply_apkid_gate сохраняются.
+        self.assertTrue(merged["detector_blocked"])
+        self.assertEqual(merged["detector_block_reason"], "packer_detected")
+
+    def test_jar_none_marks_not_configured(self) -> None:
+        """libloom_jar_path=None → libloom_status='not_configured',
+        detect_libraries НЕ вызывается."""
+        from script import libloom_adapter
+        from script import noise_profile_envelope
+
+        apkid_result = {"gate_status": "clean",
+                        "recommended_detector": "prefix_catalog",
+                        "apkid_signals": {}}
+        envelope = {"schema_version": SCHEMA_VERSION, "status": STATUS_SUCCESS}
+
+        with mock.patch.object(libloom_adapter, "detect_libraries") as detect:
+            merged = noise_profile_envelope.apply_libloom_detection(
+                apk_path="/tmp/app.apk",
+                apkid_result=apkid_result,
+                libloom_jar_path=None,
+                libs_profile_dir="/opt/libs_profile",
+                envelope=envelope,
+            )
+
+        detect.assert_not_called()
+        self.assertEqual(merged["libloom_status"], "not_configured")
+        self.assertNotIn("libloom_libraries", merged)
+
+    def test_profile_dir_none_marks_not_configured(self) -> None:
+        """libs_profile_dir=None → libloom_status='not_configured',
+        detect_libraries НЕ вызывается."""
+        from script import libloom_adapter
+        from script import noise_profile_envelope
+
+        apkid_result = {"gate_status": "clean",
+                        "recommended_detector": "prefix_catalog",
+                        "apkid_signals": {}}
+        envelope = {"schema_version": SCHEMA_VERSION, "status": STATUS_SUCCESS}
+
+        with mock.patch.object(libloom_adapter, "detect_libraries") as detect:
+            merged = noise_profile_envelope.apply_libloom_detection(
+                apk_path="/tmp/app.apk",
+                apkid_result=apkid_result,
+                libloom_jar_path="/opt/LIBLOOM.jar",
+                libs_profile_dir=None,
+                envelope=envelope,
+            )
+
+        detect.assert_not_called()
+        self.assertEqual(merged["libloom_status"], "not_configured")
+        self.assertNotIn("libloom_libraries", merged)
+
+    def test_clean_gate_invokes_libloom_ok(self) -> None:
+        """gate_status='clean' + нормальные параметры → detect_libraries
+        вызывается один раз, envelope получает libloom_status='ok' и
+        заполненный libloom_libraries."""
+        from script import libloom_adapter
+        from script import noise_profile_envelope
+
+        apkid_result = {"gate_status": "clean",
+                        "recommended_detector": "prefix_catalog",
+                        "apkid_signals": {}}
+        envelope = {"schema_version": SCHEMA_VERSION, "status": STATUS_SUCCESS}
+
+        expected = self._ok_result()
+        with mock.patch.object(
+            libloom_adapter, "detect_libraries", return_value=expected,
+        ) as detect:
+            merged = noise_profile_envelope.apply_libloom_detection(
+                apk_path="/tmp/clean.apk",
+                apkid_result=apkid_result,
+                libloom_jar_path="/opt/LIBLOOM.jar",
+                libs_profile_dir="/opt/libs_profile",
+                envelope=envelope,
+                timeout_sec=600,
+            )
+
+        self.assertEqual(detect.call_count, 1)
+        call_kwargs = detect.call_args.kwargs
+        self.assertEqual(call_kwargs["apk_path"], "/tmp/clean.apk")
+        self.assertEqual(call_kwargs["jar_path"], "/opt/LIBLOOM.jar")
+        self.assertEqual(call_kwargs["libs_profile_dir"], "/opt/libs_profile")
+        self.assertEqual(call_kwargs["timeout_sec"], 600)
+
+        self.assertEqual(merged["libloom_status"], "ok")
+        self.assertEqual(merged["libloom_libraries"], expected["libraries"])
+        self.assertEqual(merged["libloom_elapsed_sec"], 12.34)
+        self.assertIsNone(merged["libloom_error_reason"])
+
+    def test_obfuscator_detected_invokes_libloom(self) -> None:
+        """gate_status='obfuscator_detected' → detect_libraries вызывается."""
+        from script import libloom_adapter
+        from script import noise_profile_envelope
+
+        apkid_result = {"gate_status": "obfuscator_detected",
+                        "recommended_detector": "libloom",
+                        "apkid_signals": {"obfuscators": ["DexGuard"]}}
+        envelope = {"schema_version": SCHEMA_VERSION, "status": STATUS_SUCCESS}
+
+        with mock.patch.object(
+            libloom_adapter, "detect_libraries", return_value=self._ok_result(),
+        ) as detect:
+            merged = noise_profile_envelope.apply_libloom_detection(
+                apk_path="/tmp/obf.apk",
+                apkid_result=apkid_result,
+                libloom_jar_path="/opt/LIBLOOM.jar",
+                libs_profile_dir="/opt/libs_profile",
+                envelope=envelope,
+            )
+
+        self.assertEqual(detect.call_count, 1)
+        self.assertEqual(merged["libloom_status"], "ok")
+
+    def test_manipulator_detected_invokes_libloom(self) -> None:
+        """gate_status='manipulator_detected' → detect_libraries вызывается."""
+        from script import libloom_adapter
+        from script import noise_profile_envelope
+
+        apkid_result = {"gate_status": "manipulator_detected",
+                        "recommended_detector": "libloom",
+                        "apkid_signals": {"manipulators": ["Resources Confusion"]}}
+        envelope = {"schema_version": SCHEMA_VERSION, "status": STATUS_SUCCESS,
+                    "manipulator_warning": ["Resources Confusion"]}
+
+        with mock.patch.object(
+            libloom_adapter, "detect_libraries", return_value=self._ok_result(),
+        ) as detect:
+            merged = noise_profile_envelope.apply_libloom_detection(
+                apk_path="/tmp/manip.apk",
+                apkid_result=apkid_result,
+                libloom_jar_path="/opt/LIBLOOM.jar",
+                libs_profile_dir="/opt/libs_profile",
+                envelope=envelope,
+            )
+
+        self.assertEqual(detect.call_count, 1)
+        self.assertEqual(merged["libloom_status"], "ok")
+        # manipulator_warning из apply_apkid_gate сохраняется.
+        self.assertEqual(merged["manipulator_warning"], ["Resources Confusion"])
+
+    def test_subprocess_error_propagates_to_envelope(self) -> None:
+        """Если adapter возвращает status='subprocess_error' —
+        envelope получает libloom_status='subprocess_error' и error_reason."""
+        from script import libloom_adapter
+        from script import noise_profile_envelope
+
+        apkid_result = {"gate_status": "obfuscator_detected",
+                        "recommended_detector": "libloom",
+                        "apkid_signals": {"obfuscators": ["DexGuard"]}}
+        envelope = {"schema_version": SCHEMA_VERSION, "status": STATUS_SUCCESS}
+
+        failed = {
+            "status": "subprocess_error",
+            "libraries": [],
+            "unknown_packages": [],
+            "elapsed_sec": 4.2,
+            "raw_stdout": None,
+            "raw_stderr": None,
+            "appname": None,
+            "error_reason": "jvm_nonzero_exit:1",
+        }
+        with mock.patch.object(
+            libloom_adapter, "detect_libraries", return_value=failed,
+        ):
+            merged = noise_profile_envelope.apply_libloom_detection(
+                apk_path="/tmp/broken.apk",
+                apkid_result=apkid_result,
+                libloom_jar_path="/opt/LIBLOOM.jar",
+                libs_profile_dir="/opt/libs_profile",
+                envelope=envelope,
+            )
+
+        self.assertEqual(merged["libloom_status"], "subprocess_error")
+        self.assertEqual(merged["libloom_error_reason"], "jvm_nonzero_exit:1")
+        self.assertEqual(merged["libloom_libraries"], [])
+        self.assertEqual(merged["libloom_elapsed_sec"], 4.2)
+
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 

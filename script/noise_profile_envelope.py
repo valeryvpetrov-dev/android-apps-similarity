@@ -336,6 +336,84 @@ def apply_apkid_gate(apkid_result: dict, envelope: dict) -> dict:
     return merged
 
 
+# ---------------------------------------------------------------------------
+# LIBLOOM detector integration (EXEC-083-LIBLOOM-INTEGRATION)
+# ---------------------------------------------------------------------------
+
+def apply_libloom_detection(
+    apk_path: str,
+    apkid_result: dict,
+    libloom_jar_path: Optional[str],
+    libs_profile_dir: Optional[str],
+    envelope: dict,
+    timeout_sec: int = 600,
+) -> dict:
+    """Встраивает результат LIBLOOM в профиль шума, если политика APKiD позволяет.
+
+    Правила:
+      - Если apkid_result["gate_status"] == "blocked" → LIBLOOM НЕ вызывается,
+        envelope возвращается как есть (detector_blocked уже выставлен
+        функцией apply_apkid_gate).
+      - Если libloom_jar_path is None или libs_profile_dir is None → LIBLOOM
+        не вызывается, envelope получает libloom_status="not_configured".
+      - Иначе вызывается libloom_adapter.detect_libraries, результат пишется
+        в envelope:
+          * envelope["libloom_status"]         = result["status"]
+          * envelope["libloom_libraries"]      = result["libraries"]
+          * envelope["libloom_elapsed_sec"]    = result["elapsed_sec"]
+          * envelope["libloom_error_reason"]   = result.get("error_reason")
+
+    Функция никогда не бросает исключения (как и сам adapter — он
+    маппит любое исключение в статус внутри результата).
+
+    Args:
+        apk_path:          путь к APK-файлу для анализа.
+        apkid_result:      dict из apkid_adapter.decide_gate(...).
+        libloom_jar_path:  путь к LIBLOOM.jar либо None (не сконфигурировано).
+        libs_profile_dir:  каталог с prebuilt TPL-профилями либо None.
+        envelope:          dict-представление NoiseProfileEnvelope (или
+                           произвольный dict с metadata).
+        timeout_sec:       hard-timeout для каждой фазы LIBLOOM (default 600).
+
+    Returns:
+        Новый dict — копия envelope, расширенная libloom_*-полями
+        (если LIBLOOM был вызван), либо без них (при blocked/not_configured
+        случай not_configured добавляет libloom_status="not_configured").
+    """
+    if not isinstance(envelope, dict):
+        raise TypeError("apply_libloom_detection expects envelope as dict")
+
+    merged = dict(envelope)
+
+    # 1. Жёсткая политика blocked — LIBLOOM не вызывается.
+    gate_status = apkid_result.get("gate_status") if isinstance(apkid_result, dict) else None
+    if gate_status == "blocked":
+        return merged
+
+    # 2. Не сконфигурировано — LIBLOOM не вызывается.
+    if libloom_jar_path is None or libs_profile_dir is None:
+        merged["libloom_status"] = "not_configured"
+        return merged
+
+    # 3. Вызов LIBLOOM. Импорт внутри — чтобы не создавать циклическую
+    #    зависимость на уровне модуля и чтобы тесты, мокающие
+    #    libloom_adapter.detect_libraries, работали через патч модуля.
+    from script import libloom_adapter  # noqa: WPS433
+
+    result = libloom_adapter.detect_libraries(
+        apk_path=apk_path,
+        jar_path=libloom_jar_path,
+        libs_profile_dir=libs_profile_dir,
+        timeout_sec=timeout_sec,
+    )
+
+    merged["libloom_status"] = result.get("status")
+    merged["libloom_libraries"] = list(result.get("libraries") or [])
+    merged["libloom_elapsed_sec"] = result.get("elapsed_sec", 0.0)
+    merged["libloom_error_reason"] = result.get("error_reason")
+    return merged
+
+
 def _build_envelope_from_summary(
     summary: dict,
     elements: list,
