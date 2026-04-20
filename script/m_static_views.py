@@ -126,6 +126,15 @@ except Exception:
     except Exception:
         compare_code_v4_shingled = None
 
+try:
+    from script.resource_view_v2 import extract_resource_view_v2, compare_resource_view_v2
+except Exception:
+    try:
+        from resource_view_v2 import extract_resource_view_v2, compare_resource_view_v2
+    except Exception:
+        extract_resource_view_v2 = None
+        compare_resource_view_v2 = None
+
 
 ALL_LAYERS = (
     "code",
@@ -136,6 +145,7 @@ ALL_LAYERS = (
     "api",
     "code_v4",
     "code_v4_shingled",
+    "resource_v2",
 )
 
 # Weights from cascade-config-schema-v1.
@@ -152,6 +162,8 @@ LAYER_WEIGHTS = {
     "api": 0.15,
     "code_v4": 0.0,
     "code_v4_shingled": 0.0,
+    # resource_v2: подключено, не активировано до калибровки EXEC-086.
+    "resource_v2": 0.0,
 }
 
 # Predefined ablation configurations.
@@ -168,6 +180,7 @@ ABLATION_CONFIGS = {
     "code_only_v4": ["code_v4"],
     "code_only_v4_shingled": ["code_v4_shingled"],
     "all_code_variants": ["code", "code_v4", "code_v4_shingled"],
+    "resource_only_v2": ["resource_v2"],
 }
 
 
@@ -194,7 +207,7 @@ def extract_all_features(
     Returns
     -------
     dict with keys: code, component, resource, metadata, library, signing,
-    code_v4, mode.
+    code_v4, resource_v2, mode.
     `signing` is a dict with key `hash` holding the SHA-256 of the APK
     signature certificate, or None if apk_path was not provided or the
     APK has no recognisable signature.
@@ -202,6 +215,11 @@ def extract_all_features(
     `mode` — method-level fuzzy fingerprint of opcode sequences via
     code_view_v4. Empty stub (`mode="v4_unavailable"`) when apk_path is
     absent or code_view_v4 dependency is unavailable.
+    `resource_v2` is a dict with keys `res_strings`, `res_drawables`,
+    `res_layouts`, `assets_bin`, `icon_phash`, `mode` — sub-categorised
+    resource signal via resource_view_v2. Empty stub
+    (`mode="v2_unavailable"`) when unpacked_dir is absent or the
+    resource_view_v2 dependency is unavailable (EXEC-R_resource_v2-INTEGRATION).
 
     Layers ``code_v4`` and ``code_v4_shingled`` are now first-class
     entries in :data:`ALL_LAYERS` and can be selected via
@@ -213,6 +231,11 @@ def extract_all_features(
     :data:`LAYER_WEIGHTS` is ``0.0`` until calibration (EXEC-086), so
     they are plumbed through aggregation without affecting the default
     weighted score.
+
+    Layer ``resource_v2`` is also registered in :data:`ALL_LAYERS` with
+    default weight ``0.0`` in :data:`LAYER_WEIGHTS` — signal «подключено,
+    не активировано до калибровки EXEC-086». Per-layer comparison
+    delegates to :func:`compare_resource_view_v2`.
     """
     if unpacked_dir is not None:
         return _extract_enhanced(unpacked_dir, apk_path)
@@ -247,6 +270,36 @@ def _extract_code_v4(apk_path: str | None) -> dict:
         return {"method_fingerprints": {}, "total_methods": 0, "mode": "v4_unavailable"}
 
 
+def _extract_resource_v2(unpacked_dir: str | None) -> dict:
+    """Return resource_view_v2 bundle or a null stub.
+
+    EXEC-R_resource_v2-INTEGRATION: sub-categorised resource signal is
+    available only when unpacked_dir is provided and resource_view_v2
+    dependency is importable. Otherwise an empty stub is returned to
+    keep the feature bundle contract stable.
+    """
+    if unpacked_dir is None or extract_resource_view_v2 is None:
+        return {
+            "res_strings": set(),
+            "res_drawables": set(),
+            "res_layouts": set(),
+            "assets_bin": set(),
+            "icon_phash": None,
+            "mode": "v2_unavailable",
+        }
+    try:
+        return extract_resource_view_v2(unpacked_dir)
+    except Exception:
+        return {
+            "res_strings": set(),
+            "res_drawables": set(),
+            "res_layouts": set(),
+            "assets_bin": set(),
+            "icon_phash": None,
+            "mode": "v2_unavailable",
+        }
+
+
 def _extract_quick(apk_path: str) -> dict:
     """Quick extraction: string-set layers from APK ZIP."""
     resolved = Path(apk_path).expanduser().resolve()
@@ -259,6 +312,8 @@ def _extract_quick(apk_path: str) -> dict:
         "library": layers.get("library", set()),
         "signing": _extract_signing(str(resolved)),
         "code_v4": _extract_code_v4(str(resolved)),
+        # resource_v2 requires unpacked_dir — null stub in quick mode.
+        "resource_v2": _extract_resource_v2(None),
         "mode": "quick",
     }
 
@@ -322,6 +377,9 @@ def _extract_enhanced(unpacked_dir: str, apk_path: str | None) -> dict:
 
     # code_view_v4: method-level fuzzy fingerprint; only from APK ZIP.
     features["code_v4"] = _extract_code_v4(apk_path)
+
+    # resource_view_v2: sub-categorised resource signal from unpacked dir.
+    features["resource_v2"] = _extract_resource_v2(unpacked_dir)
 
     return features
 
@@ -505,6 +563,17 @@ def compare_m_static_layer(
             "matched_methods": result.get("matched_methods", 0),
             "union_methods": result.get("union_methods", 0),
         }
+    if layer_name == "resource_v2":
+        if compare_resource_view_v2 is None:
+            return {"score": 0.0, "status": "v2_unavailable", "combined_score": 0.0}
+        if not isinstance(features_a, dict) or not isinstance(features_b, dict):
+            return {"score": 0.0, "status": "v2_unavailable", "combined_score": 0.0}
+        result = dict(compare_resource_view_v2(features_a, features_b))
+        combined = float(result.get("combined_score", 0.0))
+        result.setdefault("combined_score", combined)
+        result["score"] = combined
+        result.setdefault("status", "ok")
+        return result
     # Fallback for the legacy set-valued layers.
     return _compare_layer_quick(layer_name, features_a, features_b)
 
