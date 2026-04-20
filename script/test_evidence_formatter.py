@@ -18,6 +18,9 @@ if str(SCRIPT_DIR) not in sys.path:
 from evidence_formatter import (  # noqa: E402
     collect_evidence_from_pairwise,
     collect_evidence_from_screening_layers,
+    describe_pair_evidence,
+    format_evidence_as_text,
+    format_evidence_summary,
     make_evidence,
 )
 
@@ -204,6 +207,225 @@ class TestCollectEvidenceFromScreeningLayers(unittest.TestCase):
         layers = {"code": 0.25}
         evidence = collect_evidence_from_screening_layers(layers, stage_name="screening_v2")
         self.assertEqual(evidence[0]["source_stage"], "screening_v2")
+
+
+class TestFormatEvidenceAsText(unittest.TestCase):
+
+    def test_empty_list_returns_placeholder(self) -> None:
+        result = format_evidence_as_text([])
+        self.assertEqual(result, ["Нет доказательств для этой пары."])
+
+    def test_maps_source_stage_to_russian_labels(self) -> None:
+        records = [
+            make_evidence("screening", "layer_score", 0.4, "code"),
+            make_evidence("pairwise", "layer_score", 0.7, "component"),
+            make_evidence("signing", "signature_match", 1.0, "apk_signature"),
+        ]
+        lines = format_evidence_as_text(records)
+        self.assertEqual(len(lines), 3)
+        self.assertTrue(lines[0].startswith("Первичный отбор:"))
+        self.assertTrue(lines[1].startswith("Углублённое сравнение:"))
+        self.assertTrue(lines[2].startswith("Подпись APK:"))
+        self.assertIn("сходство по слою code", lines[0])
+        self.assertIn("совпадение подписи APK", lines[2])
+        self.assertIn("источник: apk_signature", lines[2])
+
+    def test_limits_output_by_max_items(self) -> None:
+        records = [
+            make_evidence("screening", "layer_score", 0.1 * (i + 1), "layer_{}".format(i))
+            for i in range(5)
+        ]
+        lines = format_evidence_as_text(records, max_items=2)
+        self.assertEqual(len(lines), 2)
+
+    def test_sorts_by_stage_then_magnitude_descending(self) -> None:
+        records = [
+            make_evidence("signing", "signature_match", 0.9, "apk_signature"),
+            make_evidence("screening", "layer_score", 0.2, "code"),
+            make_evidence("pairwise", "layer_score", 0.8, "component"),
+            make_evidence("screening", "layer_score", 0.6, "resource"),
+        ]
+        lines = format_evidence_as_text(records)
+        # screening first (by magnitude desc: 0.6 then 0.2), then pairwise, then signing.
+        self.assertTrue(lines[0].startswith("Первичный отбор:"))
+        self.assertIn("resource", lines[0])
+        self.assertTrue(lines[1].startswith("Первичный отбор:"))
+        self.assertIn("code", lines[1])
+        self.assertTrue(lines[2].startswith("Углублённое сравнение:"))
+        self.assertTrue(lines[3].startswith("Подпись APK:"))
+
+    def test_unknown_signal_type_uses_fallback_label(self) -> None:
+        records = [make_evidence("pairwise", "library_match", 0.55, "okhttp")]
+        lines = format_evidence_as_text(records)
+        self.assertIn("совпадение набора библиотек", lines[0])
+
+        records2 = [make_evidence("pairwise", "mystery_signal", 0.5, "x")]
+        lines2 = format_evidence_as_text(records2)
+        self.assertIn("сигнал mystery_signal", lines2[0])
+
+
+class TestFormatEvidenceSummary(unittest.TestCase):
+
+    def test_empty_summary_has_none_average_and_zero_total(self) -> None:
+        summary = format_evidence_summary([])
+        self.assertEqual(summary["total"], 0)
+        self.assertIsNone(summary["average_magnitude"])
+        self.assertIsNone(summary["max_magnitude_signal"])
+        self.assertEqual(summary["top_signals"], [])
+        self.assertEqual(
+            summary["by_stage"],
+            {"screening": 0, "pairwise": 0, "signing": 0},
+        )
+
+    def test_by_stage_counts_are_correct(self) -> None:
+        records = [
+            make_evidence("screening", "layer_score", 0.1, "a"),
+            make_evidence("screening", "layer_score", 0.2, "b"),
+            make_evidence("pairwise", "layer_score", 0.9, "c"),
+            make_evidence("signing", "signature_match", 1.0, "apk_signature"),
+        ]
+        summary = format_evidence_summary(records)
+        self.assertEqual(summary["total"], 4)
+        self.assertEqual(summary["by_stage"]["screening"], 2)
+        self.assertEqual(summary["by_stage"]["pairwise"], 1)
+        self.assertEqual(summary["by_stage"]["signing"], 1)
+        self.assertAlmostEqual(summary["average_magnitude"], (0.1 + 0.2 + 0.9 + 1.0) / 4)
+        self.assertEqual(summary["max_magnitude_signal"]["ref"], "apk_signature")
+
+    def test_top_signals_capped_at_five(self) -> None:
+        records = [
+            make_evidence("screening", "layer_score", (i + 1) / 10.0, "layer_{}".format(i))
+            for i in range(8)
+        ]
+        summary = format_evidence_summary(records)
+        self.assertEqual(len(summary["top_signals"]), 5)
+        magnitudes = [entry["magnitude"] for entry in summary["top_signals"]]
+        self.assertEqual(magnitudes, sorted(magnitudes, reverse=True))
+
+
+class TestDescribePairEvidence(unittest.TestCase):
+
+    def _success_pair_row(self) -> dict:
+        return {
+            "pair_id": "PAIR-000001",
+            "app_a": "A",
+            "app_b": "B",
+            "full_similarity_score": 0.7,
+            "library_reduced_score": 0.65,
+            "status": "success",
+            "views_used": ["component", "resource"],
+            "signature_match": {"score": 1.0, "status": "match"},
+            "shortcut_applied": False,
+            "timeout_info": None,
+            "analysis_failed_reason": None,
+            "evidence": [
+                make_evidence("pairwise", "layer_score", 0.65, "component"),
+                make_evidence("pairwise", "layer_score", 0.65, "resource"),
+                make_evidence("signing", "signature_match", 1.0, "apk_signature"),
+            ],
+        }
+
+    def test_success_pair_row_has_verdict_score_and_lines(self) -> None:
+        pair_row = self._success_pair_row()
+        description = describe_pair_evidence(pair_row)
+        self.assertEqual(description["pair_id"], "PAIR-000001")
+        self.assertEqual(description["verdict"], "success")
+        self.assertEqual(description["similarity_score"], 0.65)
+        self.assertIsInstance(description["evidence_lines"], list)
+        self.assertTrue(len(description["evidence_lines"]) >= 3)
+        self.assertEqual(description["summary"]["total"], 3)
+        self.assertEqual(description["notes"], [])
+
+    def test_budget_exceeded_adds_incident_note(self) -> None:
+        pair_row = {
+            "pair_id": "PAIR-000002",
+            "status": "analysis_failed",
+            "analysis_failed_reason": "budget_exceeded",
+            "timeout_info": {"pair_timeout_sec": 30, "stage": "pairwise"},
+            "evidence": [],
+        }
+        description = describe_pair_evidence(pair_row)
+        self.assertEqual(description["verdict"], "analysis_failed")
+        self.assertIn(
+            "Пара прервана по жёсткому лимиту времени (инцидент).",
+            description["notes"],
+        )
+        # Ensure timeout note is also present with correct format.
+        timeout_notes = [
+            note for note in description["notes"] if note.startswith("Таймаут:")
+        ]
+        self.assertEqual(len(timeout_notes), 1)
+        self.assertIn("30", timeout_notes[0])
+        self.assertIn("pairwise", timeout_notes[0])
+        # Empty evidence list produces the placeholder.
+        self.assertEqual(
+            description["evidence_lines"],
+            ["Нет доказательств для этой пары."],
+        )
+
+    def test_shortcut_applied_adds_note(self) -> None:
+        pair_row = {
+            "pair_id": "PAIR-000003",
+            "status": "success",
+            "library_reduced_score": 0.9,
+            "full_similarity_score": 0.95,
+            "views_used": ["component"],
+            "signature_match": {"score": 1.0, "status": "match"},
+            "shortcut_applied": True,
+            "evidence": [
+                make_evidence("pairwise", "layer_score", 0.9, "component"),
+                make_evidence("signing", "signature_match", 1.0, "apk_signature"),
+            ],
+        }
+        description = describe_pair_evidence(pair_row)
+        self.assertIn(
+            "Применён сокращённый путь: высокое доверие + совпадение подписи.",
+            description["notes"],
+        )
+
+    def test_signature_mismatch_adds_note(self) -> None:
+        pair_row = {
+            "pair_id": "PAIR-000004",
+            "status": "success",
+            "library_reduced_score": 0.3,
+            "full_similarity_score": 0.3,
+            "views_used": ["component"],
+            "signature_match": {"score": 0.0, "status": "mismatch"},
+            "evidence": [
+                make_evidence("pairwise", "layer_score", 0.3, "component"),
+            ],
+        }
+        description = describe_pair_evidence(pair_row)
+        self.assertIn(
+            "Внимание: подписи APK не совпадают.",
+            description["notes"],
+        )
+
+    def test_merges_screening_and_pairwise_evidence_with_dedup(self) -> None:
+        screening_result = {
+            "evidence": [
+                make_evidence("screening", "layer_score", 0.4, "code"),
+                make_evidence("screening", "layer_score", 0.5, "component"),
+            ]
+        }
+        pair_row = {
+            "pair_id": "PAIR-000005",
+            "status": "success",
+            "library_reduced_score": 0.6,
+            "full_similarity_score": 0.6,
+            "views_used": ["component"],
+            "signature_match": {"score": 1.0, "status": "match"},
+            "evidence": [
+                make_evidence("pairwise", "layer_score", 0.6, "component"),
+                make_evidence("signing", "signature_match", 1.0, "apk_signature"),
+            ],
+        }
+        description = describe_pair_evidence(pair_row, screening_result)
+        # 2 screening + 1 pairwise + 1 signing = 4 after dedup.
+        self.assertEqual(description["summary"]["total"], 4)
+        self.assertEqual(description["summary"]["by_stage"]["screening"], 2)
+        self.assertEqual(description["summary"]["by_stage"]["pairwise"], 1)
+        self.assertEqual(description["summary"]["by_stage"]["signing"], 1)
 
 
 if __name__ == "__main__":
