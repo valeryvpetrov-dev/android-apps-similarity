@@ -16,6 +16,11 @@
 
 Все helper-функции возвращают list[dict] или dict; dataclass Evidence
 используется только для валидации на этапе конструирования записи.
+
+Reader path (EXEC-088-READER): `format_evidence_as_text`,
+`format_evidence_summary` и `describe_pair_evidence` превращают
+записи Evidence в связное человеко-читаемое представление для
+отчётов интерпретации.
 """
 from __future__ import annotations
 
@@ -221,3 +226,235 @@ def collect_all_evidence(
         seen.add(key)
         deduplicated.append(item)
     return deduplicated
+
+
+# ---------------------------------------------------------------------------
+# Reader path: человеко-читаемое представление доказательств.
+# ---------------------------------------------------------------------------
+
+_STAGE_ORDER = {"screening": 0, "pairwise": 1, "signing": 2}
+
+_STAGE_LABELS = {
+    "screening": "Первичный отбор",
+    "pairwise": "Углублённое сравнение",
+    "signing": "Подпись APK",
+}
+
+_SIGNAL_LABELS = {
+    "signature_match": "совпадение подписи APK",
+    "library_match": "совпадение набора библиотек",
+    "icc_overlap": "пересечение ICC-кортежей",
+}
+
+
+def _stage_label(stage: str) -> str:
+    return _STAGE_LABELS.get(stage, stage)
+
+
+def _signal_description(signal_type: str, ref: str) -> str:
+    if signal_type == "layer_score":
+        return "сходство по слою {}".format(ref)
+    if signal_type in _SIGNAL_LABELS:
+        return _SIGNAL_LABELS[signal_type]
+    return "сигнал {}".format(signal_type)
+
+
+def _evidence_sort_key(item: dict) -> tuple[int, float]:
+    stage = item.get("source_stage", "")
+    stage_order = _STAGE_ORDER.get(stage, 99)
+    try:
+        magnitude = float(item.get("magnitude", 0.0))
+    except (TypeError, ValueError):
+        magnitude = 0.0
+    # magnitude по убыванию -> отрицательный ключ
+    return (stage_order, -magnitude)
+
+
+def format_evidence_as_text(
+    evidence_list: list[dict], max_items: int = 20
+) -> list[str]:
+    """Форматировать список Evidence в человеко-читаемые строки.
+
+    Каждая запись превращается в строку формата
+    `"<Этап>: <описание сигнала> (сила ≈ <m>, источник: <ref>)"`.
+    Пустой список возвращает одну строку-заглушку.
+
+    Сортировка: сначала по `source_stage`
+    (screening -> pairwise -> signing), затем по magnitude убыванию.
+    Максимум `max_items` строк.
+    """
+    if not isinstance(evidence_list, list) or len(evidence_list) == 0:
+        return ["Нет доказательств для этой пары."]
+
+    valid_items: list[dict] = [
+        item for item in evidence_list if isinstance(item, dict)
+    ]
+    valid_items.sort(key=_evidence_sort_key)
+
+    try:
+        limit = int(max_items)
+    except (TypeError, ValueError):
+        limit = 20
+    if limit < 0:
+        limit = 0
+
+    lines: list[str] = []
+    for item in valid_items[:limit]:
+        stage = str(item.get("source_stage", ""))
+        signal_type = str(item.get("signal_type", ""))
+        ref = str(item.get("ref", ""))
+        try:
+            magnitude = float(item.get("magnitude", 0.0))
+        except (TypeError, ValueError):
+            magnitude = 0.0
+        lines.append(
+            "{stage}: {desc} (сила ≈ {magnitude:.2f}, источник: {ref})".format(
+                stage=_stage_label(stage),
+                desc=_signal_description(signal_type, ref),
+                magnitude=magnitude,
+                ref=ref,
+            )
+        )
+    return lines
+
+
+def format_evidence_summary(evidence_list: list[dict]) -> dict:
+    """Агрегировать статистику по списку Evidence.
+
+    Возвращает dict с ключами `total`, `by_stage`, `top_signals`
+    (до 5 записей), `average_magnitude` и `max_magnitude_signal`.
+    На пустом списке `total=0`, `average_magnitude=None`,
+    `max_magnitude_signal=None`.
+    """
+    summary: dict = {
+        "total": 0,
+        "by_stage": {"screening": 0, "pairwise": 0, "signing": 0},
+        "top_signals": [],
+        "average_magnitude": None,
+        "max_magnitude_signal": None,
+    }
+    if not isinstance(evidence_list, list):
+        return summary
+
+    valid_items: list[dict] = [
+        item for item in evidence_list if isinstance(item, dict)
+    ]
+    if len(valid_items) == 0:
+        return summary
+
+    magnitudes: list[float] = []
+    for item in valid_items:
+        stage = str(item.get("source_stage", ""))
+        if stage in summary["by_stage"]:
+            summary["by_stage"][stage] += 1
+        else:
+            summary["by_stage"][stage] = summary["by_stage"].get(stage, 0) + 1
+        try:
+            magnitudes.append(float(item.get("magnitude", 0.0)))
+        except (TypeError, ValueError):
+            magnitudes.append(0.0)
+
+    summary["total"] = len(valid_items)
+    summary["average_magnitude"] = sum(magnitudes) / len(magnitudes)
+
+    def _record_brief(record: dict) -> dict:
+        try:
+            magnitude_value = float(record.get("magnitude", 0.0))
+        except (TypeError, ValueError):
+            magnitude_value = 0.0
+        return {
+            "stage": str(record.get("source_stage", "")),
+            "type": str(record.get("signal_type", "")),
+            "ref": str(record.get("ref", "")),
+            "magnitude": magnitude_value,
+        }
+
+    sorted_items = sorted(
+        valid_items,
+        key=lambda item: -(
+            float(item.get("magnitude", 0.0))
+            if isinstance(item.get("magnitude"), (int, float))
+            else 0.0
+        ),
+    )
+    summary["top_signals"] = [
+        _record_brief(item) for item in sorted_items[:5]
+    ]
+    summary["max_magnitude_signal"] = _record_brief(sorted_items[0])
+    return summary
+
+
+def _collect_pair_notes(pair_row: dict) -> list[str]:
+    notes: list[str] = []
+    reason = pair_row.get("analysis_failed_reason")
+    if isinstance(reason, str) and reason == "budget_exceeded":
+        notes.append(
+            "Пара прервана по жёсткому лимиту времени (инцидент)."
+        )
+    timeout_info = pair_row.get("timeout_info")
+    if isinstance(timeout_info, dict):
+        timeout_sec = timeout_info.get("pair_timeout_sec")
+        stage = timeout_info.get("stage")
+        notes.append(
+            "Таймаут: {timeout} сек на этапе {stage}.".format(
+                timeout=timeout_sec if timeout_sec is not None else "?",
+                stage=stage if stage is not None else "?",
+            )
+        )
+    if pair_row.get("shortcut_applied") is True:
+        notes.append(
+            "Применён сокращённый путь: высокое доверие + совпадение подписи."
+        )
+    signature_match = pair_row.get("signature_match")
+    if (
+        isinstance(signature_match, dict)
+        and signature_match.get("status") == "mismatch"
+    ):
+        notes.append("Внимание: подписи APK не совпадают.")
+    return notes
+
+
+def describe_pair_evidence(
+    pair_row: dict, screening_result: dict | None = None
+) -> dict:
+    """Главный reader: собрать связное представление доказательств пары.
+
+    Возвращает dict со следующими ключами:
+    `pair_id`, `verdict`, `similarity_score`, `evidence_lines`
+    (человеко-читаемые строки), `summary` (агрегат) и `notes`
+    (человеко-читаемые замечания о таймаутах, сокращённом пути
+    и несовпадении подписей).
+
+    Использует `collect_all_evidence` для объединения Evidence
+    со всех этапов с дедупликацией.
+    """
+    if not isinstance(pair_row, dict):
+        pair_row_safe: dict = {}
+    else:
+        pair_row_safe = pair_row
+
+    evidence = collect_all_evidence(screening_result, pair_row_safe)
+    evidence_lines = format_evidence_as_text(evidence)
+    summary = format_evidence_summary(evidence)
+
+    library_reduced = pair_row_safe.get("library_reduced_score")
+    full_similarity = pair_row_safe.get("full_similarity_score")
+    similarity_score: float | int | None
+    if library_reduced is not None:
+        similarity_score = library_reduced
+    else:
+        similarity_score = full_similarity
+
+    pair_id_value = pair_row_safe.get("pair_id", "")
+    pair_id = pair_id_value if isinstance(pair_id_value, str) else ""
+    verdict_value = pair_row_safe.get("status", "unknown")
+    verdict = verdict_value if isinstance(verdict_value, str) else "unknown"
+
+    return {
+        "pair_id": pair_id,
+        "verdict": verdict,
+        "similarity_score": similarity_score,
+        "evidence_lines": evidence_lines,
+        "summary": summary,
+        "notes": _collect_pair_notes(pair_row_safe),
+    }
