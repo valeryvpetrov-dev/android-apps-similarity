@@ -81,6 +81,78 @@ def extract_apk_signatures_v2_fingerprint(apk_path: Path) -> Optional[str]:
     return hashlib.sha256(data[start:end]).hexdigest()
 
 
+def extract_signing_chain(apk_path: Path) -> list[dict]:
+    """Извлечь полную цепочку сертификатов подписи APK.
+
+    Для каждого сертификата в PKCS#7-подписи из META-INF/*.RSA (или .DSA, .EC)
+    возвращает dict со строковыми полями:
+      - issuer:  RFC4514-представление издателя (Issuer);
+      - subject: RFC4514-представление субъекта (Subject);
+      - sha256:  SHA-256 DER-кодированного сертификата (64 hex).
+
+    Используется для расширенных метаданных и объяснителей: полная цепочка
+    даёт больше информации, чем одиночный 8-hex signing_prefix (первый
+    сертификат). В расчёт Жаккара напрямую не попадает.
+
+    Ограниченный скоуп (bounded):
+      - Используется cryptography.x509 + cryptography.hazmat.primitives.serialization.pkcs7.
+        Поэтому парсятся только v1-подписи через META-INF/*.RSA|.DSA|.EC.
+      - Для APK с чисто v2/v3-подписью без META-INF возвращается пустой список.
+        Полноценный разбор APK Signing Block v2/v3 требует androguard и
+        вынесен за рамки данной задачи.
+      - На любой ошибке парсинга PKCS#7 возвращается пустой список.
+    """
+    path = Path(apk_path)
+    if not path.exists() or not path.is_file():
+        return []
+    try:
+        with zipfile.ZipFile(path, 'r') as zf:
+            cert_files = []
+            for name in zf.namelist():
+                if not name.startswith('META-INF/'):
+                    continue
+                if name.upper().endswith(SIGNATURE_EXTENSIONS):
+                    cert_files.append(name)
+            if not cert_files:
+                return []
+            cert_files.sort()
+            cert_blob = zf.read(cert_files[0])
+    except (zipfile.BadZipFile, OSError, KeyError) as exc:
+        logger.warning('signing_view: не удалось прочитать META-INF из %s: %s', apk_path, exc)
+        return []
+
+    try:
+        from cryptography.hazmat.primitives.serialization import pkcs7
+        from cryptography.hazmat.primitives.serialization import Encoding
+    except ImportError:
+        logger.warning('signing_view: cryptography недоступен, цепочка сертификатов не извлечена')
+        return []
+
+    try:
+        certs = pkcs7.load_der_pkcs7_certificates(cert_blob)
+    except Exception as exc:
+        logger.warning('signing_view: разбор PKCS#7 из %s не удался: %s', apk_path, exc)
+        return []
+
+    chain: list[dict] = []
+    for cert in certs:
+        try:
+            issuer = cert.issuer.rfc4514_string()
+        except Exception:
+            issuer = ''
+        try:
+            subject = cert.subject.rfc4514_string()
+        except Exception:
+            subject = ''
+        try:
+            der = cert.public_bytes(Encoding.DER)
+            sha256 = hashlib.sha256(der).hexdigest()
+        except Exception:
+            sha256 = ''
+        chain.append({'issuer': issuer, 'subject': subject, 'sha256': sha256})
+    return chain
+
+
 def compare_signatures(hash_a: Optional[str], hash_b: Optional[str]) -> dict:
     """Сравнить два хеша сертификата подписи.
 

@@ -110,6 +110,14 @@ except Exception:
         extract_apk_signature_hash = None
 
 try:
+    from script.signing_view import extract_signing_chain
+except Exception:
+    try:
+        from signing_view import extract_signing_chain
+    except Exception:
+        extract_signing_chain = None
+
+try:
     from script.code_view_v4 import extract_code_view_v4, compare_code_v4
 except Exception:
     try:
@@ -244,14 +252,92 @@ def extract_all_features(
     raise ValueError("Either apk_path or unpacked_dir must be provided.")
 
 
+# ---------------------------------------------------------------------------
+# EXEC-R_metadata_v2-CREATOR: creator-centric Жаккар разрешений
+# ---------------------------------------------------------------------------
+
+# Минимальный расширяемый словарь «префикс разрешения -> creator-group».
+# Порядок ключей важен: более длинные/специфичные префиксы должны идти
+# раньше более коротких, чтобы победил самый точный матч. Проверка ведётся
+# по .startswith на имени разрешения (без префикса "uses_permission:").
+# Неизвестные разрешения попадают в группу "third_party".
+PERMISSION_CREATOR_GROUPS: tuple[tuple[str, str], ...] = (
+    ("com.google.", "google"),
+    ("com.android.vending.", "google"),
+    ("com.facebook.", "facebook"),
+    ("android.permission.", "android"),
+    ("android.", "android"),
+)
+
+
+def _creator_group_for_permission(permission_name: str) -> str:
+    """Сопоставить имя разрешения с creator-группой.
+
+    Parameters
+    ----------
+    permission_name:
+        Полное имя разрешения без префикса ``uses_permission:``. Например
+        ``android.permission.INTERNET`` или
+        ``com.google.android.c2dm.permission.RECEIVE``.
+
+    Returns
+    -------
+    str
+        Имя creator-группы. По умолчанию ``"third_party"``, если имя
+        не совпало ни с одним префиксом из :data:`PERMISSION_CREATOR_GROUPS`.
+    """
+    for prefix, group in PERMISSION_CREATOR_GROUPS:
+        if permission_name.startswith(prefix):
+            return group
+    return "third_party"
+
+
+def _enrich_metadata_with_perm_groups(metadata: set[str]) -> set[str]:
+    """Добавить токены ``perm_group:<creator>:<permission>`` рядом с ``uses_permission:*``.
+
+    Работает по идемпотентной схеме: старые токены ``uses_permission:*`` остаются
+    на месте, новые ``perm_group:*`` добавляются параллельно. Это даёт два
+    варианта Жаккара — по плоским разрешениям и по creator-группам —
+    для сравнения на экспериментах (follow-up из research/R-07).
+    """
+    if not metadata:
+        return metadata
+    new_tokens: set[str] = set()
+    for token in metadata:
+        if not token.startswith("uses_permission:"):
+            continue
+        permission_name = token[len("uses_permission:"):]
+        if not permission_name:
+            continue
+        group = _creator_group_for_permission(permission_name)
+        new_tokens.add("perm_group:{}:{}".format(group, permission_name))
+    if new_tokens:
+        metadata = set(metadata)
+        metadata.update(new_tokens)
+    return metadata
+
+
 def _extract_signing(apk_path: str | None) -> dict:
-    """Return signing signal bundle for the given APK, or a null stub."""
+    """Return signing signal bundle for the given APK, or a null stub.
+
+    EXEC-R_metadata_v2-CREATOR: словарь также содержит ключ ``chain`` —
+    список ``dict{issuer, subject, sha256}`` для каждого сертификата в
+    цепочке подписи. Это обогащённые метаданные для объяснителей и
+    веб-сервиса; в расчёт Жаккара напрямую не попадают.
+    """
     if apk_path is None or extract_apk_signature_hash is None:
-        return {"hash": None}
+        return {"hash": None, "chain": []}
+    bundle: dict[str, Any] = {"hash": None, "chain": []}
     try:
-        return {"hash": extract_apk_signature_hash(Path(apk_path))}
+        bundle["hash"] = extract_apk_signature_hash(Path(apk_path))
     except Exception:
-        return {"hash": None}
+        bundle["hash"] = None
+    if extract_signing_chain is not None:
+        try:
+            bundle["chain"] = extract_signing_chain(Path(apk_path))
+        except Exception:
+            bundle["chain"] = []
+    return bundle
 
 
 def _extract_code_v4(apk_path: str | None) -> dict:
@@ -304,11 +390,12 @@ def _extract_quick(apk_path: str) -> dict:
     """Quick extraction: string-set layers from APK ZIP."""
     resolved = Path(apk_path).expanduser().resolve()
     layers = extract_layers_from_apk(resolved)
+    metadata = _enrich_metadata_with_perm_groups(layers.get("metadata", set()))
     return {
         "code": layers.get("code", set()),
         "component": layers.get("component", set()),
         "resource": layers.get("resource", set()),
-        "metadata": layers.get("metadata", set()),
+        "metadata": metadata,
         "library": layers.get("library", set()),
         "signing": _extract_signing(str(resolved)),
         "code_v4": _extract_code_v4(str(resolved)),
@@ -327,7 +414,9 @@ def _extract_enhanced(unpacked_dir: str, apk_path: str | None) -> dict:
         resolved = Path(apk_path).expanduser().resolve()
         quick_layers = extract_layers_from_apk(resolved)
         features["code"] = quick_layers.get("code", set())
-        features["metadata"] = quick_layers.get("metadata", set())
+        features["metadata"] = _enrich_metadata_with_perm_groups(
+            quick_layers.get("metadata", set())
+        )
     else:
         features["code"] = set()
         features["metadata"] = set()
