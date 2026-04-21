@@ -1310,11 +1310,21 @@ def build_candidate_list(
             signature_match=signature_match,
         )
 
+        # EXEC-SCREENING-APK-PATH: кладём apk_path обеих сторон прямо в запись
+        # кандидата, чтобы deepening_runner / pairwise_runner читали путь
+        # из записи, а оркестратор каскада не пробрасывал его вручную.
+        # Если у app_record путь отсутствует (искусственные app-объекты
+        # в тестах) — пишем None, downstream это понимает.
+        app_a_apk_path = app_a.get("apk_path")
+        app_b_apk_path = app_b.get("apk_path")
+
         row = {
             "app_a": app_a["app_id"],
             "app_b": app_b["app_id"],
             "query_app_id": app_a["app_id"],
             "candidate_app_id": app_b["app_id"],
+            "app_a_apk_path": app_a_apk_path,
+            "app_b_apk_path": app_b_apk_path,
             "retrieval_score": float(score),
             "features_used": list(selected_layers),
             "retrieval_features_used": list(selected_layers),
