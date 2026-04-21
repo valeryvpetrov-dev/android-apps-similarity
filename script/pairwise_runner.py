@@ -7,6 +7,7 @@ import os
 import re
 import sys
 import tempfile
+import time
 from concurrent.futures import ProcessPoolExecutor, TimeoutError as FuturesTimeoutError
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -15,6 +16,18 @@ from typing import Any
 
 
 DETAILED_JSON_SCHEMA_VERSION = "deep-004-v1"
+
+# EXEC-091-EXEC: политика реального сокращения углублённого сравнения.
+# Если запись кандидата уже помечена на первичном отборе как
+# shortcut_applied=True с причиной "high_confidence_signature_match",
+# pairwise-слой пропускает тяжёлые функции (feature extraction, GED,
+# и так далее) и возвращает готовый pair_row с verdict="likely_clone_by_signature".
+# Финальный shortcut_status="success_shortcut" выставляется именно здесь,
+# после реального применения сокращённого пути.
+SHORTCUT_REASON_HIGH_CONFIDENCE = "high_confidence_signature_match"
+SHORTCUT_STATUS_SUCCESS = "success_shortcut"
+DEEP_VERIFICATION_STATUS_SKIPPED = "skipped_shortcut"
+SHORTCUT_VERDICT_LIKELY_CLONE = "likely_clone_by_signature"
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -1033,6 +1046,70 @@ def calculate_pair_scores(
     return full, reduced, list(selected_layers)
 
 
+def _should_skip_deep_verification(candidate: dict[str, Any]) -> bool:
+    """EXEC-091-EXEC: решение о реальном пропуске тяжёлых функций углублённого сравнения.
+
+    Сокращённый путь применяется только при одновременном выполнении:
+      - ``candidate["shortcut_applied"] is True`` (флаг из screening);
+      - ``candidate["shortcut_reason"] == "high_confidence_signature_match"``;
+      - ``candidate["signature_match"]["status"] == "match"`` (страховка
+        от рассинхрона: если подпись больше не match, пропускать нельзя).
+
+    Если хотя бы одно условие не выполнено — возвращаем False и пара идёт
+    обычным (тяжёлым) путём.
+    """
+    if candidate.get("shortcut_applied") is not True:
+        return False
+    if candidate.get("shortcut_reason") != SHORTCUT_REASON_HIGH_CONFIDENCE:
+        return False
+    signature_match = candidate.get("signature_match")
+    if not isinstance(signature_match, dict):
+        return False
+    if signature_match.get("status") != "match":
+        return False
+    return True
+
+
+def _build_shortcut_pair_row(
+    candidate: dict[str, Any],
+    selected_layers: list[str],
+    elapsed_ms_deep: int,
+) -> dict[str, Any]:
+    """EXEC-091-EXEC: сформировать pair_row для пары, реально пропущенной по короткому пути.
+
+    Запись помечается как «углублённое подтверждение пропущено по политике
+    короткого пути», а не как успешное подтверждение сходства тяжёлыми
+    функциями. Поле ``shortcut_status="success_shortcut"`` выставляется
+    именно здесь — после реального пропускания тяжёлых функций.
+    """
+    app_a_raw, app_b_raw = extract_apps(candidate)
+    app_a = resolve_app_label(app_a_raw, "unknown_app_a")
+    app_b = resolve_app_label(app_b_raw, "unknown_app_b")
+
+    signature_match = candidate.get("signature_match")
+    if not isinstance(signature_match, dict):
+        signature_match = {"score": 0.0, "status": "missing"}
+
+    pair_row: dict[str, Any] = {
+        "app_a": app_a,
+        "app_b": app_b,
+        "verdict": SHORTCUT_VERDICT_LIKELY_CLONE,
+        "deep_verification_status": DEEP_VERIFICATION_STATUS_SKIPPED,
+        "shortcut_status": SHORTCUT_STATUS_SUCCESS,
+        "shortcut_applied": True,
+        "shortcut_reason": SHORTCUT_REASON_HIGH_CONFIDENCE,
+        "elapsed_ms_deep": int(elapsed_ms_deep),
+        "analysis_failed_reason": None,
+        "full_similarity_score": None,
+        "library_reduced_score": None,
+        "status": "success_shortcut",
+        "views_used": list(selected_layers),
+        "signature_match": dict(signature_match),
+    }
+    pair_row["evidence"] = collect_evidence_from_pairwise(pair_row)
+    return pair_row
+
+
 def _compute_pair_row_with_caches(
     candidate: dict[str, Any],
     selected_layers: list[str],
@@ -1052,6 +1129,20 @@ def _compute_pair_row_with_caches(
     called both from the sequential path (with shared caches) and from the
     isolated subprocess worker (with empty caches).
     """
+    # EXEC-091-EXEC: ранний возврат для пар, помеченных сокращённым путём
+    # на первичном отборе (shortcut_applied=True + signature_match=match).
+    # Тяжёлые функции (resolve_apk_path, calculate_pair_scores — GED,
+    # feature extraction и так далее) не вызываются.
+    shortcut_start = time.perf_counter()
+    if _should_skip_deep_verification(candidate):
+        elapsed_ms_deep = int(round((time.perf_counter() - shortcut_start) * 1000))
+        return _build_shortcut_pair_row(
+            candidate=candidate,
+            selected_layers=selected_layers,
+            elapsed_ms_deep=elapsed_ms_deep,
+        )
+
+    deep_start = time.perf_counter()
     app_a_raw, app_b_raw = extract_apps(candidate)
     app_a = resolve_app_label(app_a_raw, "unknown_app_a")
     app_b = resolve_app_label(app_b_raw, "unknown_app_b")
@@ -1124,6 +1215,7 @@ def _compute_pair_row_with_caches(
         )
 
     pair_row["signature_match"] = collect_signature_match(apk_a, apk_b)
+    pair_row["elapsed_ms_deep"] = int(round((time.perf_counter() - deep_start) * 1000))
     pair_row["evidence"] = collect_evidence_from_pairwise(pair_row)
     return pair_row
 
