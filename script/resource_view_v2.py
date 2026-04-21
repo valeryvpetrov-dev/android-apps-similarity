@@ -12,23 +12,29 @@
 3. ``res_layouts`` — имена файлов в ``res/layout*``. Токен ``layout:<name>``.
 4. ``assets_bin`` — пути в ``assets/`` с байтовым бакетом размера.
    Токен ``asset:<path>:<size_bucket>``.
-5. ``icon_phash`` — упрощённый перцептивный хеш иконки приложения.
+5. ``icon_phash`` — перцептивный хеш иконки приложения (dHash 8x8).
 
 Реализация ``icon_phash``
 -------------------------
 
-Честное упрощение: настоящий dHash (уменьшение до 9x8, разности по
-горизонтали, 64 бита) требует PNG-декодера. Pillow/numpy вводить нельзя,
-а ручной декодер IDAT со zlib+filter избыточен для первого шага.
+Используется настоящий перцептивный хеш — difference hash (dHash) 8x8,
+описанный в открытой литературе по image similarity. Алгоритм:
 
-Поэтому на данном этапе ``icon_phash`` — это ``blake2b(raw_icon_bytes)``,
-усечённый до 64 бит (16 hex символов). Это НЕ перцептивный хеш: он
-чувствителен к любому байтовому изменению PNG/WEBP (включая метаданные).
-Для идентичных файлов иконки он устойчив. Следующий шаг —
-``EXEC-R_resource_v2-DHASH``: подключить pure-Python PNG декодер и
-реализовать реальный dHash. Пока используется hamming-like метрика по
-текущему хешу, но между разными иконками она даёт ~0.5 (как случайный
-шум), а не настоящее перцептивное расстояние.
+1. Декодировать иконку (PNG/WEBP) через Pillow.
+2. Привести к серому (``convert('L')``) и ресайзить до 9x8 пикселей.
+3. Для каждой строки из 8 пикселей сравнить каждую пару соседей
+   слева-направо: если левый ярче — бит 0, иначе бит 1. Всего 8*8 = 64 бита.
+4. Представить 64 бита как hex-строку длины 16.
+
+Это устойчиво к ресайзу, сжатию и небольшим изменениям яркости. Сравнение
+двух таких хешей делается через Хеммингово расстояние по hex-строкам, и
+нормализуется как ``1 - hamming / 64``.
+
+Зависимости: требует Pillow (``PIL``). Если Pillow не установлен —
+``icon_phash`` возвращает ``None`` честным путём, без маскировки ошибки
+через blake2b сырых байт (такой подход был назван фундаментальной ошибкой
+в REV-1 / research/R-06 и заменён этой реализацией в
+``EXEC-R_resource_v2-DHASH``).
 
 В ``m_static_views`` модуль пока НЕ интегрируется — это отдельная задача
 ``EXEC-R_resource_v2-INTEGRATION``.
@@ -36,11 +42,16 @@
 
 from __future__ import annotations
 
-import hashlib
 import re
-import struct
 from pathlib import Path
 from typing import Dict, Optional, Set
+
+try:
+    from PIL import Image  # type: ignore
+    _PIL_AVAILABLE = True
+except ImportError:  # pragma: no cover - зависит от окружения
+    Image = None  # type: ignore
+    _PIL_AVAILABLE = False
 
 
 # ---------------------------------------------------------------------------
@@ -83,6 +94,10 @@ ICON_CANDIDATES = (
 ICON_HASH_BITS = 64
 ICON_HASH_HEX_LEN = ICON_HASH_BITS // 4  # 16
 ICON_TOKEN_PREFIX = "icon_phash"
+
+# Параметры dHash: ресайз к ширине+1 x высоте для 64 бит сравнений.
+_DHASH_WIDTH = 9
+_DHASH_HEIGHT = 8
 
 
 # ---------------------------------------------------------------------------
@@ -200,7 +215,7 @@ def _extract_assets(apk_path: Path) -> Set[str]:
 
 
 # ---------------------------------------------------------------------------
-# Иконка: поиск + «перцептивный» хеш (упрощённый)
+# Иконка: поиск + перцептивный хеш (dHash 8x8)
 # ---------------------------------------------------------------------------
 
 def _find_icon_file(apk_path: Path) -> Optional[Path]:
@@ -213,30 +228,52 @@ def _find_icon_file(apk_path: Path) -> Optional[Path]:
     return None
 
 
-def _icon_phash_bytes(raw: bytes) -> str:
-    """Упрощённый 64-битный хеш от байтов иконки.
+def _compute_dhash(icon_path: Path) -> Optional[str]:
+    """Считает dHash 8x8 от файла иконки.
 
-    Это не настоящий dHash — см. module docstring. Настоящий dHash будет
-    реализован в ``EXEC-R_resource_v2-DHASH``. Сейчас: ``blake2b(digest_size=8)``
-    от сырого контента файла (PNG/WEBP). Идентичные иконки дают одинаковый
-    хеш; малейшее изменение байтов меняет весь хеш (чего не делает настоящий
-    перцептивный хеш, но для первого шага достаточно).
+    Возвращает hex-строку длины 16 (64 бита) или ``None``, если Pillow
+    не установлен или файл не удаётся декодировать. Честный провал:
+    маскировка через blake2b сырых байтов НЕ производится.
     """
-    digest = hashlib.blake2b(raw, digest_size=ICON_HASH_BITS // 8).hexdigest()
-    return digest
+    if not _PIL_AVAILABLE:
+        return None
+    try:
+        with Image.open(icon_path) as img:
+            # Приводим к серому и ресайзим до (W+1) x H. Bilinear —
+            # стандартный выбор для dHash: сохраняет яркость, дёшев по CPU.
+            gray = img.convert("L").resize(
+                (_DHASH_WIDTH, _DHASH_HEIGHT),
+                Image.Resampling.BILINEAR,
+            )
+            pixels = list(gray.getdata())
+    except Exception:  # noqa: BLE001 - любые сбои декодера = честный None
+        return None
+
+    if len(pixels) != _DHASH_WIDTH * _DHASH_HEIGHT:
+        return None
+
+    # Сравниваем соседние пиксели в каждой строке. 8 строк * 8 сравнений = 64 бита.
+    bits = 0
+    bit_index = 0
+    for row in range(_DHASH_HEIGHT):
+        row_start = row * _DHASH_WIDTH
+        for col in range(_DHASH_WIDTH - 1):
+            left = pixels[row_start + col]
+            right = pixels[row_start + col + 1]
+            if left < right:
+                bits |= 1 << (ICON_HASH_BITS - 1 - bit_index)
+            bit_index += 1
+
+    return "{:0{}x}".format(bits, ICON_HASH_HEX_LEN)
 
 
 def _extract_icon_phash(apk_path: Path) -> Optional[str]:
     icon_path = _find_icon_file(apk_path)
     if icon_path is None:
         return None
-    try:
-        raw = icon_path.read_bytes()
-    except OSError:
+    hex_hash = _compute_dhash(icon_path)
+    if hex_hash is None:
         return None
-    if not raw:
-        return None
-    hex_hash = _icon_phash_bytes(raw)
     return "{}:{}".format(ICON_TOKEN_PREFIX, hex_hash)
 
 
@@ -253,6 +290,8 @@ def extract_resource_view_v2(unpacked_dir: str) -> Dict:
         ``res_layouts``   — ``set[str]`` токенов вида ``layout:<stem>``.
         ``assets_bin``    — ``set[str]`` токенов ``asset:<path>:<bucket>``.
         ``icon_phash``    — ``str | None``, токен ``icon_phash:<16 hex>``.
+            ``None`` если иконка не найдена ИЛИ Pillow не установлен ИЛИ
+            декодер дал сбой.
         ``mode``          — всегда строка ``"v2"``.
     """
     apk_path = _ensure_input_dir(unpacked_dir)

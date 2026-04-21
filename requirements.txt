@@ -5,3 +5,7 @@ pydot==1.4.2
 pypdf==3.9.0
 scipy==1.13.1
 textdistance==4.5.0
+# Pillow нужен для перцептивного хеша иконки (dHash 8x8) в resource_view_v2.
+# Без Pillow icon_phash возвращает None — это честный fallback, а не
+# маскировка через blake2b сырых байт.
+Pillow>=10.0.0

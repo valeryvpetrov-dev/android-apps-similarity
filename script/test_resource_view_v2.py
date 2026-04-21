@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import io
 import tempfile
 import unittest
 from pathlib import Path
@@ -15,6 +16,17 @@ from resource_view_v2 import (
     extract_resource_view_v2,
 )
 
+try:
+    from PIL import Image  # type: ignore
+    _PILLOW_AVAILABLE = True
+except ImportError:
+    Image = None  # type: ignore
+    _PILLOW_AVAILABLE = False
+
+_PILLOW_REQUIRED_MSG = (
+    "Pillow не установлен; перцептивный хеш и тесты иконки пропущены"
+)
+
 
 def _write(path: Path, content: bytes | str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -22,6 +34,36 @@ def _write(path: Path, content: bytes | str) -> None:
         path.write_text(content, encoding="utf-8")
     else:
         path.write_bytes(content)
+
+
+def _make_gradient_png(
+    width: int = 48,
+    height: int = 48,
+    brightness: float = 1.0,
+    invert: bool = False,
+) -> bytes:
+    """Создаёт простой PNG с диагональным градиентом.
+
+    Используется в тестах dHash: градиент даёт предсказуемый перцептивный
+    хеш, устойчивый к ресайзу. ``brightness`` умножает яркость, ``invert``
+    меняет направление градиента (для генерации совершенно разных иконок).
+    """
+    if not _PILLOW_AVAILABLE:
+        raise RuntimeError("Pillow не установлен — _make_gradient_png недоступен")
+    img = Image.new("L", (width, height))
+    pixels = []
+    for y in range(height):
+        for x in range(width):
+            if invert:
+                raw = (width - 1 - x + y) / (width + height - 2)
+            else:
+                raw = (x + y) / (width + height - 2)
+            value = int(min(255, max(0, raw * 255 * brightness)))
+            pixels.append(value)
+    img.putdata(pixels)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
 
 
 def _make_sample_apk(root: Path) -> None:
@@ -43,11 +85,16 @@ def _make_sample_apk(root: Path) -> None:
     # Drawables
     _write(root / "res" / "drawable" / "ic_launcher_background.xml", "<vector/>")
     _write(root / "res" / "drawable-v24" / "ic_launcher_foreground.xml", "<vector/>")
-    _write(root / "res" / "mipmap-mdpi" / "ic_launcher.png", b"\x89PNG\r\n\x1a\nmdpi_icon")
-    _write(
-        root / "res" / "mipmap-xxhdpi" / "ic_launcher.png",
-        b"\x89PNG\r\n\x1a\nxxhdpi_icon_bytes",
-    )
+    # Иконки: если Pillow доступен — реальные PNG-градиенты; иначе
+    # фиктивные байты (тогда icon_phash честно вернёт None).
+    if _PILLOW_AVAILABLE:
+        icon_bytes_mdpi = _make_gradient_png(width=48, height=48)
+        icon_bytes_xxhdpi = _make_gradient_png(width=96, height=96)
+    else:
+        icon_bytes_mdpi = b"\x89PNG\r\n\x1a\nmdpi_icon"
+        icon_bytes_xxhdpi = b"\x89PNG\r\n\x1a\nxxhdpi_icon_bytes"
+    _write(root / "res" / "mipmap-mdpi" / "ic_launcher.png", icon_bytes_mdpi)
+    _write(root / "res" / "mipmap-xxhdpi" / "ic_launcher.png", icon_bytes_xxhdpi)
     # Layouts
     _write(root / "res" / "layout" / "activity_main.xml", "<LinearLayout/>")
     _write(root / "res" / "layout" / "item_row.xml", "<TextView/>")
@@ -56,6 +103,18 @@ def _make_sample_apk(root: Path) -> None:
     _write(root / "assets" / "small.json", b'{"k":"v"}')  # ~1KB bucket 0_1KB
     _write(root / "assets" / "medium.bin", b"A" * 5000)  # 1_10KB
     _write(root / "assets" / "nested" / "large.dat", b"B" * 50_000)  # 10_100KB
+
+
+def _hamming_hex(hex_a: str, hex_b: str) -> int:
+    """Хеммингово расстояние между двумя hex-строками одинаковой длины."""
+    return bin(int(hex_a, 16) ^ int(hex_b, 16)).count("1")
+
+
+def _phash_hex(token: str) -> str:
+    """Извлекает hex-часть из токена ``icon_phash:<hex>``."""
+    prefix = "{}:".format(ICON_TOKEN_PREFIX)
+    assert token.startswith(prefix), token
+    return token[len(prefix):]
 
 
 class TestExtractResourceViewV2Basic(unittest.TestCase):
@@ -140,6 +199,7 @@ class TestExtractResourceViewV2Content(unittest.TestCase):
                 "asset:assets/nested/large.dat:10_100KB", features["assets_bin"]
             )
 
+    @unittest.skipIf(not _PILLOW_AVAILABLE, _PILLOW_REQUIRED_MSG)
     def test_icon_phash_format_when_found(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             _make_sample_apk(Path(tmpdir))
@@ -171,6 +231,28 @@ class TestExtractResourceViewV2Content(unittest.TestCase):
             self.assertEqual(features["res_layouts"], set())
             self.assertEqual(features["assets_bin"], set())
             self.assertIsNone(features["icon_phash"])
+
+    def test_icon_phash_none_when_icon_bytes_invalid(self) -> None:
+        """Честный fallback: мусорные байты в PNG → ``icon_phash = None``.
+
+        Без маскировки через blake2b. Этот тест важен и тогда, когда Pillow
+        установлен — проверяет честность провала декодера.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            _write(root / "res" / "values" / "strings.xml",
+                   '<resources><string name="x">y</string></resources>')
+            _write(
+                root / "res" / "mipmap-mdpi" / "ic_launcher.png",
+                b"not a real png at all",
+            )
+            features = extract_resource_view_v2(tmpdir)
+            if _PILLOW_AVAILABLE:
+                # Pillow не сможет декодировать мусор — честный None.
+                self.assertIsNone(features["icon_phash"])
+            else:
+                # Без Pillow вообще нет перцептивного хеша.
+                self.assertIsNone(features["icon_phash"])
 
 
 class TestExtractResourceViewV2Errors(unittest.TestCase):
@@ -302,6 +384,91 @@ class TestCompareResourceViewV2(unittest.TestCase):
         self.assertEqual(result["status"], "ok")
 
 
+@unittest.skipIf(not _PILLOW_AVAILABLE, _PILLOW_REQUIRED_MSG)
+class TestDHashPerceptualProperties(unittest.TestCase):
+    """Проверка перцептивных свойств dHash на реальных PNG-иконках.
+
+    Требует Pillow — без него dHash не вычисляется (честный None).
+    Каждый тест сравнивает хеш эталонной иконки с его варьируемой
+    версией по Хеммингу. Границы выбраны с запасом над шумом dHash.
+    """
+
+    def _extract_hex(self, root: Path) -> str:
+        """Создаёт APK с заданной уже иконкой и возвращает hex-часть хеша."""
+        features = extract_resource_view_v2(str(root))
+        token = features["icon_phash"]
+        self.assertIsNotNone(token, "Ожидался непустой icon_phash")
+        return _phash_hex(token)
+
+    def _apk_with_icon(self, root: Path, png_bytes: bytes) -> None:
+        # Минимальная структура APK с одной иконкой.
+        _write(
+            root / "res" / "values" / "strings.xml",
+            '<resources><string name="x">y</string></resources>',
+        )
+        _write(root / "res" / "mipmap-mdpi" / "ic_launcher.png", png_bytes)
+
+    def test_identical_icons_hamming_zero(self) -> None:
+        png = _make_gradient_png(width=48, height=48)
+        with tempfile.TemporaryDirectory() as dir_a, tempfile.TemporaryDirectory() as dir_b:
+            self._apk_with_icon(Path(dir_a), png)
+            self._apk_with_icon(Path(dir_b), png)
+            hex_a = self._extract_hex(Path(dir_a))
+            hex_b = self._extract_hex(Path(dir_b))
+            hamming = _hamming_hex(hex_a, hex_b)
+            self.assertEqual(
+                hamming, 0,
+                "Идентичные иконки: ожидается Hamming = 0, получено {}".format(hamming),
+            )
+
+    def test_resized_icon_small_hamming(self) -> None:
+        # Та же иконка, ресайз +20% по обеим сторонам.
+        base_png = _make_gradient_png(width=48, height=48)
+        resized_png = _make_gradient_png(width=58, height=58)  # ~ +20%
+        with tempfile.TemporaryDirectory() as dir_a, tempfile.TemporaryDirectory() as dir_b:
+            self._apk_with_icon(Path(dir_a), base_png)
+            self._apk_with_icon(Path(dir_b), resized_png)
+            hex_a = self._extract_hex(Path(dir_a))
+            hex_b = self._extract_hex(Path(dir_b))
+            hamming = _hamming_hex(hex_a, hex_b)
+            self.assertLessEqual(
+                hamming, 10,
+                "Ресайз +20% не должен радикально менять dHash: Hamming={}".format(hamming),
+            )
+
+    def test_brightness_shift_small_hamming(self) -> None:
+        # Та же иконка, +10% яркости.
+        base_png = _make_gradient_png(width=48, height=48, brightness=1.0)
+        bright_png = _make_gradient_png(width=48, height=48, brightness=1.1)
+        with tempfile.TemporaryDirectory() as dir_a, tempfile.TemporaryDirectory() as dir_b:
+            self._apk_with_icon(Path(dir_a), base_png)
+            self._apk_with_icon(Path(dir_b), bright_png)
+            hex_a = self._extract_hex(Path(dir_a))
+            hex_b = self._extract_hex(Path(dir_b))
+            hamming = _hamming_hex(hex_a, hex_b)
+            self.assertLessEqual(
+                hamming, 10,
+                "Лёгкое изменение яркости не должно радикально менять dHash: "
+                "Hamming={}".format(hamming),
+            )
+
+    def test_different_icons_large_hamming(self) -> None:
+        # Совершенно разные иконки — прямой и инвертированный градиент.
+        base_png = _make_gradient_png(width=48, height=48, invert=False)
+        other_png = _make_gradient_png(width=48, height=48, invert=True)
+        with tempfile.TemporaryDirectory() as dir_a, tempfile.TemporaryDirectory() as dir_b:
+            self._apk_with_icon(Path(dir_a), base_png)
+            self._apk_with_icon(Path(dir_b), other_png)
+            hex_a = self._extract_hex(Path(dir_a))
+            hex_b = self._extract_hex(Path(dir_b))
+            hamming = _hamming_hex(hex_a, hex_b)
+            self.assertGreaterEqual(
+                hamming, 20,
+                "Совершенно разные иконки должны давать большой dHash-разрыв: "
+                "Hamming={}".format(hamming),
+            )
+
+
 class TestEndToEndExtractAndCompare(unittest.TestCase):
     """Полный цикл: извлечение → сравнение на синтетических APK."""
 
@@ -312,13 +479,22 @@ class TestEndToEndExtractAndCompare(unittest.TestCase):
             fa = extract_resource_view_v2(dir_a)
             fb = extract_resource_view_v2(dir_b)
             result = compare_resource_view_v2(fa, fb)
-            self.assertEqual(result["status"], "ok")
+            # Базовые подмножества совпадают всегда.
             self.assertEqual(result["res_strings_score"], 1.0)
             self.assertEqual(result["res_drawables_score"], 1.0)
             self.assertEqual(result["res_layouts_score"], 1.0)
             self.assertEqual(result["assets_bin_score"], 1.0)
-            self.assertEqual(result["icon_phash_similarity"], 1.0)
-            self.assertEqual(result["combined_score"], 1.0)
+            if _PILLOW_AVAILABLE:
+                # С Pillow обе APK получают валидный dHash одной и той же иконки.
+                self.assertEqual(result["icon_phash_similarity"], 1.0)
+                self.assertEqual(result["combined_score"], 1.0)
+                self.assertEqual(result["status"], "ok")
+            else:
+                # Без Pillow icon_phash = None с обеих сторон, сигнал иконки
+                # не учитывается — status=partial, combined_score по 4 ключам.
+                self.assertEqual(result["icon_phash_similarity"], 0.0)
+                self.assertEqual(result["combined_score"], 1.0)
+                self.assertEqual(result["status"], "partial")
 
 
 if __name__ == "__main__":
