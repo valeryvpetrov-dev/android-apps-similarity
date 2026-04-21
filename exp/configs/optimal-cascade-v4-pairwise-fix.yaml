@@ -12,6 +12,16 @@ stages:
     features: [code, metadata]
     metric: jaccard
     threshold: 0.28  # E-THRESH-003: optimal t=0.28, F1=0.969, CI 95%=[0.951, 0.986]
+  deepening:
+    # добавлено в волне 12 (ARCH-12-CASCADE-DEEPENING)
+    # Обязательный блок для deepening_runner.run_deepening: без него
+    # раннер падает с ValueError("Config field stages.deepening must be an object.").
+    # Минимальный контракт зафиксирован в phd: system/cascade-config-schema-v1.md, раздел 3d.
+    # Реальный набор слоёв раннер вычисляет из stages.pairwise.features
+    # за вычетом уже посчитанного в screening, поэтому здесь пустые списки
+    # соответствуют встроенному fallback collect_stage_features.
+    features: []
+    views: []
   pairwise:
     features: [code, component, resource, library, metadata]
     metric: jaccard
