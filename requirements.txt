@@ -1,3 +1,4 @@
+# Канонический список зависимостей: system/system-requirements-v1.md в phd-репозитории
 matplotlib==3.7.1
 networkx==3.1
 numpy==1.24.3
@@ -5,6 +6,12 @@ pydot==1.4.2
 pypdf==3.9.0
 scipy==1.13.1
 textdistance==4.5.0
+# androguard — обязательная зависимость: разбор APK и построение глубокого
+# кодового представления в pairwise analysis и library_view.
+androguard>=3.4.0
+# cryptography — обязательная зависимость: разбор цепочки подписей APK
+# через pkcs7 для сигнала signing_chain.
+cryptography>=41.0.0
 # Pillow нужен для перцептивного хеша иконки (dHash 8x8) в resource_view_v2.
 # Без Pillow icon_phash возвращает None — это честный fallback, а не
 # маскировка через blake2b сырых байт.
