@@ -458,3 +458,167 @@ def describe_pair_evidence(
         "summary": summary,
         "notes": _collect_pair_notes(pair_row_safe),
     }
+
+
+# ---------------------------------------------------------------------------
+# Markdown renderer (EXEC-EVIDENCE-RENDERER-MARKDOWN).
+# Назначение: единый markdown-блок с доказательствами для веб-сервиса
+# и отчётов интерпретации. Чистый markdown, никакого html.
+# ---------------------------------------------------------------------------
+
+_MARKDOWN_SIGNAL_LABELS_RU = {
+    "layer_score": "Оценка по слою",
+    "signature_match": "Совпадение подписи APK",
+    "shortcut_applied": "Применён короткий путь",
+    "timeout": "Превышен лимит времени",
+}
+
+_MARKDOWN_SIGNAL_LABELS_EN = {
+    "layer_score": "Layer score",
+    "signature_match": "APK signature match",
+    "shortcut_applied": "Shortcut applied",
+    "timeout": "Timeout exceeded",
+}
+
+_MARKDOWN_TEXTS = {
+    "ru": {
+        "header": "## Доказательства",
+        "total_line": "Всего сигналов: {count}",
+        "empty": "Доказательств не найдено.",
+        "table_header": "| Этап | Тип сигнала | Сила | Источник |",
+        "table_divider": "| --- | --- | --- | --- |",
+        "summary_header": "### Сводка по этапам",
+        "summary_row": "- {stage}: {count} {word}, средняя сила {avg:.2f}",
+        "signal_word_one": "сигнал",
+        "signal_word_few": "сигнала",
+        "signal_word_many": "сигналов",
+    },
+    "en": {
+        "header": "## Evidence",
+        "total_line": "Total signals: {count}",
+        "empty": "No evidence found.",
+        "table_header": "| Stage | Signal type | Strength | Source |",
+        "table_divider": "| --- | --- | --- | --- |",
+        "summary_header": "### Stage summary",
+        "summary_row": "- {stage}: {count} {word}, avg strength {avg:.2f}",
+        "signal_word_one": "signal",
+        "signal_word_few": "signals",
+        "signal_word_many": "signals",
+    },
+}
+
+
+def _signal_label_markdown(signal_type: str, locale: str) -> str:
+    if locale == "en":
+        return _MARKDOWN_SIGNAL_LABELS_EN.get(signal_type, signal_type)
+    return _MARKDOWN_SIGNAL_LABELS_RU.get(signal_type, signal_type)
+
+
+def _russian_signal_word(count: int, texts: dict) -> str:
+    mod_ten = count % 10
+    mod_hundred = count % 100
+    if mod_ten == 1 and mod_hundred != 11:
+        return texts["signal_word_one"]
+    if 2 <= mod_ten <= 4 and (mod_hundred < 10 or mod_hundred >= 20):
+        return texts["signal_word_few"]
+    return texts["signal_word_many"]
+
+
+def render_single_evidence(evidence: dict, locale: str = "ru") -> str:
+    """Сформировать одну строку markdown-таблицы для Evidence-записи.
+
+    Возвращает строку формата `| <этап> | <тип> | <сила> | <источник> |`.
+    Не-dict или отсутствующие поля заменяются на безопасные дефолты.
+    """
+    if not isinstance(evidence, dict):
+        return "| | | 0.00 | |"
+    stage_raw = evidence.get("source_stage", "")
+    stage = stage_raw if isinstance(stage_raw, str) else ""
+    signal_type_raw = evidence.get("signal_type", "")
+    signal_type = signal_type_raw if isinstance(signal_type_raw, str) else ""
+    ref_raw = evidence.get("ref", "")
+    ref = ref_raw if isinstance(ref_raw, str) else ""
+    try:
+        magnitude = float(evidence.get("magnitude", 0.0))
+    except (TypeError, ValueError):
+        magnitude = 0.0
+    return "| {stage} | {signal} | {magnitude:.2f} | {ref} |".format(
+        stage=stage,
+        signal=_signal_label_markdown(signal_type, locale),
+        magnitude=magnitude,
+        ref=ref,
+    )
+
+
+def evidence_to_markdown_block(
+    evidence_list: list[dict], locale: str = "ru"
+) -> str:
+    """Отрендерить список Evidence в markdown-блок.
+
+    Формат:
+    - Заголовок «## Доказательства» (en: «## Evidence»);
+    - Строка «Всего сигналов: N» (en: «Total signals: N»);
+    - При пустом списке — текст «Доказательств не найдено.»;
+    - Иначе — markdown-таблица (Этап | Тип сигнала | Сила | Источник)
+      и блок «Сводка по этапам» с агрегатом по `source_stage`.
+
+    Чистый markdown, никакого html. `locale` принимает "ru" или "en";
+    неизвестное значение трактуется как "ru".
+    """
+    locale_key = locale if locale in _MARKDOWN_TEXTS else "ru"
+    texts = _MARKDOWN_TEXTS[locale_key]
+
+    valid_items: list[dict] = []
+    if isinstance(evidence_list, list):
+        valid_items = [item for item in evidence_list if isinstance(item, dict)]
+
+    lines: list[str] = [texts["header"], ""]
+    lines.append(texts["total_line"].format(count=len(valid_items)))
+    lines.append("")
+
+    if len(valid_items) == 0:
+        lines.append(texts["empty"])
+        return "\n".join(lines).rstrip() + "\n"
+
+    lines.append(texts["table_header"])
+    lines.append(texts["table_divider"])
+    for item in valid_items:
+        lines.append(render_single_evidence(item, locale_key))
+    lines.append("")
+
+    stage_counts: dict[str, int] = {}
+    stage_magnitudes: dict[str, list[float]] = {}
+    stage_first_seen: list[str] = []
+    for item in valid_items:
+        stage_raw = item.get("source_stage", "")
+        stage = stage_raw if isinstance(stage_raw, str) and stage_raw else "—"
+        if stage not in stage_counts:
+            stage_counts[stage] = 0
+            stage_magnitudes[stage] = []
+            stage_first_seen.append(stage)
+        stage_counts[stage] += 1
+        try:
+            stage_magnitudes[stage].append(float(item.get("magnitude", 0.0)))
+        except (TypeError, ValueError):
+            stage_magnitudes[stage].append(0.0)
+
+    lines.append(texts["summary_header"])
+    for stage in stage_first_seen:
+        count = stage_counts[stage]
+        magnitudes = stage_magnitudes[stage]
+        avg = sum(magnitudes) / len(magnitudes) if magnitudes else 0.0
+        if locale_key == "ru":
+            word = _russian_signal_word(count, texts)
+        else:
+            word = (
+                texts["signal_word_one"]
+                if count == 1
+                else texts["signal_word_many"]
+            )
+        lines.append(
+            texts["summary_row"].format(
+                stage=stage, count=count, word=word, avg=avg
+            )
+        )
+
+    return "\n".join(lines).rstrip() + "\n"
