@@ -178,6 +178,156 @@ class TestCollectEvidenceFromPairwise(unittest.TestCase):
         self.assertEqual(evidence, [])
 
 
+class TestCollectEvidenceFromPairwisePerLayerMagnitude(unittest.TestCase):
+    """EXEC-EVIDENCE-PER-LAYER-MAGNITUDE.
+
+    Writer pairwise обязан класть в pair_row per-view similarity (dict
+    layer -> score), а collect_evidence_from_pairwise — читать это поле
+    и писать Evidence с настоящей per-layer magnitude, а не общей для всех
+    слоёв. Fallback на прежнее поведение сохраняется только для старых
+    pair_row без per-view scores.
+    """
+
+    def test_per_view_jaccard_produces_distinct_magnitudes_per_layer(self) -> None:
+        # Ключевой кейс: 5 слоёв, 5 разных magnitude (не одно размноженное число).
+        pair_row = {
+            "app_a": "A",
+            "app_b": "B",
+            "full_similarity_score": 0.5,
+            "library_reduced_score": 0.48,
+            "status": "success",
+            "views_used": ["code", "component", "resource", "metadata", "library"],
+            "per_view_jaccard": {
+                "code": 0.9,
+                "component": 0.4,
+                "resource": 0.1,
+                "metadata": 0.7,
+                "library": 0.3,
+            },
+            "signature_match": {"score": 0.0, "status": "missing"},
+        }
+        evidence = collect_evidence_from_pairwise(pair_row)
+        layer_records = [
+            item for item in evidence if item["signal_type"] == "layer_score"
+        ]
+        self.assertEqual(len(layer_records), 5)
+        magnitudes_by_ref = {item["ref"]: item["magnitude"] for item in layer_records}
+        self.assertEqual(magnitudes_by_ref["code"], 0.9)
+        self.assertEqual(magnitudes_by_ref["component"], 0.4)
+        self.assertEqual(magnitudes_by_ref["resource"], 0.1)
+        self.assertEqual(magnitudes_by_ref["metadata"], 0.7)
+        self.assertEqual(magnitudes_by_ref["library"], 0.3)
+        # Сила защиты: все 5 magnitude различны.
+        self.assertEqual(len(set(magnitudes_by_ref.values())), 5)
+        for item in layer_records:
+            self.assertEqual(item["source_stage"], "pairwise")
+
+    def test_fallback_to_common_magnitude_when_per_view_absent(self) -> None:
+        # Обратная совместимость: старые pair_row без per-view scores
+        # ведут себя как раньше — одна общая magnitude по всем слоям.
+        pair_row = {
+            "app_a": "A",
+            "app_b": "B",
+            "full_similarity_score": 0.8,
+            "library_reduced_score": 0.7,
+            "status": "success",
+            "views_used": ["component", "resource", "library"],
+            "signature_match": {"score": 0.0, "status": "missing"},
+        }
+        evidence = collect_evidence_from_pairwise(pair_row)
+        layer_records = [
+            item for item in evidence if item["signal_type"] == "layer_score"
+        ]
+        self.assertEqual(len(layer_records), 3)
+        for item in layer_records:
+            self.assertEqual(item["magnitude"], 0.7)
+
+    def test_partial_per_view_only_present_layers_emit_evidence(self) -> None:
+        # Если per-view scores покрывает не все слои views_used — пишутся
+        # только реально посчитанные слои, без общего fallback.
+        pair_row = {
+            "app_a": "A",
+            "app_b": "B",
+            "full_similarity_score": 0.5,
+            "library_reduced_score": 0.45,
+            "status": "success",
+            "views_used": ["code", "component", "resource", "metadata", "library"],
+            "per_view_jaccard": {"code": 0.85, "component": 0.2},
+            "signature_match": {"score": 0.0, "status": "missing"},
+        }
+        evidence = collect_evidence_from_pairwise(pair_row)
+        layer_records = [
+            item for item in evidence if item["signal_type"] == "layer_score"
+        ]
+        refs = {item["ref"]: item["magnitude"] for item in layer_records}
+        self.assertEqual(set(refs.keys()), {"code", "component"})
+        self.assertEqual(refs["code"], 0.85)
+        self.assertEqual(refs["component"], 0.2)
+
+    def test_per_view_scores_field_name_is_also_supported(self) -> None:
+        # Поле ``per_view_scores`` (deepening_runner / enriched_candidate)
+        # равноправно с per_view_jaccard.
+        pair_row = {
+            "app_a": "A",
+            "app_b": "B",
+            "full_similarity_score": 0.5,
+            "library_reduced_score": 0.4,
+            "status": "success",
+            "views_used": ["code", "library"],
+            "per_view_scores": {"code": 0.95, "library": 0.15},
+            "signature_match": {"score": 0.0, "status": "missing"},
+        }
+        evidence = collect_evidence_from_pairwise(pair_row)
+        refs = {
+            item["ref"]: item["magnitude"]
+            for item in evidence
+            if item["signal_type"] == "layer_score"
+        }
+        self.assertEqual(refs, {"code": 0.95, "library": 0.15})
+
+    def test_per_view_magnitude_clamps_into_unit_interval(self) -> None:
+        # Защита от шумовых входов: magnitude clamp'ается в [0, 1].
+        pair_row = {
+            "app_a": "A",
+            "app_b": "B",
+            "full_similarity_score": 0.5,
+            "library_reduced_score": 0.5,
+            "status": "success",
+            "views_used": ["code", "component", "library"],
+            "per_view_jaccard": {"code": 1.7, "component": -0.3, "library": 0.5},
+            "signature_match": {"score": 0.0, "status": "missing"},
+        }
+        evidence = collect_evidence_from_pairwise(pair_row)
+        magnitudes_by_ref = {
+            item["ref"]: item["magnitude"]
+            for item in evidence
+            if item["signal_type"] == "layer_score"
+        }
+        self.assertEqual(magnitudes_by_ref["code"], 1.0)
+        self.assertEqual(magnitudes_by_ref["component"], 0.0)
+        self.assertEqual(magnitudes_by_ref["library"], 0.5)
+
+    def test_empty_per_view_dict_falls_back_to_common_magnitude(self) -> None:
+        # Пустой dict per_view_jaccard трактуется как отсутствие per-view
+        # scores и включает fallback; иначе пара осталась бы без evidence.
+        pair_row = {
+            "app_a": "A",
+            "app_b": "B",
+            "full_similarity_score": 0.6,
+            "library_reduced_score": 0.55,
+            "status": "success",
+            "views_used": ["component"],
+            "per_view_jaccard": {},
+            "signature_match": {"score": 0.0, "status": "missing"},
+        }
+        evidence = collect_evidence_from_pairwise(pair_row)
+        layer_records = [
+            item for item in evidence if item["signal_type"] == "layer_score"
+        ]
+        self.assertEqual(len(layer_records), 1)
+        self.assertEqual(layer_records[0]["magnitude"], 0.55)
+
+
 class TestCollectEvidenceFromScreeningLayers(unittest.TestCase):
 
     def test_returns_list_of_dicts_one_per_layer(self) -> None:
