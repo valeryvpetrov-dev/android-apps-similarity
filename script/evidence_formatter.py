@@ -91,14 +91,66 @@ def _clamp_unit(value: object) -> float:
     return magnitude
 
 
+# EXEC-EVIDENCE-PER-LAYER-MAGNITUDE: приоритетный порядок имён поля
+# с per-view similarity, которое writer pairwise/deepening может положить
+# в pair_row. Исторически разные ветки использовали разные имена:
+# - ``per_view_jaccard``      (EXEC-087.1 screening_runner build_candidate_list);
+# - ``per_view_scores``       (enriched_candidate, deepening_runner);
+# - ``prior_per_view_scores`` (deepening_runner результат прокидывания
+#   per_view_scores из screening в pairwise).
+# Первое присутствующее в pair_row поле (словарь layer -> score) используется
+# как источник magnitude per-layer Evidence. Если ни одного нет — fallback
+# на прежнее поведение с общей magnitude (library_reduced_score либо
+# full_similarity_score) для совместимости со старыми pair_row.
+_PER_VIEW_SCORE_FIELDS: tuple[str, ...] = (
+    "per_view_jaccard",
+    "per_view_scores",
+    "prior_per_view_scores",
+)
+
+
+def _extract_per_view_scores(pair_row: dict) -> dict[str, float] | None:
+    """Вернуть per-view similarity dict {layer: score} из pair_row.
+
+    Проверяет поля из ``_PER_VIEW_SCORE_FIELDS`` по порядку. Первое найденное
+    непустое значение-словарь приводится к dict[str, float]. Невалидные
+    ключи/значения (не строка / не число) пропускаются. Если итоговый словарь
+    пустой или ни одного поля нет — возвращает None.
+    """
+    for field_name in _PER_VIEW_SCORE_FIELDS:
+        raw = pair_row.get(field_name)
+        if not isinstance(raw, dict) or not raw:
+            continue
+        coerced: dict[str, float] = {}
+        for key, value in raw.items():
+            if not isinstance(key, str) or not key.strip():
+                continue
+            try:
+                coerced[key.strip()] = float(value)
+            except (TypeError, ValueError):
+                continue
+        if coerced:
+            return coerced
+    return None
+
+
 def collect_evidence_from_pairwise(pair_row: dict) -> list[dict]:
     """Построить список Evidence из pair_row.
 
     Правила:
     - если status=='analysis_failed' -> [];
-    - для каждого слоя в views_used -> Evidence(source_stage='pairwise',
-      signal_type='layer_score', magnitude=library_reduced_score (или
-      full_similarity_score, если library_reduced_score is None), ref=layer);
+    - если в pair_row есть per-view scores (поля ``per_view_jaccard`` /
+      ``per_view_scores`` / ``prior_per_view_scores``, см.
+      ``_PER_VIEW_SCORE_FIELDS``) — для каждого слоя из views_used,
+      который присутствует в per-view словаре, пишется отдельная
+      Evidence(source_stage='pairwise', signal_type='layer_score',
+      magnitude=per_view_scores[layer], ref=layer). Слой, которого нет
+      в per-view словаре, пропускается без общего fallback (частичное
+      покрытие допустимо);
+    - если per-view scores отсутствуют — fallback на прежнее поведение:
+      для каждого слоя в views_used пишется одна запись Evidence с общей
+      magnitude = library_reduced_score (или full_similarity_score,
+      если library_reduced_score is None);
     - если signature_match присутствует и status != 'analysis_failed' ->
       Evidence(source_stage='signing', signal_type='signature_match',
       magnitude=signature_match['score'], ref='apk_signature').
@@ -114,28 +166,50 @@ def collect_evidence_from_pairwise(pair_row: dict) -> list[dict]:
     evidence: list[dict] = []
 
     views_used = pair_row.get("views_used")
-    if isinstance(views_used, list):
-        library_reduced = pair_row.get("library_reduced_score")
-        full_similarity = pair_row.get("full_similarity_score")
-        layer_score_source: object | None
-        if library_reduced is not None:
-            layer_score_source = library_reduced
-        else:
-            layer_score_source = full_similarity
+    per_view_scores = _extract_per_view_scores(pair_row)
 
-        if layer_score_source is not None:
-            magnitude = _clamp_unit(layer_score_source)
+    if isinstance(views_used, list):
+        if per_view_scores is not None:
+            # EXEC-EVIDENCE-PER-LAYER-MAGNITUDE: настоящая per-layer magnitude.
+            # Каждый слой получает собственный score, а не общее число.
             for layer in views_used:
                 if not isinstance(layer, str) or not layer.strip():
                     continue
+                layer_key = layer.strip()
+                if layer_key not in per_view_scores:
+                    continue
+                magnitude = _clamp_unit(per_view_scores[layer_key])
                 evidence.append(
                     make_evidence(
                         source_stage="pairwise",
                         signal_type="layer_score",
                         magnitude=magnitude,
-                        ref=layer.strip(),
+                        ref=layer_key,
                     )
                 )
+        else:
+            # Fallback: старый контракт для pair_row без per-view scores.
+            library_reduced = pair_row.get("library_reduced_score")
+            full_similarity = pair_row.get("full_similarity_score")
+            layer_score_source: object | None
+            if library_reduced is not None:
+                layer_score_source = library_reduced
+            else:
+                layer_score_source = full_similarity
+
+            if layer_score_source is not None:
+                magnitude = _clamp_unit(layer_score_source)
+                for layer in views_used:
+                    if not isinstance(layer, str) or not layer.strip():
+                        continue
+                    evidence.append(
+                        make_evidence(
+                            source_stage="pairwise",
+                            signal_type="layer_score",
+                            magnitude=magnitude,
+                            ref=layer.strip(),
+                        )
+                    )
 
     signature_match = pair_row.get("signature_match")
     if isinstance(signature_match, dict) and "score" in signature_match:
