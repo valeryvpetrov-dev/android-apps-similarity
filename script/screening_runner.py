@@ -1352,6 +1352,219 @@ def build_candidate_list(
     return candidate_list
 
 
+def _compose_candidate_row(
+    query_app: dict,
+    corpus_app: dict,
+    score: float,
+    selected_layers: list[str],
+    metric: str,
+) -> dict:
+    """Build one candidate row from a query/corpus pair with full screening fields.
+
+    Выделено из ``build_candidate_list`` ради переиспользования в
+    ``build_candidate_list_batch``. Заполняет те же поля: per_view_scores,
+    app_a_apk_path, app_b_apk_path, signature_match, shortcut_* и evidence.
+    Ранжирование (``retrieval_rank``) выставляется в вызывающем коде.
+    """
+    noise_warnings, noise_profile_ref = _extract_noise_profile_fields(query_app)
+
+    screening_explanation: dict | None = None
+    if noise_profile_ref is not None:
+        screening_explanation = {"noise_profile_ref": noise_profile_ref}
+
+    per_view_scores: dict[str, float] | None
+    try:
+        per_view_scores = compute_per_view_scores(
+            app_a=query_app,
+            app_b=corpus_app,
+            layers=list(selected_layers),
+            metric=metric,
+        )
+    except ValueError:
+        per_view_scores = None
+
+    signature_match = collect_signature_match(
+        query_app.get("apk_path"), corpus_app.get("apk_path")
+    )
+    shortcut_applied, shortcut_reason, shortcut_status = _compute_shortcut_flags(
+        aggregated_score=float(score),
+        signature_match=signature_match,
+    )
+
+    app_a_apk_path = query_app.get("apk_path")
+    app_b_apk_path = corpus_app.get("apk_path")
+
+    row = {
+        "app_a": query_app["app_id"],
+        "app_b": corpus_app["app_id"],
+        "query_app_id": query_app["app_id"],
+        "candidate_app_id": corpus_app["app_id"],
+        "app_a_apk_path": app_a_apk_path,
+        "app_b_apk_path": app_b_apk_path,
+        "retrieval_score": float(score),
+        "features_used": list(selected_layers),
+        "retrieval_features_used": list(selected_layers),
+        "screening_warnings": noise_warnings,
+        "screening_explanation": screening_explanation,
+        "signature_match": signature_match,
+        "shortcut_applied": shortcut_applied,
+        "shortcut_reason": shortcut_reason,
+        "shortcut_status": shortcut_status,
+    }
+    if per_view_scores is not None:
+        row["per_view_scores"] = per_view_scores
+        row["evidence"] = collect_evidence_from_screening_layers(
+            per_view_scores, stage_name="screening"
+        )
+    return row
+
+
+def build_candidate_list_batch(
+    query_apps: list[dict],
+    corpus_apps: list[dict],
+    config: dict,
+    ins_block_sim_threshold: float = 0.80,
+    ged_timeout_sec: int = 30,
+    processes_count: int = 1,
+    threads_count: int = 2,
+) -> list[list[dict]]:
+    """Пакетный первичный отбор: индекс MinHash/LSH строится один раз.
+
+    Принцип: для ``N`` запросов (``query_apps``) против ``M`` записей
+    корпуса (``corpus_apps``) индекс по ``corpus_apps`` строится
+    однократно и затем переиспользуется. Функция возвращает список
+    списков — по одному списку кандидатов на каждый ``query_app`` в
+    порядке исходного ``query_apps``.
+
+    Контракт формата строки кандидата совпадает с
+    ``build_candidate_list``: поля ``per_view_scores``,
+    ``app_a_apk_path``, ``app_b_apk_path``, ``signature_match``,
+    ``shortcut_*`` и ``evidence`` заполняются аналогично. ``retrieval_rank``
+    выставляется внутри каждого подсписка после сортировки по
+    ``retrieval_score``.
+
+    Обратная совместимость: ``build_candidate_list`` не меняется и
+    продолжает работать на смешанном списке приложений через
+    ``combinations``. ``build_candidate_list_batch`` —
+    самостоятельный вход для сценариев query/corpus.
+
+    Fallback: если ``candidate_index.type != minhash_lsh`` или блок
+    отсутствует — функция честно падает обратно на
+    ``build_candidate_list`` для каждого ``query_app`` в связке с полным
+    ``corpus_apps``. Это сохраняет корректность результата, но теряет
+    преимущество батча по скорости.
+    """
+    if not query_apps:
+        return []
+
+    selected_layers, metric, threshold = extract_screening_stage(config)
+    candidate_index_params = extract_candidate_index_params(
+        config, default_features=selected_layers, metric=metric
+    )
+
+    # Fallback: если индекс не MinHash/LSH — честно прогоняем
+    # последовательный build_candidate_list для каждого query в паре с
+    # полным corpus. Это даёт одинаковый контракт (list[list[dict]]) и
+    # сохраняет корректность, жертвуя скоростью.
+    if candidate_index_params is None or candidate_index_params.get("type") != "minhash_lsh":
+        results: list[list[dict]] = []
+        for query_app in query_apps:
+            combined = [query_app]
+            query_id = query_app["app_id"]
+            for corpus_app in corpus_apps:
+                if corpus_app["app_id"] == query_id:
+                    continue
+                combined.append(corpus_app)
+            if len(combined) < 2:
+                results.append([])
+                continue
+            per_query = build_candidate_list(
+                app_records=combined,
+                selected_layers=selected_layers,
+                metric=metric,
+                threshold=threshold,
+                ins_block_sim_threshold=ins_block_sim_threshold,
+                ged_timeout_sec=ged_timeout_sec,
+                processes_count=processes_count,
+                threads_count=threads_count,
+                candidate_index_params=None,
+            )
+            # Оставляем только строки, где фигурирует текущий query_app.
+            filtered = [
+                row for row in per_query
+                if row.get("query_app_id") == query_id or row.get("candidate_app_id") == query_id
+            ]
+            results.append(filtered)
+        return results
+
+    # Основной путь: индекс по corpus строится один раз.
+    from minhash_lsh import LSHIndex, MinHashSignature
+
+    num_perm = candidate_index_params["num_perm"]
+    bands = candidate_index_params["bands"]
+    seed = candidate_index_params["seed"]
+    index_features = candidate_index_params["features"]
+
+    index = LSHIndex(num_perm=num_perm, bands=bands)
+    corpus_by_id: dict[str, dict] = {}
+    for record in corpus_apps:
+        app_id = record["app_id"]
+        if app_id in corpus_by_id:
+            raise ValueError("Duplicate corpus app_id detected: {!r}".format(app_id))
+        corpus_by_id[app_id] = record
+        feature_set = aggregate_features(record, index_features)
+        signature = MinHashSignature.from_features(
+            feature_set, num_perm=num_perm, seed=seed
+        )
+        index.add(app_id, signature)
+
+    results_batch: list[list[dict]] = []
+    for query_app in query_apps:
+        query_id = query_app["app_id"]
+        query_feature_set = aggregate_features(query_app, index_features)
+        query_signature = MinHashSignature.from_features(
+            query_feature_set, num_perm=num_perm, seed=seed
+        )
+        candidate_ids = index.query(query_signature)
+
+        per_query_rows: list[dict] = []
+        for candidate_id in candidate_ids:
+            if candidate_id == query_id:
+                continue
+            corpus_app = corpus_by_id.get(candidate_id)
+            if corpus_app is None:
+                continue
+            score = calculate_pair_score(
+                app_a=query_app,
+                app_b=corpus_app,
+                metric=metric,
+                selected_layers=selected_layers,
+                ins_block_sim_threshold=ins_block_sim_threshold,
+                ged_timeout_sec=ged_timeout_sec,
+                processes_count=processes_count,
+                threads_count=threads_count,
+            )
+            if score < threshold:
+                continue
+            row = _compose_candidate_row(
+                query_app=query_app,
+                corpus_app=corpus_app,
+                score=score,
+                selected_layers=selected_layers,
+                metric=metric,
+            )
+            per_query_rows.append(row)
+
+        per_query_rows.sort(
+            key=lambda item: (-item["retrieval_score"], item["app_a"], item["app_b"])
+        )
+        for rank, item in enumerate(per_query_rows, start=1):
+            item["retrieval_rank"] = rank
+        results_batch.append(per_query_rows)
+
+    return results_batch
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
