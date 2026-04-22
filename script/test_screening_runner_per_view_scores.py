@@ -185,10 +185,10 @@ class TestBuildCandidateListPerViewScores(unittest.TestCase):
         # Sanity: code jaccard on {m1,m2,m3} vs {m2,m3,m4} = 2/4 = 0.5
         self.assertAlmostEqual(per_view["code"], 0.5, places=6)
 
-    def test_build_candidate_list_omits_per_view_scores_for_ged_metric(self) -> None:
+    def test_build_candidate_list_writes_per_view_scores_for_ged_metric(self) -> None:
         app_records = [
-            {"app_id": "APP-A"},
-            {"app_id": "APP-B"},
+            {"app_id": "APP-A", "layers": {"code": {"a", "b"}}},
+            {"app_id": "APP-B", "layers": {"code": {"b", "c"}}},
         ]
 
         original_score = screening_runner.calculate_pair_score
@@ -209,9 +209,8 @@ class TestBuildCandidateListPerViewScores(unittest.TestCase):
 
         self.assertEqual(len(candidate_list), 1)
         row = candidate_list[0]
-        # Backward-compat: non set-based metric must not emit per_view_scores,
-        # and all legacy fields stay intact.
-        self.assertNotIn("per_view_scores", row)
+        self.assertIn("per_view_scores", row)
+        self.assertAlmostEqual(row["per_view_scores"]["code"], 1.0 / 3.0, places=6)
         self.assertEqual(row["retrieval_rank"], 1)
         self.assertEqual(row["retrieval_features_used"], ["code"])
 

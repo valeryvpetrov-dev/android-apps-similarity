@@ -885,32 +885,30 @@ def compute_per_view_scores(
 ) -> dict[str, float]:
     """Compute per-layer similarity scores for a pair of apps.
 
-    Uses the same set-based metric selected for screening, but applied layer-by-layer
-    instead of the union of all selected layers. The result is a mapping
+    Uses the same set-based metric selected for screening, but applied
+    layer-by-layer instead of the union of all selected layers. For GED, the
+    runtime score is not set-based, so per-layer evidence is computed post-hoc
+    as Jaccard over the selected layer features. The result is a mapping
     {layer: score} suitable for downstream deepening/pairwise calibration
     (per EXEC-086 logistic regression).
 
     Empty features on both sides yield 0.0 by convention of the underlying
     metric functions (``jaccard_similarity`` returns 0.0 on empty union, etc.).
-    Non set-based metrics ("ged") are not supported here and raise ValueError.
     """
     normalized_metric = normalize_metric_name(metric)
     if normalized_metric == "ged":
-        raise ValueError(
-            "compute_per_view_scores does not support metric 'ged'; "
-            "only set-based screening metrics are supported."
-        )
-
-    metric_fn = {
-        "jaccard": jaccard_similarity,
-        "cosine": cosine_similarity,
-        "containment": containment_similarity,
-        "dice": dice_similarity,
-        "overlap": overlap_similarity,
-        "shared_count": shared_count_similarity,
-        "levenshtein": levenshtein_similarity,
-        "edit_distance": levenshtein_similarity,
-    }.get(normalized_metric)
+        metric_fn = jaccard_similarity
+    else:
+        metric_fn = {
+            "jaccard": jaccard_similarity,
+            "cosine": cosine_similarity,
+            "containment": containment_similarity,
+            "dice": dice_similarity,
+            "overlap": overlap_similarity,
+            "shared_count": shared_count_similarity,
+            "levenshtein": levenshtein_similarity,
+            "edit_distance": levenshtein_similarity,
+        }.get(normalized_metric)
     if metric_fn is None:
         raise ValueError(
             "Unsupported metric for per-view scores: {!r}".format(metric)
@@ -1338,8 +1336,8 @@ def build_candidate_list(
         if per_view_scores is not None:
             row["per_view_scores"] = per_view_scores
             # EXEC-088-WRITERS: единый формат Evidence для первичного отбора.
-            # Записывается параллельно с per_view_scores; при ged-метрике
-            # (per_view_scores отсутствует) evidence тоже не добавляется.
+            # Записывается параллельно с per_view_scores; для ged эти scores
+            # считаются post-hoc через Jaccard по выбранным слоям.
             row["evidence"] = collect_evidence_from_screening_layers(
                 per_view_scores, stage_name="screening"
             )
