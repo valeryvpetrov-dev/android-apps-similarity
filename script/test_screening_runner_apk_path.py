@@ -190,9 +190,8 @@ class TestBuildCandidateListWritesApkPathGed(unittest.TestCase):
         self.assertIn("app_b_apk_path", row)
         self.assertEqual(row["app_a_apk_path"], "/ged/app_a.apk")
         self.assertEqual(row["app_b_apk_path"], "/ged/app_b.apk")
-        # per_view_scores не должен появляться для метрики ged — регрессионная
-        # проверка существующего поведения.
-        self.assertNotIn("per_view_scores", row)
+        self.assertIn("per_view_scores", row)
+        self.assertEqual(row["per_view_scores"], {"code": 0.0})
 
 
 if __name__ == "__main__":

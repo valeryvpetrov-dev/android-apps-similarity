@@ -180,12 +180,12 @@ class TestShortcutMissingApkPaths(unittest.TestCase):
 
 
 class TestShortcutBackwardCompatGed(unittest.TestCase):
-    """T6: backward-compat — ged-метрика без per_view_scores не ломается.
+    """T6: backward-compat — ged-метрика с per_view_scores не ломает shortcut.
 
     В текущей версии submodule screening_runner оперирует одной агрегированной
-    оценкой (``retrieval_score``). Для metric='ged' поведение должно остаться
-    стабильным: поля shortcut_* присутствуют, но при отсутствии APK-путей они
-    False/None — никаких исключений.
+    оценкой (``retrieval_score``). Для metric='ged' shortcut-поведение должно
+    остаться стабильным: поля shortcut_* присутствуют, но при отсутствии
+    APK-путей они False/None — никаких исключений.
     """
 
     def test_ged_metric_without_apk_paths_does_not_break(self) -> None:
@@ -196,7 +196,7 @@ class TestShortcutBackwardCompatGed(unittest.TestCase):
 
         original_score = screening_runner.calculate_pair_score
         try:
-            # Имитация metric="ged" — возвращает скаляр, не per_view_scores.
+            # Имитация metric="ged" — возвращает скалярный retrieval_score.
             screening_runner.calculate_pair_score = lambda **kw: 0.33  # type: ignore[assignment]
             candidates = build_candidate_list(
                 app_records=app_records,

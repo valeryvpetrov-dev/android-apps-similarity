@@ -11,7 +11,8 @@ stages:
   screening:
     features: [code, metadata]
     metric: jaccard
-    threshold: 0.28  # E-THRESH-003: optimal t=0.28, F1=0.969, CI 95%=[0.951, 0.986]
+    # threshold preliminary, pending EXEC-080 train/test split recalibration (REV-1)
+    threshold: 0.28
   deepening:
     # добавлено в волне 12 (ARCH-12-CASCADE-DEEPENING)
     # Обязательный блок для deepening_runner.run_deepening: без него

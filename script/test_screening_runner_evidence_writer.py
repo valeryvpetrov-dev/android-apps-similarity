@@ -125,7 +125,7 @@ class TestScreeningRunnerEvidenceWriter(unittest.TestCase):
                 places=9,
             )
 
-    def test_evidence_absent_for_ged_metric_preserves_backward_compat(self) -> None:
+    def test_evidence_present_for_ged_metric_uses_posthoc_per_view_scores(self) -> None:
         app_records = [
             {"app_id": "APP-A"},
             {"app_id": "APP-B"},
@@ -149,8 +149,12 @@ class TestScreeningRunnerEvidenceWriter(unittest.TestCase):
 
         self.assertEqual(len(candidate_list), 1)
         row = candidate_list[0]
-        self.assertNotIn("per_view_scores", row)
-        self.assertNotIn("evidence", row)
+        self.assertEqual(row["per_view_scores"], {"code": 0.0})
+        self.assertEqual(len(row["evidence"]), 1)
+        self.assertEqual(row["evidence"][0]["source_stage"], "screening")
+        self.assertEqual(row["evidence"][0]["signal_type"], "layer_score")
+        self.assertEqual(row["evidence"][0]["ref"], "code")
+        self.assertEqual(row["evidence"][0]["magnitude"], 0.0)
 
 
 class TestCollectAllEvidence(unittest.TestCase):
