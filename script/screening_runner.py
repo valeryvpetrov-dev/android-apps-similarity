@@ -5,6 +5,7 @@ import argparse
 import json
 import logging
 import math
+import os
 import re
 import zipfile
 from itertools import combinations
@@ -12,8 +13,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 try:
+    from script.system_requirements import verify_required_dependencies
     from script.evidence_formatter import collect_evidence_from_screening_layers
 except Exception:
+    from system_requirements import verify_required_dependencies  # type: ignore[no-redef]
     from evidence_formatter import collect_evidence_from_screening_layers  # type: ignore[no-redef]
 
 
@@ -1609,6 +1612,9 @@ def run_screening(
     processes_count: int = 1,
     threads_count: int = 2,
 ) -> list[dict]:
+    if os.environ.get("SIMILARITY_SKIP_REQ_CHECK") != "1":
+        verify_required_dependencies()
+
     config_path = Path(cascade_config_path).expanduser().resolve()
     config = load_yaml_or_json(config_path)
     selected_layers, metric, threshold = extract_screening_stage(config)
