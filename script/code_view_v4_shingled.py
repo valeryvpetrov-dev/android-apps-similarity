@@ -23,9 +23,9 @@ Representation (DroidMOSS-style shingling):
        * BLAKE2b fallback for methods too short to produce any shingle.
 
 Comparison:
-  Jaccard on the set of ``(method_id, fingerprint)`` pairs — identical
-  contract to ``compare_code_v4``. Two APKs with identical method bodies
-  score 1.0; fully disjoint method sets score 0.0.
+  Fuzzy method-id aligned comparison — identical contract to
+  ``compare_code_v4``. Common method ids are scored by TLSH diff for TLSH
+  fingerprints and by normalized Hamming distance for simhash fingerprints.
 
 No androguard dependency. Stdlib only (``hashlib``, ``struct``), with
 optional ``tlsh``.
@@ -46,6 +46,7 @@ try:
         FP_PREFIX_SIMHASH,
         FP_PREFIX_TLSH,
         SIMHASH_BITS,
+        TLSH_DIFF_MAX,
         TLSH_MIN_BYTES,
         _TLSH_AVAILABLE,
         _collect_methods_from_apk,
@@ -56,6 +57,7 @@ except ImportError:
         FP_PREFIX_SIMHASH,
         FP_PREFIX_TLSH,
         SIMHASH_BITS,
+        TLSH_DIFF_MAX,
         TLSH_MIN_BYTES,
         _TLSH_AVAILABLE,
         _collect_methods_from_apk,
@@ -251,14 +253,15 @@ def compare_code_v4_shingled(
     features_a: Optional[dict],
     features_b: Optional[dict],
 ) -> dict:
-    """Jaccard over ``(method_id, fingerprint)`` pairs — same contract as v4.
+    """Fuzzy fingerprint distance per method id — same contract as v4.
 
     Returns::
 
         {
             "score": float in [0, 1],
-            "matched_methods": int,   # |A ∩ B|
-            "union_methods": int,     # |A ∪ B|
+            "matched_methods": int,       # common method ids
+            "union_methods": int,         # |ids_a ∪ ids_b|
+            "denominator_methods": int,   # max(|ids_a|, |ids_b|)
             "status": str,
         }
     """
@@ -267,6 +270,7 @@ def compare_code_v4_shingled(
             "score": 1.0,
             "matched_methods": 0,
             "union_methods": 0,
+            "denominator_methods": 0,
             "status": "both_empty",
         }
     if features_a is None or features_b is None:
@@ -274,39 +278,81 @@ def compare_code_v4_shingled(
             "score": 0.0,
             "matched_methods": 0,
             "union_methods": 0,
+            "denominator_methods": 0,
             "status": "one_empty",
         }
 
-    fp_a = features_a.get("method_fingerprints") or {}
-    fp_b = features_b.get("method_fingerprints") or {}
+    fp_a = dict(features_a.get("method_fingerprints") or {})
+    fp_b = dict(features_b.get("method_fingerprints") or {})
+    ids_a = set(fp_a)
+    ids_b = set(fp_b)
 
-    pairs_a = frozenset(fp_a.items())
-    pairs_b = frozenset(fp_b.items())
-
-    if not pairs_a and not pairs_b:
+    if not ids_a and not ids_b:
         return {
             "score": 1.0,
             "matched_methods": 0,
             "union_methods": 0,
+            "denominator_methods": 0,
             "status": "both_empty",
         }
-    if not pairs_a or not pairs_b:
+    if not ids_a or not ids_b:
         return {
             "score": 0.0,
             "matched_methods": 0,
-            "union_methods": len(pairs_a) + len(pairs_b),
+            "union_methods": len(ids_a | ids_b),
+            "denominator_methods": max(len(ids_a), len(ids_b)),
             "status": "one_empty",
         }
 
-    intersection = len(pairs_a & pairs_b)
-    union = len(pairs_a | pairs_b)
-    score = intersection / union if union else 0.0
+    common_ids = ids_a & ids_b
+    denominator = max(len(ids_a), len(ids_b))
+    similarity_sum = sum(
+        _fingerprint_similarity(fp_a[method_id], fp_b[method_id])
+        for method_id in common_ids
+    )
+    score = similarity_sum / denominator if denominator else 0.0
     return {
         "score": round(score, 6),
-        "matched_methods": intersection,
-        "union_methods": union,
-        "status": "jaccard_ok",
+        "matched_methods": len(common_ids),
+        "union_methods": len(ids_a | ids_b),
+        "denominator_methods": denominator,
+        "status": "fuzzy_ok",
     }
+
+
+def _fingerprint_similarity(fp_a: str, fp_b: str) -> float:
+    """Return normalized similarity for two fingerprints from the same method id."""
+    if fp_a == fp_b:
+        return 1.0
+    if fp_a.startswith(FP_PREFIX_TLSH) and fp_b.startswith(FP_PREFIX_TLSH):
+        if not _TLSH_AVAILABLE or _tlsh_module is None:
+            return 0.0
+        try:
+            diff = _tlsh_module.diff(
+                fp_a[len(FP_PREFIX_TLSH):],
+                fp_b[len(FP_PREFIX_TLSH):],
+            )
+        except Exception as exc:  # pragma: no cover — defensive
+            logger.warning("TLSH comparison failed in shingled view: %s", exc)
+            return 0.0
+        return 1.0 - min(diff, TLSH_DIFF_MAX) / TLSH_DIFF_MAX
+    if fp_a.startswith(FP_PREFIX_SIMHASH) and fp_b.startswith(FP_PREFIX_SIMHASH):
+        return _simhash_similarity(
+            fp_a[len(FP_PREFIX_SIMHASH):],
+            fp_b[len(FP_PREFIX_SIMHASH):],
+        )
+    if fp_a.startswith(FP_PREFIX_SHORT) and fp_b.startswith(FP_PREFIX_SHORT):
+        return 0.0
+    return 0.0
+
+
+def _simhash_similarity(hex_a: str, hex_b: str) -> float:
+    """Return normalized 64-bit Hamming similarity for simhash hex strings."""
+    try:
+        distance = (int(hex_a, 16) ^ int(hex_b, 16)).bit_count()
+    except ValueError:
+        return 0.0
+    return 1.0 - min(distance, SIMHASH_BITS) / SIMHASH_BITS
 
 
 # ---------------------------------------------------------------------------

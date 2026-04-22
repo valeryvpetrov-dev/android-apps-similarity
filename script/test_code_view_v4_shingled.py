@@ -18,6 +18,7 @@ for _p in [str(_SCRIPT_DIR), str(_PROJECT_ROOT)]:
         sys.path.insert(0, _p)
 
 try:
+    import script.code_view_v4_shingled as code_v4_shingled
     from script.code_view_v4_shingled import (
         DEFAULT_SHINGLE_SIZE,
         MODE,
@@ -28,6 +29,7 @@ try:
     )
     from script.code_view_v4 import extract_code_view_v4
 except ImportError:
+    import code_view_v4_shingled  # type: ignore[no-redef]
     from code_view_v4_shingled import (  # type: ignore[no-redef]
         DEFAULT_SHINGLE_SIZE,
         MODE,
@@ -187,7 +189,7 @@ class TestCompareShingled(unittest.TestCase):
         self.assertEqual(r["score"], 1.0)
         self.assertEqual(r["matched_methods"], 2)
         self.assertEqual(r["union_methods"], 2)
-        self.assertEqual(r["status"], "jaccard_ok")
+        self.assertEqual(r["status"], "fuzzy_ok")
 
     def test_disjoint_features_score_0(self):
         fa = _feature_dict({"Lcom/a;->one()V": "S:aaaa"})
@@ -196,7 +198,7 @@ class TestCompareShingled(unittest.TestCase):
         self.assertEqual(r["score"], 0.0)
         self.assertEqual(r["matched_methods"], 0)
         self.assertEqual(r["union_methods"], 2)
-        self.assertEqual(r["status"], "jaccard_ok")
+        self.assertEqual(r["status"], "fuzzy_ok")
 
     def test_self_compare_on_real_apk(self):
         apk = _require_apk(APK_NON_OPTIMIZED)
@@ -204,6 +206,83 @@ class TestCompareShingled(unittest.TestCase):
         r = compare_code_v4_shingled(features, features)
         self.assertEqual(r["score"], 1.0)
         self.assertEqual(r["matched_methods"], features["total_methods"])
+
+    def test_half_methods_different_scores_half(self):
+        fa = _feature_dict({
+            "Lcom/a;->one()V": "S:0000000000000000",
+            "Lcom/a;->two()V": "S:1111111111111111",
+            "Lcom/a;->three()V": "S:0000000000000000",
+            "Lcom/a;->four()V": "S:ffffffffffffffff",
+        })
+        fb = _feature_dict({
+            "Lcom/a;->one()V": "S:0000000000000000",
+            "Lcom/a;->two()V": "S:1111111111111111",
+            "Lcom/a;->three()V": "S:ffffffffffffffff",
+            "Lcom/a;->four()V": "S:0000000000000000",
+        })
+
+        r = compare_code_v4_shingled(fa, fb)
+
+        self.assertAlmostEqual(r["score"], 0.5, places=6)
+
+    def test_completely_different_same_methods_score_zero(self):
+        fa = _feature_dict({
+            "Lcom/a;->one()V": "S:0000000000000000",
+            "Lcom/a;->two()V": "S:0000000000000000",
+        })
+        fb = _feature_dict({
+            "Lcom/a;->one()V": "S:ffffffffffffffff",
+            "Lcom/a;->two()V": "S:ffffffffffffffff",
+        })
+
+        r = compare_code_v4_shingled(fa, fb)
+
+        self.assertEqual(r["score"], 0.0)
+
+
+def test_shingled_one_opcode_mutation_keeps_high_simhash_similarity(monkeypatch):
+    monkeypatch.setattr(code_v4_shingled, "_TLSH_AVAILABLE", False)
+    monkeypatch.setattr(code_v4_shingled, "_tlsh_module", None)
+    opcodes_a = [(i % 251) for i in range(240)]
+    opcodes_b = list(opcodes_a)
+    opcodes_b[120] = 0xFF
+    fa = _feature_dict({
+        "Lcom/a;->mutated()V": shingled_method_fingerprint(opcodes_a)
+    })
+    fb = _feature_dict({
+        "Lcom/a;->mutated()V": shingled_method_fingerprint(opcodes_b)
+    })
+
+    r = compare_code_v4_shingled(fa, fb)
+
+    assert r["score"] > 0.9
+
+
+def test_shingled_tlsh_diff_backend_scores_near_match(monkeypatch):
+    class FakeTlsh:
+        @staticmethod
+        def diff(_left: str, _right: str) -> int:
+            return 9
+
+    monkeypatch.setattr(code_v4_shingled, "_TLSH_AVAILABLE", True)
+    monkeypatch.setattr(code_v4_shingled, "_tlsh_module", FakeTlsh)
+    fa = _feature_dict({"Lcom/a;->one()V": "T:T1ABC"})
+    fb = _feature_dict({"Lcom/a;->one()V": "T:T2DEF"})
+
+    r = compare_code_v4_shingled(fa, fb)
+
+    assert r["score"] == 0.97
+
+
+def test_shingled_no_tlsh_simhash_backend_scores_near_match(monkeypatch):
+    monkeypatch.setattr(code_v4_shingled, "_TLSH_AVAILABLE", False)
+    monkeypatch.setattr(code_v4_shingled, "_tlsh_module", None)
+    fa = _feature_dict({"Lcom/a;->one()V": "S:0000000000000000"})
+    fb = _feature_dict({"Lcom/a;->one()V": "S:0000000000000007"})
+
+    r = compare_code_v4_shingled(fa, fb)
+
+    assert r["score"] == 0.953125
 
 
 # ---------------------------------------------------------------------------
