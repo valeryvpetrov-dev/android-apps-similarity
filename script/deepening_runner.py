@@ -886,6 +886,11 @@ def enrich_candidate(
     }
     if prior_per_view_scores is not None:
         result["prior_per_view_scores"] = prior_per_view_scores
+    # Пробрасываем shortcut-флаги из candidate в result, чтобы pairwise_runner
+    # мог активировать ветку EXEC-091-EXEC в каскаде screening → deepening → pairwise.
+    for _shortcut_key in ("shortcut_applied", "shortcut_reason", "signature_match"):
+        if _shortcut_key in candidate:
+            result[_shortcut_key] = candidate[_shortcut_key]
     return result
 
 
