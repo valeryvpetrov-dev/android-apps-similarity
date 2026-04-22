@@ -1,0 +1,18 @@
+{
+  "corpus": {
+    "f1": 0.0,
+    "fn": 0,
+    "fp": 0,
+    "precision": 0.0,
+    "recall": 0.0,
+    "tp": 0
+  },
+  "meta": {
+    "catalog_dir": "/Users/valeryvpetrov/phd/experiments/external/libloom_libs_profile",
+    "corpus_size": 5,
+    "jar_path": "/Users/valeryvpetrov/phd/experiments/external/LIBLOOM/artifacts/LIBLOOM.jar"
+  },
+  "per_apk": [],
+  "reason": "libloom_jar_or_java_missing",
+  "status": "partial"
+}
