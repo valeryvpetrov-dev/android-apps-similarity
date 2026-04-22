@@ -143,6 +143,14 @@ except Exception:
         extract_resource_view_v2 = None
         compare_resource_view_v2 = None
 
+try:
+    from script.feature_cache import get_or_extract as _feature_cache_get_or_extract
+except Exception:
+    try:
+        from feature_cache import get_or_extract as _feature_cache_get_or_extract
+    except Exception:
+        _feature_cache_get_or_extract = None
+
 
 ALL_LAYERS = (
     "code",
@@ -199,6 +207,8 @@ ABLATION_CONFIGS = {
 def extract_all_features(
     apk_path: str | None = None,
     unpacked_dir: str | None = None,
+    cache_dir: str | None = None,
+    feature_version: str = "v1",
 ) -> dict:
     """Extract features from an APK in quick or enhanced mode.
 
@@ -211,6 +221,13 @@ def extract_all_features(
         Path to an apktool-decoded directory.  Enables enhanced mode with
         richer per-layer features from resource_view, component_view,
         library_view.
+    cache_dir:
+        Опциональная директория для устойчивого кэша признаков по
+        SHA-256 APK (EXEC-REPR-FEATURE-CACHE). По умолчанию ``None`` —
+        кэш выключен, поведение не меняется. Кэш включается только
+        когда есть ``apk_path`` (иначе нет стабильного файла-ключа).
+    feature_version:
+        Версия схемы признаков для инвалидации кэша при смене формата.
 
     Returns
     -------
@@ -245,11 +262,28 @@ def extract_all_features(
     не активировано до калибровки EXEC-086». Per-layer comparison
     delegates to :func:`compare_resource_view_v2`.
     """
-    if unpacked_dir is not None:
-        return _extract_enhanced(unpacked_dir, apk_path)
-    if apk_path is not None:
-        return _extract_quick(apk_path)
-    raise ValueError("Either apk_path or unpacked_dir must be provided.")
+    def _do_extract() -> dict:
+        if unpacked_dir is not None:
+            return _extract_enhanced(unpacked_dir, apk_path)
+        if apk_path is not None:
+            return _extract_quick(apk_path)
+        raise ValueError("Either apk_path or unpacked_dir must be provided.")
+
+    # Кэш включается только когда есть APK (устойчивый ключ по SHA-256
+    # файла) и подключён модуль feature_cache. В остальных случаях —
+    # backward-compat путь без кэша.
+    if (
+        cache_dir is not None
+        and apk_path is not None
+        and _feature_cache_get_or_extract is not None
+    ):
+        return _feature_cache_get_or_extract(
+            apk_path=apk_path,
+            extract_fn=_do_extract,
+            cache_dir=cache_dir,
+            feature_version=feature_version,
+        )
+    return _do_extract()
 
 
 # ---------------------------------------------------------------------------
