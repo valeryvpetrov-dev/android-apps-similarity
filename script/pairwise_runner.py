@@ -1315,6 +1315,89 @@ def _pair_worker_isolated(
     return _json.dumps(row)
 
 
+def _build_worker_crash_row(
+    candidate: dict[str, Any],
+    selected_layers: list[str],
+) -> dict[str, Any]:
+    """EXEC-PAIRWISE-PARALLEL: pair_row для случая падения параллельного воркера.
+
+    Если процесс-воркер упал (RuntimeError, MemoryError, BrokenProcessPool, и т.п.)
+    до возврата результата, мы не можем молча проглотить ошибку — помечаем пару
+    как ``status="analysis_failed"`` с ``analysis_failed_reason="worker_crashed"``
+    и сохраняем метки приложений для аудита.
+    """
+    try:
+        app_a_raw, app_b_raw = extract_apps(candidate)
+        app_a = resolve_app_label(app_a_raw, "unknown_app_a")
+        app_b = resolve_app_label(app_b_raw, "unknown_app_b")
+    except Exception:
+        app_a = "unknown_app_a"
+        app_b = "unknown_app_b"
+
+    return {
+        "app_a": app_a,
+        "app_b": app_b,
+        "full_similarity_score": None,
+        "library_reduced_score": None,
+        "status": "analysis_failed",
+        "analysis_failed_reason": "worker_crashed",
+        "views_used": list(selected_layers),
+        "signature_match": {"score": 0.0, "status": "missing"},
+        "evidence": [],
+    }
+
+
+def _run_single_pair_with_timeout(
+    candidate: dict[str, Any],
+    selected_layers: list[str],
+    config_path: Path,
+    ins_block_sim_threshold: float,
+    ged_timeout_sec: int,
+    processes_count: int,
+    threads_count: int,
+    pair_timeout_sec: int,
+) -> dict[str, Any]:
+    """EXEC-090: один pair_row в изолированном ProcessPoolExecutor(max_workers=1)
+    с жёстким таймаутом. Таймаут => budget_exceeded; другая ошибка воркера =>
+    worker_crashed (см. _build_worker_crash_row).
+    """
+    candidate_json = json.dumps(candidate)
+    config_path_str = str(config_path)
+    try:
+        with ProcessPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(
+                _pair_worker_isolated,
+                candidate_json,
+                config_path_str,
+                ins_block_sim_threshold,
+                ged_timeout_sec,
+                processes_count,
+                threads_count,
+            )
+            result_json = future.result(timeout=pair_timeout_sec)
+        return json.loads(result_json)
+    except FuturesTimeoutError:
+        pair_row = _build_timeout_row(
+            candidate=candidate,
+            selected_layers=selected_layers,
+            pair_timeout_sec=pair_timeout_sec,
+        )
+        # D-2026-04-094: каждый таймаут — инцидент, не штатный режим.
+        # Журнал инцидентов отделён от pair_row и не должен валить
+        # прогон при ошибке записи (disk full, permission, и т.п.).
+        if record_timeout_incident is not None:
+            try:
+                record_timeout_incident(pair_row)
+            except Exception:
+                pass
+        return pair_row
+    except Exception:
+        return _build_worker_crash_row(
+            candidate=candidate,
+            selected_layers=selected_layers,
+        )
+
+
 def run_pairwise(
     config_path: Path,
     enriched_path: Path,
@@ -1323,7 +1406,28 @@ def run_pairwise(
     processes_count: int = 1,
     threads_count: int = 2,
     pair_timeout_sec: int | None = None,
+    workers: int = 1,
 ) -> list[dict[str, Any]]:
+    """Запустить pairwise-этап по кандидатам из ``enriched_path``.
+
+    EXEC-PAIRWISE-PARALLEL: параметр ``workers`` управляет параллельной
+    обработкой пар.
+
+    - ``workers=1`` (по умолчанию) — последовательное поведение, полностью
+      совместимо с прежним интерфейсом.
+    - ``workers>1`` — каждая пара выполняется в ``ProcessPoolExecutor``
+      (``max_workers=workers``). Порядок результатов сохраняется таким же,
+      как при ``workers=1``.
+
+    Shortcut-пары (EXEC-091-EXEC: ``shortcut_applied=True`` +
+    ``signature_match.status=="match"``) никогда не отправляются в пул —
+    они возвращаются сразу, в том же процессе, чтобы не тратить ресурс
+    пула на дешёвые операции.
+
+    Ошибки воркера (``RuntimeError``, ``MemoryError`` и прочие исключения
+    процесса) не глотаются: соответствующий ``pair_row`` помечается
+    ``status="analysis_failed"`` и ``analysis_failed_reason="worker_crashed"``.
+    """
     config = load_config(config_path)
     selected_layers, metric, threshold = parse_pairwise_stage(config)
     candidates = load_enriched_candidates(enriched_path)
@@ -1333,59 +1437,53 @@ def run_pairwise(
     apk_discovery_cache: dict[str, str | None] = {}
 
     use_hard_timeout = isinstance(pair_timeout_sec, int) and pair_timeout_sec > 0
+    use_parallel = isinstance(workers, int) and workers > 1 and len(candidates) > 1
 
-    results: list[dict[str, Any]] = []
-    for candidate in candidates:
+    def run_one_sequential(candidate: dict[str, Any]) -> dict[str, Any]:
+        """Один pair_row в основном процессе (workers=1 или < 2 кандидатов)."""
         if use_hard_timeout:
-            candidate_json = json.dumps(candidate)
-            config_path_str = str(config_path)
-            try:
-                with ProcessPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(
-                        _pair_worker_isolated,
-                        candidate_json,
-                        config_path_str,
-                        ins_block_sim_threshold,
-                        ged_timeout_sec,
-                        processes_count,
-                        threads_count,
-                    )
-                    result_json = future.result(timeout=pair_timeout_sec)
-                pair_row = json.loads(result_json)
-            except FuturesTimeoutError:
-                pair_row = _build_timeout_row(
-                    candidate=candidate,
-                    selected_layers=selected_layers,
-                    pair_timeout_sec=pair_timeout_sec,
-                )
-                # D-2026-04-094: каждый таймаут — инцидент, не штатный режим.
-                # Журнал инцидентов отделён от pair_row и не должен валить
-                # прогон при ошибке записи (disk full, permission, и т.п.).
-                if record_timeout_incident is not None:
-                    try:
-                        record_timeout_incident(pair_row)
-                    except Exception:
-                        pass
-            except Exception:
-                try:
-                    app_a_raw, app_b_raw = extract_apps(candidate)
-                    app_a = resolve_app_label(app_a_raw, "unknown_app_a")
-                    app_b = resolve_app_label(app_b_raw, "unknown_app_b")
-                except Exception:
-                    app_a = "unknown_app_a"
-                    app_b = "unknown_app_b"
-                pair_row = {
-                    "app_a": app_a,
-                    "app_b": app_b,
-                    "full_similarity_score": None,
-                    "library_reduced_score": None,
-                    "status": "analysis_failed",
-                    "views_used": list(selected_layers),
-                    "signature_match": {"score": 0.0, "status": "missing"},
-                    "evidence": [],
-                }
-        else:
-            pair_row = _compute_pair_row_with_caches(
+            return _run_single_pair_with_timeout(
+                candidate=candidate,
+                selected_layers=selected_layers,
+                config_path=config_path,
+                ins_block_sim_threshold=ins_block_sim_threshold,
+                ged_timeout_sec=ged_timeout_sec,
+                processes_count=processes_count,
+                threads_count=threads_count,
+                pair_timeout_sec=pair_timeout_sec,
+            )
+        return _compute_pair_row_with_caches(
+            candidate=candidate,
+            selected_layers=selected_layers,
+            metric=metric,
+            threshold=threshold,
+            ins_block_sim_threshold=ins_block_sim_threshold,
+            ged_timeout_sec=ged_timeout_sec,
+            processes_count=processes_count,
+            threads_count=threads_count,
+            layer_cache=layer_cache,
+            code_cache=code_cache,
+            apk_discovery_cache=apk_discovery_cache,
+        )
+
+    # workers=1 — полностью прежнее последовательное поведение.
+    if not use_parallel:
+        results: list[dict[str, Any]] = []
+        for candidate in candidates:
+            results.append(run_one_sequential(candidate))
+        return results
+
+    # workers>1 — параллельный путь. Shortcut-пары отделяем и считаем сразу,
+    # тяжёлые пары отправляем в ProcessPoolExecutor. Порядок результатов
+    # восстанавливается по исходному индексу кандидата.
+    results_by_index: dict[int, dict[str, Any]] = {}
+    heavy_indices: list[int] = []
+
+    for index, candidate in enumerate(candidates):
+        if _should_skip_deep_verification(candidate):
+            # EXEC-091-EXEC: shortcut-пара не уходит в пул — считаем в основном
+            # процессе теми же функциями, что и при workers=1.
+            results_by_index[index] = _compute_pair_row_with_caches(
                 candidate=candidate,
                 selected_layers=selected_layers,
                 metric=metric,
@@ -1398,10 +1496,57 @@ def run_pairwise(
                 code_cache=code_cache,
                 apk_discovery_cache=apk_discovery_cache,
             )
+        else:
+            heavy_indices.append(index)
 
-        results.append(pair_row)
+    if heavy_indices:
+        config_path_str = str(config_path)
+        with ProcessPoolExecutor(max_workers=workers) as executor:
+            future_to_index: dict[Any, int] = {}
+            for index in heavy_indices:
+                candidate = candidates[index]
+                candidate_json = json.dumps(candidate)
+                future = executor.submit(
+                    _pair_worker_isolated,
+                    candidate_json,
+                    config_path_str,
+                    ins_block_sim_threshold,
+                    ged_timeout_sec,
+                    processes_count,
+                    threads_count,
+                )
+                future_to_index[future] = index
 
-    return results
+            for future, index in future_to_index.items():
+                candidate = candidates[index]
+                try:
+                    if use_hard_timeout:
+                        result_json = future.result(timeout=pair_timeout_sec)
+                    else:
+                        result_json = future.result()
+                    results_by_index[index] = json.loads(result_json)
+                except FuturesTimeoutError:
+                    timeout_row = _build_timeout_row(
+                        candidate=candidate,
+                        selected_layers=selected_layers,
+                        pair_timeout_sec=pair_timeout_sec,
+                    )
+                    if record_timeout_incident is not None:
+                        try:
+                            record_timeout_incident(timeout_row)
+                        except Exception:
+                            pass
+                    results_by_index[index] = timeout_row
+                except Exception:
+                    # RuntimeError, MemoryError, BrokenProcessPool, и любые
+                    # другие отказы воркера — не глотаем, а помечаем пару
+                    # worker_crashed, как требует EXEC-PAIRWISE-PARALLEL.
+                    results_by_index[index] = _build_worker_crash_row(
+                        candidate=candidate,
+                        selected_layers=selected_layers,
+                    )
+
+    return [results_by_index[i] for i in range(len(candidates))]
 
 
 def resolve_pair_id(candidate: dict[str, Any], index: int) -> str:
