@@ -19,6 +19,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from script.system_requirements import verify_required_dependencies
 from script.calculate_apks_similarity.build_model import build_model
 
 try:
@@ -890,6 +891,9 @@ def enrich_candidate(
 
 
 def run_deepening(config_path: Path, candidates_path: Path) -> dict[str, Any]:
+    if os.environ.get("SIMILARITY_SKIP_REQ_CHECK") != "1":
+        verify_required_dependencies()
+
     config = load_config(config_path)
     stages = config.get("stages")
     if not isinstance(stages, dict):

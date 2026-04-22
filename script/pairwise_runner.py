@@ -35,6 +35,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 try:
+    from script.system_requirements import verify_required_dependencies
     from script.screening_runner import M_STATIC_LAYERS
     from script.screening_runner import containment_similarity
     from script.screening_runner import cosine_similarity
@@ -45,6 +46,7 @@ try:
     from script.screening_runner import overlap_similarity
     from script.screening_runner import shared_count_similarity
 except Exception:
+    from system_requirements import verify_required_dependencies
     from screening_runner import M_STATIC_LAYERS
     from screening_runner import containment_similarity
     from screening_runner import cosine_similarity
@@ -1428,6 +1430,9 @@ def run_pairwise(
     процесса) не глотаются: соответствующий ``pair_row`` помечается
     ``status="analysis_failed"`` и ``analysis_failed_reason="worker_crashed"``.
     """
+    if os.environ.get("SIMILARITY_SKIP_REQ_CHECK") != "1":
+        verify_required_dependencies()
+
     config = load_config(config_path)
     selected_layers, metric, threshold = parse_pairwise_stage(config)
     candidates = load_enriched_candidates(enriched_path)
