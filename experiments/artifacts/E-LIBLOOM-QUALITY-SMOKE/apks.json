@@ -1,0 +1,27 @@
+[
+  {
+    "apk_path": "apk/simple_app/simple_app-empty.apk",
+    "ground_truth": [],
+    "notes": "SimpleApplication, build.gradle dependencies {} пуст → ни одной из top-20 TPL"
+  },
+  {
+    "apk_path": "apk/simple_app/simple_app-releaseNonOptimized.apk",
+    "ground_truth": [],
+    "notes": "SimpleApplication release, без сторонних TPL"
+  },
+  {
+    "apk_path": "apk/simple_app/simple_app-releaseOptimized.apk",
+    "ground_truth": [],
+    "notes": "SimpleApplication release + R8 optimization, без сторонних TPL"
+  },
+  {
+    "apk_path": "apk/simple_app/simple_app-releaseRename.apk",
+    "ground_truth": [],
+    "notes": "SimpleApplication release + R8 rename, без сторонних TPL"
+  },
+  {
+    "apk_path": "apk/snake/snake.apk",
+    "ground_truth": [],
+    "notes": "Классический snake (2012), 14.5KB classes.dex, только Android SDK без top-20 TPL"
+  }
+]
