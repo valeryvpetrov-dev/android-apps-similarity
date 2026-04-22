@@ -23,6 +23,7 @@ for _p in [str(_SCRIPT_DIR), str(_PROJECT_ROOT)]:
         sys.path.insert(0, _p)
 
 try:
+    import script.code_view_v4 as code_v4
     from script.code_view_v4 import (
         MODE,
         compare_code_v4,
@@ -31,6 +32,7 @@ try:
         _TLSH_AVAILABLE,
     )
 except ImportError:
+    import code_view_v4  # type: ignore[no-redef]
     from code_view_v4 import (  # type: ignore[no-redef]
         MODE,
         compare_code_v4,
@@ -155,6 +157,10 @@ def _feature_dict(pairs: dict[str, str]) -> dict:
     }
 
 
+def _simhash_feature_from_opcodes(method_id: str, opcodes: tuple[int, ...]) -> dict:
+    return _feature_dict({method_id: _simhash_fingerprint(opcodes)})
+
+
 class TestCompareCodeV4Logic(unittest.TestCase):
     """Pure logic tests — no APK required."""
 
@@ -189,7 +195,7 @@ class TestCompareCodeV4Logic(unittest.TestCase):
         self.assertEqual(r["score"], 1.0)
         self.assertEqual(r["matched_methods"], 2)
         self.assertEqual(r["union_methods"], 2)
-        self.assertEqual(r["status"], "jaccard_ok")
+        self.assertEqual(r["status"], "fuzzy_ok")
 
     def test_disjoint_features_score_0(self):
         fa = _feature_dict({"Lcom/a;->one()V": "S:1111"})
@@ -198,16 +204,13 @@ class TestCompareCodeV4Logic(unittest.TestCase):
         self.assertEqual(r["score"], 0.0)
         self.assertEqual(r["matched_methods"], 0)
         self.assertEqual(r["union_methods"], 2)
-        self.assertEqual(r["status"], "jaccard_ok")
+        self.assertEqual(r["status"], "fuzzy_ok")
 
     def test_same_method_id_but_different_fp_does_not_match(self):
-        """Different fingerprints on the same method_id must not be counted
-        as a match — the Jaccard mass is over ``(method_id, fp)`` pairs."""
-        fa = _feature_dict({"Lcom/a;->one()V": "S:aaaa"})
-        fb = _feature_dict({"Lcom/a;->one()V": "S:bbbb"})
+        """Maximally distant simhashes on the same method_id score zero."""
+        fa = _feature_dict({"Lcom/a;->one()V": "S:0000000000000000"})
+        fb = _feature_dict({"Lcom/a;->one()V": "S:ffffffffffffffff"})
         r = compare_code_v4(fa, fb)
-        self.assertEqual(r["matched_methods"], 0)
-        self.assertEqual(r["union_methods"], 2)
         self.assertEqual(r["score"], 0.0)
 
     def test_partial_overlap(self):
@@ -222,7 +225,78 @@ class TestCompareCodeV4Logic(unittest.TestCase):
         r = compare_code_v4(fa, fb)
         self.assertEqual(r["matched_methods"], 1)
         self.assertEqual(r["union_methods"], 3)
-        self.assertAlmostEqual(r["score"], 1 / 3, places=6)
+        self.assertAlmostEqual(r["score"], 0.5, places=6)
+
+    def test_one_opcode_mutation_keeps_high_simhash_similarity(self):
+        opcodes_a = tuple((i % 251) for i in range(120))
+        opcodes_b = list(opcodes_a)
+        opcodes_b[60] = 0xFF
+        fa = _simhash_feature_from_opcodes("Lcom/a;->mutated()V", opcodes_a)
+        fb = _simhash_feature_from_opcodes("Lcom/a;->mutated()V", tuple(opcodes_b))
+
+        r = compare_code_v4(fa, fb)
+
+        self.assertGreater(
+            r["score"], 0.9,
+            f"Expected fuzzy simhash similarity >0.9, got {r['score']}",
+        )
+
+    def test_half_methods_different_scores_half(self):
+        fa = _feature_dict({
+            "Lcom/a;->one()V": "S:0000000000000000",
+            "Lcom/a;->two()V": "S:1111111111111111",
+            "Lcom/a;->three()V": "S:0000000000000000",
+            "Lcom/a;->four()V": "S:ffffffffffffffff",
+        })
+        fb = _feature_dict({
+            "Lcom/a;->one()V": "S:0000000000000000",
+            "Lcom/a;->two()V": "S:1111111111111111",
+            "Lcom/a;->three()V": "S:ffffffffffffffff",
+            "Lcom/a;->four()V": "S:0000000000000000",
+        })
+
+        r = compare_code_v4(fa, fb)
+
+        self.assertAlmostEqual(r["score"], 0.5, places=6)
+
+    def test_completely_different_same_methods_score_zero(self):
+        fa = _feature_dict({
+            "Lcom/a;->one()V": "S:0000000000000000",
+            "Lcom/a;->two()V": "S:0000000000000000",
+        })
+        fb = _feature_dict({
+            "Lcom/a;->one()V": "S:ffffffffffffffff",
+            "Lcom/a;->two()V": "S:ffffffffffffffff",
+        })
+
+        r = compare_code_v4(fa, fb)
+
+        self.assertEqual(r["score"], 0.0)
+
+def test_code_v4_tlsh_diff_backend_scores_near_match(monkeypatch):
+    class FakeTlsh:
+        @staticmethod
+        def diff(_left: str, _right: str) -> int:
+            return 12
+
+    monkeypatch.setattr(code_v4, "_TLSH_AVAILABLE", True)
+    monkeypatch.setattr(code_v4, "_tlsh_module", FakeTlsh)
+    fa = _feature_dict({"Lcom/a;->one()V": "T:T1ABC"})
+    fb = _feature_dict({"Lcom/a;->one()V": "T:T2DEF"})
+
+    r = compare_code_v4(fa, fb)
+
+    assert r["score"] == 0.96
+
+
+def test_code_v4_no_tlsh_simhash_backend_scores_near_match(monkeypatch):
+    monkeypatch.setattr(code_v4, "_TLSH_AVAILABLE", False)
+    fa = _feature_dict({"Lcom/a;->one()V": "S:0000000000000000"})
+    fb = _feature_dict({"Lcom/a;->one()V": "S:0000000000000003"})
+
+    r = compare_code_v4(fa, fb)
+
+    assert r["score"] == 0.96875
 
 
 class TestCompareCodeV4Integration(unittest.TestCase):
