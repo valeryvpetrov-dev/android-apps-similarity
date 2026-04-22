@@ -19,9 +19,11 @@ from evidence_formatter import (  # noqa: E402
     collect_evidence_from_pairwise,
     collect_evidence_from_screening_layers,
     describe_pair_evidence,
+    evidence_to_markdown_block,
     format_evidence_as_text,
     format_evidence_summary,
     make_evidence,
+    render_single_evidence,
 )
 
 
@@ -426,6 +428,97 @@ class TestDescribePairEvidence(unittest.TestCase):
         self.assertEqual(description["summary"]["by_stage"]["screening"], 2)
         self.assertEqual(description["summary"]["by_stage"]["pairwise"], 1)
         self.assertEqual(description["summary"]["by_stage"]["signing"], 1)
+
+
+class TestEvidenceToMarkdownBlock(unittest.TestCase):
+
+    def test_empty_list_ru_returns_placeholder_block(self) -> None:
+        block = evidence_to_markdown_block([])
+        self.assertIn("## Доказательства", block)
+        self.assertIn("Всего сигналов: 0", block)
+        self.assertIn("Доказательств не найдено.", block)
+        # Пустой список не даёт таблицу.
+        self.assertNotIn("| Этап |", block)
+        self.assertNotIn("<", block)
+
+    def test_three_evidence_renders_table_with_three_rows(self) -> None:
+        records = [
+            make_evidence("screening", "layer_score", 0.4, "code"),
+            make_evidence("pairwise", "layer_score", 0.72, "component"),
+            make_evidence("signing", "signature_match", 1.0, "apk_signature"),
+        ]
+        block = evidence_to_markdown_block(records)
+        self.assertIn("## Доказательства", block)
+        self.assertIn("Всего сигналов: 3", block)
+        self.assertIn("| Этап | Тип сигнала | Сила | Источник |", block)
+        self.assertIn("| --- | --- | --- | --- |", block)
+        table_lines = [
+            line
+            for line in block.splitlines()
+            if line.startswith("|")
+            and not line.startswith("| ---")
+            and not line.startswith("| Этап")
+        ]
+        self.assertEqual(len(table_lines), 3)
+
+    def test_layer_score_label_ru(self) -> None:
+        records = [make_evidence("screening", "layer_score", 0.55, "code")]
+        block = evidence_to_markdown_block(records, locale="ru")
+        self.assertIn("Оценка по слою", block)
+        self.assertNotIn("Layer score", block)
+
+    def test_layer_score_label_en(self) -> None:
+        records = [make_evidence("screening", "layer_score", 0.55, "code")]
+        block = evidence_to_markdown_block(records, locale="en")
+        self.assertIn("## Evidence", block)
+        self.assertIn("Total signals: 1", block)
+        self.assertIn("Layer score", block)
+        self.assertNotIn("Оценка по слою", block)
+
+    def test_summary_groups_by_source_stage(self) -> None:
+        records = [
+            make_evidence("screening", "layer_score", 0.6, "a"),
+            make_evidence("screening", "layer_score", 0.8, "b"),
+            make_evidence("screening", "layer_score", 0.76, "c"),
+            make_evidence("pairwise", "layer_score", 0.9, "component"),
+            make_evidence("signing", "signature_match", 1.0, "apk_signature"),
+        ]
+        block = evidence_to_markdown_block(records)
+        self.assertIn("### Сводка по этапам", block)
+        # screening: 3 сигнала, средняя сила (0.6+0.8+0.76)/3 = 0.72
+        self.assertIn("- screening: 3 сигнала, средняя сила 0.72", block)
+        self.assertIn("- pairwise: 1 сигнал, средняя сила 0.90", block)
+        self.assertIn("- signing: 1 сигнал, средняя сила 1.00", block)
+
+    def test_render_single_evidence_signature_row(self) -> None:
+        record = make_evidence(
+            "pairwise", "signature_match", 0.95, "apk_signature"
+        )
+        row_ru = render_single_evidence(record, locale="ru")
+        self.assertEqual(
+            row_ru,
+            "| pairwise | Совпадение подписи APK | 0.95 | apk_signature |",
+        )
+        row_en = render_single_evidence(record, locale="en")
+        self.assertEqual(
+            row_en,
+            "| pairwise | APK signature match | 0.95 | apk_signature |",
+        )
+
+    def test_unknown_signal_type_uses_signal_type_as_label(self) -> None:
+        records = [make_evidence("pairwise", "library_match", 0.5, "okhttp")]
+        block = evidence_to_markdown_block(records)
+        # Неизвестный signal_type -> отдаём его сырьём.
+        self.assertIn("library_match", block)
+
+    def test_output_contains_no_html_tags(self) -> None:
+        records = [
+            make_evidence("screening", "layer_score", 0.4, "code"),
+            make_evidence("pairwise", "layer_score", 0.7, "component"),
+        ]
+        block = evidence_to_markdown_block(records)
+        self.assertNotIn("<", block)
+        self.assertNotIn(">", block)
 
 
 if __name__ == "__main__":
