@@ -15,9 +15,11 @@ from tempfile import TemporaryDirectory
 try:
     from script.system_requirements import verify_required_dependencies
     from script.evidence_formatter import collect_evidence_from_screening_layers
+    from script.noise_integration import should_reject_by_noise_gate
 except Exception:
     from system_requirements import verify_required_dependencies  # type: ignore[no-redef]
     from evidence_formatter import collect_evidence_from_screening_layers  # type: ignore[no-redef]
+    from noise_integration import should_reject_by_noise_gate  # type: ignore[no-redef]
 
 
 logger = logging.getLogger(__name__)
@@ -1599,7 +1601,139 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ged-timeout-sec", type=int, default=30)
     parser.add_argument("--processes-count", type=int, default=1)
     parser.add_argument("--threads-count", type=int, default=2)
+    parser.add_argument(
+        "--artifact-dir",
+        default="",
+        help=(
+            "Optional directory for noise-gate artifacts "
+            "(noise_rejected.json, screening_run_summary.json). "
+            "When noise_gate.enabled=true and this is provided, "
+            "rejected app_records are written there."
+        ),
+    )
     return parser.parse_args()
+
+
+def _extract_noise_gate_config(config: dict) -> tuple[bool, list[str]]:
+    """Прочитать секцию noise_gate из cascade-config.
+
+    Контракт:
+      noise_gate:
+        enabled: true | false (default: false)
+        reject_triggers: [adware, fake, ...] (default: [])
+
+    При отсутствии секции — noise-gate выключен, reject_triggers пуст.
+    """
+    raw = config.get("noise_gate") if isinstance(config, dict) else None
+    if not isinstance(raw, dict):
+        return (False, [])
+
+    enabled = bool(raw.get("enabled", False))
+    raw_triggers = raw.get("reject_triggers") or []
+    if isinstance(raw_triggers, (list, tuple)):
+        triggers = [str(t) for t in raw_triggers if t]
+    else:
+        triggers = []
+    return (enabled, triggers)
+
+
+def apply_noise_gate(
+    app_records: list[dict],
+    reject_triggers: list[str],
+) -> tuple[list[dict], list[dict]]:
+    """Применить noise-gate к списку app_records — первый фильтр каскада.
+
+    NOISE-GATE-WIRING (wave 16, P0 от критика noise-cleanup волны 14):
+    до индексации отсекаем приложения, у которых хотя бы один
+    envelope-trigger попал в ``reject_triggers``.
+
+    Returns:
+        (passed, rejected) — две непересекающиеся выборки:
+          passed   — app_records, прошедшие фильтр;
+          rejected — dict-записи вида
+              {"app_id": ..., "reason": "noise_gate:<trigger>",
+               "envelope_triggers": [...],
+               "app_record": <исходный app_record без мутаций>}.
+    """
+    passed: list[dict] = []
+    rejected: list[dict] = []
+    for record in app_records:
+        is_reject, reason = should_reject_by_noise_gate(record, reject_triggers)
+        if is_reject:
+            rejected.append(
+                {
+                    "app_id": record.get("app_id"),
+                    "reason": reason,
+                    "envelope_triggers": list(record.get("envelope_triggers") or []),
+                    "app_record": record,
+                }
+            )
+        else:
+            passed.append(record)
+    return (passed, rejected)
+
+
+def _write_noise_gate_artifacts(
+    artifact_dir: Path,
+    rejected: list[dict],
+    reject_triggers: list[str],
+    total_input: int,
+) -> None:
+    """Записать noise_rejected.json и screening_run_summary.json.
+
+    Формат noise_rejected.json:
+      {
+        "schema_version": "noise-gate-v1",
+        "total_rejected": <int>,
+        "reject_triggers": [...],
+        "rejected": [{"app_id": ..., "reason": ..., "envelope_triggers": [...]}, ...]
+      }
+
+    Формат screening_run_summary.json:
+      {
+        "schema_version": "screening-run-summary-v1",
+        "noise_gate_enabled": true,
+        "noise_gate_reject_triggers": [...],
+        "noise_gate_total_input": <int>,
+        "noise_gate_total_rejected": <int>,
+        "noise_gate_total_passed": <int>
+      }
+    """
+    artifact_dir = Path(artifact_dir).expanduser().resolve()
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+
+    rejected_payload = {
+        "schema_version": "noise-gate-v1",
+        "total_rejected": len(rejected),
+        "reject_triggers": list(reject_triggers),
+        "rejected": [
+            {
+                "app_id": entry.get("app_id"),
+                "reason": entry.get("reason"),
+                "envelope_triggers": list(entry.get("envelope_triggers") or []),
+            }
+            for entry in rejected
+        ],
+    }
+    rejected_path = artifact_dir / "noise_rejected.json"
+    rejected_path.write_text(
+        json.dumps(rejected_payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    summary_payload = {
+        "schema_version": "screening-run-summary-v1",
+        "noise_gate_enabled": True,
+        "noise_gate_reject_triggers": list(reject_triggers),
+        "noise_gate_total_input": total_input,
+        "noise_gate_total_rejected": len(rejected),
+        "noise_gate_total_passed": total_input - len(rejected),
+    }
+    summary_path = artifact_dir / "screening_run_summary.json"
+    summary_path.write_text(
+        json.dumps(summary_payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 def run_screening(
@@ -1611,6 +1745,7 @@ def run_screening(
     ged_timeout_sec: int = 30,
     processes_count: int = 1,
     threads_count: int = 2,
+    artifact_dir: str | Path | None = None,
 ) -> list[dict]:
     if os.environ.get("SIMILARITY_SKIP_REQ_CHECK") != "1":
         verify_required_dependencies()
@@ -1632,6 +1767,27 @@ def run_screening(
                 else Path(__file__).resolve().parents[1] / "apk"
             )
             app_records = discover_app_records_from_apk_root(resolved_apk_root)
+
+    # NOISE-GATE-WIRING (wave 16): первый фильтр каскада до индексации.
+    noise_gate_enabled, reject_triggers = _extract_noise_gate_config(config)
+    if noise_gate_enabled:
+        total_input = len(app_records)
+        passed, rejected = apply_noise_gate(app_records, reject_triggers)
+        if artifact_dir is not None:
+            _write_noise_gate_artifacts(
+                artifact_dir=Path(artifact_dir),
+                rejected=rejected,
+                reject_triggers=reject_triggers,
+                total_input=total_input,
+            )
+        logger.info(
+            "noise_gate: input=%d rejected=%d passed=%d reject_triggers=%s",
+            total_input,
+            len(rejected),
+            len(passed),
+            reject_triggers,
+        )
+        app_records = passed
 
     validate_app_records(app_records)
     return build_candidate_list(
@@ -1657,6 +1813,7 @@ def main() -> None:
         ged_timeout_sec=args.ged_timeout_sec,
         processes_count=args.processes_count,
         threads_count=args.threads_count,
+        artifact_dir=args.artifact_dir or None,
     )
 
     payload = json.dumps(candidate_list, ensure_ascii=False, indent=2)
