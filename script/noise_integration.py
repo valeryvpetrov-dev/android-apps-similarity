@@ -8,6 +8,10 @@ through the similarity pipeline:
   Step 3 — propagate_noise_to_pairwise(result, envelope)
   Step 4 — add_noise_context_to_explanation(explanation, envelope)
 
+And, for NOISE-GATE-WIRING (wave 16):
+
+  Entry gate — should_reject_by_noise_gate(app_record, reject_triggers)
+
 All functions are pure (non-destructive): they return a new dict
 rather than mutating the input.
 
@@ -16,7 +20,7 @@ Canonical reference: NC-003-REPO
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     from script.noise_profile_envelope import (
@@ -40,6 +44,88 @@ except ImportError:
         STATUS_PARTIAL,
         to_dict,
     )
+
+
+# ---------------------------------------------------------------------------
+# Entry gate (NOISE-GATE-WIRING, wave 16): reject by envelope_triggers
+# ---------------------------------------------------------------------------
+
+def _collect_envelope_triggers(app_record: Dict[str, Any]) -> List[str]:
+    """Собрать список envelope-triggers из app_record.
+
+    Контракт чтения (порядок поиска):
+      1. app_record["envelope_triggers"] — плоский список строк
+         (канонический путь, заполняется слоем очистки шума).
+      2. app_record["noise_profile_envelope"]["envelope_triggers"] —
+         вложенный список (если envelope уже прикреплён к записи).
+      3. app_record["noise_profile_envelope"]["downstream_warnings"] —
+         fallback: downstream_warnings из envelope, когда отдельного
+         поля envelope_triggers ещё не выставили (пересечение с
+         reject_triggers даёт тот же семантический эффект).
+
+    Возвращает нормализованный список строк (пустой, если источников
+    нет или они невалидны). Дубликаты сохраняются — порядок триггеров
+    важен для диагностики (первый совпавший попадает в причину отказа).
+    """
+    triggers: List[str] = []
+
+    raw = app_record.get("envelope_triggers")
+    if isinstance(raw, (list, tuple)):
+        triggers.extend(str(t) for t in raw if t)
+
+    envelope = app_record.get("noise_profile_envelope")
+    if isinstance(envelope, dict):
+        nested = envelope.get("envelope_triggers")
+        if isinstance(nested, (list, tuple)):
+            triggers.extend(str(t) for t in nested if t)
+        warnings = envelope.get("downstream_warnings")
+        if isinstance(warnings, (list, tuple)):
+            triggers.extend(str(t) for t in warnings if t)
+
+    return triggers
+
+
+def should_reject_by_noise_gate(
+    app_record: Dict[str, Any],
+    reject_triggers: List[str],
+) -> Tuple[bool, str]:
+    """Решить, отклонять ли запись приложения на входе каскада.
+
+    Первый фильтр каскада (NOISE-GATE-WIRING, P0 от критика
+    noise-cleanup волны 14): если хотя бы один envelope-trigger
+    записи входит в ``reject_triggers``, запись отклоняется.
+
+    Args:
+        app_record:       запись приложения (dict). Источники триггеров
+                          описаны в _collect_envelope_triggers.
+        reject_triggers:  список триггеров, по которым носим ярлык
+                          «шумный APK — не пускать в каскад».
+
+    Returns:
+        (True, "noise_gate:<trigger>") — если пересечение найдено;
+            <trigger> — первый из ``reject_triggers``, который
+            встретился среди envelope-triggers записи
+            (детерминированный порядок относительно конфигурации).
+        (False, "") — если пересечение пусто (или reject_triggers пуст,
+            или envelope-triggers отсутствуют).
+
+    Функция не мутирует app_record.
+    """
+    if not reject_triggers:
+        return (False, "")
+
+    triggers = _collect_envelope_triggers(app_record)
+    if not triggers:
+        return (False, "")
+
+    triggers_set = set(triggers)
+    # Порядок обхода — по reject_triggers (конфигурация задаёт
+    # приоритет причин: первый из списка побеждает).
+    for trigger in reject_triggers:
+        if trigger in triggers_set:
+            return (True, "noise_gate:{}".format(trigger))
+
+    return (False, "")
 
 
 # ---------------------------------------------------------------------------

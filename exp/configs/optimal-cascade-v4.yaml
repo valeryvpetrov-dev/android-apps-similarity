@@ -10,6 +10,13 @@ code_layer:
   window: 5           # n-gram window size for v2_tlsh
   norm_divisor: 300   # TLSH distance normalization divisor (300 ≈ 50% structural overlap)
 
+# NOISE-GATE-WIRING (wave 16, P0 от критика noise-cleanup волны 14):
+# первый фильтр каскада — отсечение шумных APK до индексации
+# по envelope-triggers из слоя очистки шума.
+noise_gate:
+  enabled: true
+  reject_triggers: [adware, fake]
+
 stages:
   screening:
     features: [code, metadata]
