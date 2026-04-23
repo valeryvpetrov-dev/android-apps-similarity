@@ -947,6 +947,13 @@ def run_deepening(config_path: Path, candidates_path: Path) -> dict[str, Any]:
 
 
 def main() -> None:
+    # SYS-INT-16-VERIFY-DEPS-WIRE: fail-fast при отсутствии обязательных
+    # зависимостей similarity-системы. Дублирует проверку внутри run_deepening
+    # намеренно — явный вызов в main() документирует контракт точки входа
+    # и ловит ошибку до парсинга CLI-аргументов.
+    if os.environ.get("SIMILARITY_SKIP_REQ_CHECK") != "1":
+        verify_required_dependencies()
+
     args = parse_args()
     payload = run_deepening(Path(args.config), Path(args.candidates))
     output_path = Path(args.output)

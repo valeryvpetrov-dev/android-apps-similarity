@@ -23,6 +23,7 @@ Run:
 from __future__ import annotations
 
 import json
+import os
 import sys
 import tempfile
 import time
@@ -117,6 +118,22 @@ def _mocked_enhanced_features() -> dict:
 
 class TestE2EPipeline(unittest.TestCase):
     """Integration tests for the e2e similarity pipeline."""
+
+    def setUp(self) -> None:
+        # Pipeline тесты мокают тяжёлые зависимости (androguard, apktool, LIBLOOM),
+        # но верификатор обязательных зависимостей в runner'ах (вызывается из
+        # run_screening/run_deepening/run_pairwise) срабатывает до моков и падает
+        # на хосте без androguard. Выставляем SIMILARITY_SKIP_REQ_CHECK=1, чтобы
+        # отключить fail-fast именно в этом интеграционном прогоне. Отдельные
+        # тесты fail-fast поведения живут в test_verify_deps_wiring.py.
+        self._saved_skip_env = os.environ.get("SIMILARITY_SKIP_REQ_CHECK")
+        os.environ["SIMILARITY_SKIP_REQ_CHECK"] = "1"
+
+    def tearDown(self) -> None:
+        if self._saved_skip_env is None:
+            os.environ.pop("SIMILARITY_SKIP_REQ_CHECK", None)
+        else:
+            os.environ["SIMILARITY_SKIP_REQ_CHECK"] = self._saved_skip_env
 
     def _run_pipeline(self, tmpdir: Path) -> dict:
         apk_query = tmpdir / "query.apk"

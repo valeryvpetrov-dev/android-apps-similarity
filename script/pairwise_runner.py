@@ -1888,6 +1888,13 @@ def export_pairwise_detailed_json(results: list[dict], output_path: Path) -> Non
 
 
 def main() -> None:
+    # SYS-INT-16-VERIFY-DEPS-WIRE: fail-fast при отсутствии обязательных
+    # зависимостей similarity-системы. Дублирует проверку внутри run_pairwise
+    # намеренно — явный вызов в main() документирует контракт точки входа
+    # и ловит ошибку до парсинга CLI-аргументов.
+    if os.environ.get("SIMILARITY_SKIP_REQ_CHECK") != "1":
+        verify_required_dependencies()
+
     args = parse_args()
     payload = run_pairwise(
         config_path=Path(args.config),

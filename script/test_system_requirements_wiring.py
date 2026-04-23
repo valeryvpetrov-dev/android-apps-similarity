@@ -9,6 +9,7 @@ import pytest
 import deepening_runner
 import pairwise_runner
 import screening_runner
+from script import system_requirements
 
 
 def _import_success_except(missing_name: str | None = None):
@@ -64,15 +65,28 @@ def _patch_deepening_empty():
     )
 
 
+# NOTE: мы патчим через mock.patch.object(system_requirements.shutil, ...) и
+# mock.patch.object(system_requirements.importlib, ...) вместо mock.patch("строковый-путь").
+# Причина: mock.patch("script.system_requirements.shutil.which") при входе в
+# контекст вызывает importlib.import_module для разрешения имени модуля, а если
+# в том же теле patch-контекста уже подменён importlib.import_module, разрешение
+# возвращает Mock и атрибут `which` патчится на Mock-объекте, а не на реальном
+# shutil. В итоге реальный shutil.which остаётся нетронутым и check_apktool даёт
+# True от установленного на хосте apktool. Через mock.patch.object имя модуля
+# не разрешается повторно — мы передаём уже загруженный модуль напрямую.
+
+
 def test_run_pairwise_fails_fast_when_androguard_missing(monkeypatch):
     monkeypatch.delenv("SIMILARITY_SKIP_REQ_CHECK", raising=False)
 
-    with mock.patch(
-        "script.system_requirements.importlib.import_module",
-        side_effect=_import_success_except("androguard"),
-    ), mock.patch(
-        "script.system_requirements.shutil.which",
+    with mock.patch.object(
+        system_requirements.shutil,
+        "which",
         side_effect=_which_success_except(),
+    ), mock.patch.object(
+        system_requirements.importlib,
+        "import_module",
+        side_effect=_import_success_except("androguard"),
     ), mock.patch.object(
         pairwise_runner,
         "load_config",
@@ -87,12 +101,14 @@ def test_run_pairwise_fails_fast_when_androguard_missing(monkeypatch):
 def test_run_screening_fails_fast_when_apktool_missing(monkeypatch):
     monkeypatch.delenv("SIMILARITY_SKIP_REQ_CHECK", raising=False)
 
-    with mock.patch(
-        "script.system_requirements.importlib.import_module",
-        side_effect=_import_success_except(),
-    ), mock.patch(
-        "script.system_requirements.shutil.which",
+    with mock.patch.object(
+        system_requirements.shutil,
+        "which",
         side_effect=_which_success_except("apktool"),
+    ), mock.patch.object(
+        system_requirements.importlib,
+        "import_module",
+        side_effect=_import_success_except(),
     ), mock.patch.object(
         screening_runner,
         "load_yaml_or_json",
@@ -107,12 +123,14 @@ def test_run_screening_fails_fast_when_apktool_missing(monkeypatch):
 def test_all_entry_points_continue_when_required_dependencies_exist(monkeypatch):
     monkeypatch.delenv("SIMILARITY_SKIP_REQ_CHECK", raising=False)
 
-    with mock.patch(
-        "script.system_requirements.importlib.import_module",
-        side_effect=_import_success_except(),
-    ), mock.patch(
-        "script.system_requirements.shutil.which",
+    with mock.patch.object(
+        system_requirements.shutil,
+        "which",
         side_effect=_which_success_except(),
+    ), mock.patch.object(
+        system_requirements.importlib,
+        "import_module",
+        side_effect=_import_success_except(),
     ), _patch_pairwise_empty(), _patch_screening_empty(), _patch_deepening_empty():
         assert pairwise_runner.run_pairwise(Path("config.yaml"), Path("enriched.json")) == []
         assert screening_runner.run_screening("config.yaml", app_records=[]) == []
@@ -124,13 +142,15 @@ def test_all_entry_points_continue_when_required_dependencies_exist(monkeypatch)
 def test_skip_env_disables_dependency_check(monkeypatch):
     monkeypatch.setenv("SIMILARITY_SKIP_REQ_CHECK", "1")
 
-    with mock.patch(
-        "script.system_requirements.importlib.import_module",
-        side_effect=ImportError("dependency should not be checked"),
-    ) as import_mock, mock.patch(
-        "script.system_requirements.shutil.which",
+    with mock.patch.object(
+        system_requirements.shutil,
+        "which",
         side_effect=AssertionError("CLI dependency should not be checked"),
-    ) as which_mock, _patch_pairwise_empty():
+    ) as which_mock, mock.patch.object(
+        system_requirements.importlib,
+        "import_module",
+        side_effect=ImportError("dependency should not be checked"),
+    ) as import_mock, _patch_pairwise_empty():
         assert pairwise_runner.run_pairwise(Path("config.yaml"), Path("enriched.json")) == []
 
     import_mock.assert_not_called()
