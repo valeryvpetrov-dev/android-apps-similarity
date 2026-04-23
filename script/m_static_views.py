@@ -135,13 +135,25 @@ except Exception:
         compare_code_v4_shingled = None
 
 try:
-    from script.resource_view_v2 import extract_resource_view_v2, compare_resource_view_v2
+    from script.resource_view_v2 import (
+        extract_resource_view_v2,
+        compare_resource_view_v2,
+        ICON_HASH_METHOD as _RESOURCE_V2_ICON_HASH_METHOD,
+    )
 except Exception:
     try:
-        from resource_view_v2 import extract_resource_view_v2, compare_resource_view_v2
+        from resource_view_v2 import (
+            extract_resource_view_v2,
+            compare_resource_view_v2,
+            ICON_HASH_METHOD as _RESOURCE_V2_ICON_HASH_METHOD,
+        )
     except Exception:
         extract_resource_view_v2 = None
         compare_resource_view_v2 = None
+        # Без resource_view_v2 метод хеша неизвестен; используем нейтральный
+        # маркер, чтобы кэш всё равно инвалидировался при смене
+        # ICON_HASH_METHOD после перезапуска процесса.
+        _RESOURCE_V2_ICON_HASH_METHOD = "na"
 
 try:
     from script.feature_cache import get_or_extract as _feature_cache_get_or_extract
@@ -277,11 +289,18 @@ def extract_all_features(
         and apk_path is not None
         and _feature_cache_get_or_extract is not None
     ):
+        # REPR-16-WHASH-HAAR: метод перцептивного хеша иконки входит в
+        # ключ кэша, чтобы смена ANDROID_SIM_IMAGE_HASH_METHOD
+        # автоматически инвалидировала старые записи со смешанными
+        # методами (см. resource_view_v2 для деталей).
+        effective_version = "{}__ihash-{}".format(
+            feature_version, _RESOURCE_V2_ICON_HASH_METHOD,
+        )
         return _feature_cache_get_or_extract(
             apk_path=apk_path,
             extract_fn=_do_extract,
             cache_dir=cache_dir,
-            feature_version=feature_version,
+            feature_version=effective_version,
         )
     return _do_extract()
 

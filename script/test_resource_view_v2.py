@@ -111,10 +111,20 @@ def _hamming_hex(hex_a: str, hex_b: str) -> int:
 
 
 def _phash_hex(token: str) -> str:
-    """Извлекает hex-часть из токена ``icon_phash:<hex>``."""
+    """Извлекает hex-часть из токена иконки.
+
+    Поддерживает оба формата:
+    * post-REPR-16: ``icon_phash:<method>:<hex>``;
+    * legacy: ``icon_phash:<hex>``.
+    """
     prefix = "{}:".format(ICON_TOKEN_PREFIX)
     assert token.startswith(prefix), token
-    return token[len(prefix):]
+    tail = token[len(prefix):]
+    # Новый формат содержит ещё одно двоеточие после метода.
+    if ":" in tail:
+        _method, _, hex_part = tail.partition(":")
+        return hex_part
+    return tail
 
 
 class TestExtractResourceViewV2Basic(unittest.TestCase):
@@ -208,7 +218,8 @@ class TestExtractResourceViewV2Content(unittest.TestCase):
             self.assertIsNotNone(token)
             prefix = "{}:".format(ICON_TOKEN_PREFIX)
             self.assertTrue(token.startswith(prefix), token)
-            hex_part = token[len(prefix):]
+            # Post-REPR-16: формат ``icon_phash:<method>:<hex>``.
+            hex_part = _phash_hex(token)
             self.assertEqual(len(hex_part), ICON_HASH_HEX_LEN)
             # Должно парситься как hex.
             int(hex_part, 16)

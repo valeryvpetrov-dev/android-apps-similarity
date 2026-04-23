@@ -12,13 +12,35 @@
 3. ``res_layouts`` — имена файлов в ``res/layout*``. Токен ``layout:<name>``.
 4. ``assets_bin`` — пути в ``assets/`` с байтовым бакетом размера.
    Токен ``asset:<path>:<size_bucket>``.
-5. ``icon_phash`` — перцептивный хеш иконки приложения (dHash 8x8).
+5. ``icon_phash`` — перцептивный хеш иконки приложения (wHash или dHash 8x8).
 
-Реализация ``icon_phash``
--------------------------
+Реализация ``icon_phash`` (REPR-16-WHASH-HAAR)
+-----------------------------------------------
 
-Используется настоящий перцептивный хеш — difference hash (dHash) 8x8,
-описанный в открытой литературе по image similarity. Алгоритм:
+Метод перцептивного хеша выбирается через module-level константу
+``ICON_HASH_METHOD`` или переменную окружения
+``ANDROID_SIM_IMAGE_HASH_METHOD``. Поддерживаются два метода:
+
+* ``"whash"`` — wavelet hash на Haar wavelet 8x8 (по умолчанию). Устойчив
+  к шуму обфускации ресурсов значительнее, чем dHash (см. NKR-13-*).
+  Реализация через внешнюю зависимость
+  ``imagehash.whash(img, hash_size=8, mode='haar')``.
+* ``"dhash"`` — difference hash 8x8 (совместимость). Реализован на чистом
+  Pillow и используется как fallback, когда библиотека ``imagehash``
+  недоступна или метод явно запрошен через env var.
+
+Формат токена:
+
+* ``icon_phash:whash:<16 hex>`` при активном wHash;
+* ``icon_phash:dhash:<16 hex>`` при активном dHash;
+* legacy-формат ``icon_phash:<16 hex>`` понимается как dHash (обратная
+  совместимость со snapshot-ами до REPR-16-WHASH-HAAR).
+
+Префикс метода в токене обязателен: на смешанных корпусах (pre- и
+post-migration) сравнение по разным методам даёт нули, поэтому
+``_icon_similarity`` сопоставляет только токены с одинаковым методом.
+
+Алгоритм dHash (fallback):
 
 1. Декодировать иконку (PNG/WEBP) через Pillow.
 2. Привести к серому (``convert('L')``) и ресайзить до 9x8 пикселей.
@@ -26,25 +48,30 @@
    слева-направо: если левый ярче — бит 0, иначе бит 1. Всего 8*8 = 64 бита.
 4. Представить 64 бита как hex-строку длины 16.
 
-Это устойчиво к ресайзу, сжатию и небольшим изменениям яркости. Сравнение
-двух таких хешей делается через Хеммингово расстояние по hex-строкам, и
-нормализуется как ``1 - hamming / 64``.
+Сравнение двух хешей делается через Хеммингово расстояние по hex-строкам
+и нормализуется как ``1 - hamming / 64``.
 
-Зависимости: требует Pillow (``PIL``). Если Pillow не установлен —
-``icon_phash`` возвращает ``None`` честным путём, без маскировки ошибки
-через blake2b сырых байт (такой подход был назван фундаментальной ошибкой
-в REV-1 / research/R-06 и заменён этой реализацией в
-``EXEC-R_resource_v2-DHASH``).
+Зависимости:
 
-В ``m_static_views`` модуль пока НЕ интегрируется — это отдельная задача
-``EXEC-R_resource_v2-INTEGRATION``.
+* Pillow — обязателен для чтения иконок в обоих методах.
+* imagehash — требуется только для ``whash`` (иначе ``whash`` откатывается
+  на dHash).
+
+Если Pillow не установлен — ``icon_phash`` возвращает ``None`` честным
+путём, без маскировки ошибки через blake2b сырых байт (такой подход был
+назван фундаментальной ошибкой в REV-1 / research/R-06 и заменён этой
+реализацией в ``EXEC-R_resource_v2-DHASH``).
 """
 
 from __future__ import annotations
 
+import logging
+import os
 import re
 from pathlib import Path
 from typing import Dict, Optional, Set
+
+logger = logging.getLogger(__name__)
 
 try:
     from PIL import Image  # type: ignore
@@ -52,6 +79,13 @@ try:
 except ImportError:  # pragma: no cover - зависит от окружения
     Image = None  # type: ignore
     _PIL_AVAILABLE = False
+
+try:
+    import imagehash as _imagehash  # type: ignore
+    _IMAGEHASH_AVAILABLE = True
+except ImportError:  # pragma: no cover - зависит от окружения
+    _imagehash = None  # type: ignore
+    _IMAGEHASH_AVAILABLE = False
 
 
 # ---------------------------------------------------------------------------
@@ -98,6 +132,51 @@ ICON_TOKEN_PREFIX = "icon_phash"
 # Параметры dHash: ресайз к ширине+1 x высоте для 64 бит сравнений.
 _DHASH_WIDTH = 9
 _DHASH_HEIGHT = 8
+
+# REPR-16-WHASH-HAAR: выбор перцептивного хеш-метода.
+#
+# Приоритет источников:
+# 1. Явный аргумент функции (через ``method=`` в `_extract_icon_phash`).
+# 2. Переменная окружения ``ANDROID_SIM_IMAGE_HASH_METHOD``.
+# 3. Значение по умолчанию ``ICON_HASH_METHOD_DEFAULT``.
+#
+# Допустимые значения — ``"whash"`` и ``"dhash"``. Любое другое значение
+# откатывается на default с предупреждением в логах.
+ICON_HASH_METHOD_DEFAULT = "whash"
+ICON_HASH_METHOD_FALLBACK = "dhash"
+_SUPPORTED_ICON_HASH_METHODS = ("whash", "dhash")
+_ENV_ICON_HASH_METHOD = "ANDROID_SIM_IMAGE_HASH_METHOD"
+
+# Параметры wHash: квадрат 8x8, Haar wavelet.
+_WHASH_SIZE = 8
+_WHASH_MODE = "haar"
+
+
+def _resolve_icon_hash_method(method: Optional[str] = None) -> str:
+    """Возвращает активный метод хеша с учётом env var и fallback.
+
+    Если явный аргумент не задан — читаем переменную окружения
+    ``ANDROID_SIM_IMAGE_HASH_METHOD``. Для неизвестного значения
+    логируем предупреждение и возвращаем default.
+    """
+    raw = method if method is not None else os.environ.get(_ENV_ICON_HASH_METHOD)
+    if raw is None:
+        return ICON_HASH_METHOD_DEFAULT
+    normalized = str(raw).strip().lower()
+    if normalized not in _SUPPORTED_ICON_HASH_METHODS:
+        logger.warning(
+            "resource_view_v2: неизвестный метод хеша %r, откатываюсь на %s",
+            raw,
+            ICON_HASH_METHOD_DEFAULT,
+        )
+        return ICON_HASH_METHOD_DEFAULT
+    return normalized
+
+
+# Module-level константа — вычисляется один раз при импорте, чтобы и тесты,
+# и внешние модули (m_static_views) могли её прочитать для версионирования
+# кэша фич.
+ICON_HASH_METHOD = _resolve_icon_hash_method()
 
 
 # ---------------------------------------------------------------------------
@@ -267,14 +346,86 @@ def _compute_dhash(icon_path: Path) -> Optional[str]:
     return "{:0{}x}".format(bits, ICON_HASH_HEX_LEN)
 
 
-def _extract_icon_phash(apk_path: Path) -> Optional[str]:
+def _compute_whash(icon_path: Path) -> Optional[str]:
+    """Считает wHash (Haar wavelet hash) 8x8 от файла иконки.
+
+    REPR-16-WHASH-HAAR: wavelet hash устойчивее к шуму обфускации ресурсов,
+    чем dHash (см. NKR-13-*). Делегирует вычисление в
+    ``imagehash.whash(img, hash_size=8, mode='haar')``.
+
+    Возвращает hex-строку длины 16 (64 бита) или ``None`` при отсутствии
+    Pillow / imagehash, а также при сбое декодера. В случае отсутствия
+    ``imagehash`` вызывающий код должен сам принять решение о fallback
+    на dHash (см. ``_extract_icon_phash``).
+    """
+    if not _PIL_AVAILABLE or not _IMAGEHASH_AVAILABLE:
+        return None
+    try:
+        with Image.open(icon_path) as img:
+            # imagehash.whash сам приводит к серому через convert('L'),
+            # но делаем это явно — чтобы поведение не зависело от версии
+            # библиотеки и для ровного параллеля с dHash.
+            gray = img.convert("L")
+            hash_obj = _imagehash.whash(
+                gray,
+                hash_size=_WHASH_SIZE,
+                mode=_WHASH_MODE,
+            )
+    except Exception:  # noqa: BLE001 - любые сбои декодера = честный None
+        return None
+
+    # imagehash.ImageHash.__str__ уже возвращает hex; на всякий случай
+    # нормализуем длину и регистр.
+    hex_hash = str(hash_obj).lower()
+    if len(hex_hash) != ICON_HASH_HEX_LEN:
+        # При hash_size=8 должно выйти ровно 64 бита = 16 hex. Если нет —
+        # что-то пошло не так в зависимости, возвращаем честный None.
+        logger.warning(
+            "resource_view_v2: wHash вернул неожиданную длину %d (ожидалось %d)",
+            len(hex_hash),
+            ICON_HASH_HEX_LEN,
+        )
+        return None
+    return hex_hash
+
+
+def _extract_icon_phash(
+    apk_path: Path,
+    method: Optional[str] = None,
+) -> Optional[str]:
+    """Извлекает токен иконки с префиксом активного метода хеша.
+
+    Формат возвращаемого токена — ``icon_phash:<method>:<hex>``. Если
+    выбран ``whash``, но ``imagehash`` недоступен, делается честный откат
+    на ``dhash`` с предупреждением в логах — иначе после миграции
+    окружений без ``imagehash`` получили бы пустой сигнал на всём корпусе.
+    """
     icon_path = _find_icon_file(apk_path)
     if icon_path is None:
         return None
-    hex_hash = _compute_dhash(icon_path)
+
+    active_method = _resolve_icon_hash_method(method)
+
+    if active_method == "whash":
+        hex_hash = _compute_whash(icon_path)
+        if hex_hash is None and not _IMAGEHASH_AVAILABLE:
+            # Fallback на dHash, только если Pillow всё же доступен:
+            # без Pillow честный None.
+            if _PIL_AVAILABLE:
+                logger.warning(
+                    "resource_view_v2: imagehash недоступен, откатываюсь на dHash "
+                    "для иконки %s",
+                    icon_path,
+                )
+                hex_hash = _compute_dhash(icon_path)
+                active_method = ICON_HASH_METHOD_FALLBACK
+    else:
+        hex_hash = _compute_dhash(icon_path)
+        active_method = "dhash"
+
     if hex_hash is None:
         return None
-    return "{}:{}".format(ICON_TOKEN_PREFIX, hex_hash)
+    return "{}:{}:{}".format(ICON_TOKEN_PREFIX, active_method, hex_hash)
 
 
 # ---------------------------------------------------------------------------
@@ -326,25 +477,69 @@ def _jaccard(set_a: Set[str], set_b: Set[str]) -> float:
     return len(set_a & set_b) / len(union)
 
 
-def _parse_icon_hex(token: Optional[str]) -> Optional[int]:
+def _parse_icon_token(token: Optional[str]) -> Optional[tuple]:
+    """Разбирает токен иконки в пару ``(method, int_hash)``.
+
+    Поддерживает три формы:
+
+    * ``icon_phash:whash:<16 hex>`` — post-REPR-16 с явным методом;
+    * ``icon_phash:dhash:<16 hex>`` — post-REPR-16 явный dHash;
+    * ``icon_phash:<16 hex>`` — legacy-формат до REPR-16, трактуется как
+      ``dhash`` (обратная совместимость со старыми snapshot-ами).
+    """
     if not token:
         return None
     prefix = "{}:".format(ICON_TOKEN_PREFIX)
     if not token.startswith(prefix):
         return None
-    hex_part = token[len(prefix):]
+    tail = token[len(prefix):]
+    if not tail:
+        return None
+    # Новый формат: <method>:<hex>. Старый: <hex>.
+    if ":" in tail:
+        method, _, hex_part = tail.partition(":")
+        method = method.strip().lower()
+        if method not in _SUPPORTED_ICON_HASH_METHODS:
+            return None
+    else:
+        method = ICON_HASH_METHOD_FALLBACK  # legacy = dHash
+        hex_part = tail
     if len(hex_part) != ICON_HASH_HEX_LEN:
         return None
     try:
-        return int(hex_part, 16)
+        return method, int(hex_part, 16)
     except ValueError:
         return None
 
 
+# Обратная совместимость: старое имя возвращает только int, используется
+# в тестах resource_view_v2. Интерпретирует токен в прежнем смысле (без
+# учёта метода) — для проверки корректности hex-части.
+def _parse_icon_hex(token: Optional[str]) -> Optional[int]:
+    parsed = _parse_icon_token(token)
+    if parsed is None:
+        return None
+    return parsed[1]
+
+
 def _icon_similarity(token_a: Optional[str], token_b: Optional[str]) -> Optional[float]:
-    val_a = _parse_icon_hex(token_a)
-    val_b = _parse_icon_hex(token_b)
-    if val_a is None or val_b is None:
+    """Хеммингово сходство между двумя токенами.
+
+    Корректно сравнивает только токены с одинаковым методом: wHash и dHash
+    дают существенно разные битовые представления одной и той же иконки,
+    поэтому Jaccard/Hamming между ними осмысленной оценки сходства не
+    даёт. При несовпадении методов возвращается ``None`` — вызывающий
+    код обязан обработать это как отсутствие сигнала (см.
+    ``compare_resource_view_v2``).
+    """
+    parsed_a = _parse_icon_token(token_a)
+    parsed_b = _parse_icon_token(token_b)
+    if parsed_a is None or parsed_b is None:
+        return None
+    method_a, val_a = parsed_a
+    method_b, val_b = parsed_b
+    if method_a != method_b:
+        # Смешанный корпус pre- и post-migration: не считаем сходство.
         return None
     xor = val_a ^ val_b
     hamming = bin(xor).count("1")
@@ -414,6 +609,9 @@ def compare_resource_view_v2(features_a: Dict, features_b: Dict) -> Dict:
 
 __all__ = [
     "MODE",
+    "ICON_HASH_METHOD",
+    "ICON_HASH_METHOD_DEFAULT",
+    "ICON_HASH_METHOD_FALLBACK",
     "extract_resource_view_v2",
     "compare_resource_view_v2",
 ]
