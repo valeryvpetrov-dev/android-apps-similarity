@@ -11,7 +11,7 @@ stages:
   screening:
     features: [code, metadata]
     metric: jaccard
-    # threshold preliminary, pending EXEC-080 train/test split recalibration (REV-1)
+    # preliminary t=0.28, калибровка отложена до EXEC-080 (train/test split)
     threshold: 0.28
   deepening:
     # добавлено в волне 12 (ARCH-12-CASCADE-DEEPENING)
