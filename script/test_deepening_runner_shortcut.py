@@ -48,20 +48,16 @@ class TestEnrichCandidateShortcutPropagation(unittest.TestCase):
             feature_cache=feature_cache,
         )
 
-    def test_shortcut_true_and_match_copied(self) -> None:
-        """T1: shortcut_applied=True + signature_match копируются в result."""
+    def test_enrich_candidate_propagates_shortcut_applied_true(self) -> None:
+        """T1: shortcut_applied=True копируется в result."""
         with tempfile.TemporaryDirectory() as tmpdir:
             apk = str(Path(tmpdir) / "fake.apk")
             candidate = _base_candidate(apk, apk)
             candidate["shortcut_applied"] = True
-            candidate["shortcut_reason"] = "high_confidence_signature_match"
-            candidate["signature_match"] = {"status": "match", "score": 1.0}
 
             result = self._run(candidate)
 
             self.assertTrue(result["shortcut_applied"])
-            self.assertEqual(result["shortcut_reason"], "high_confidence_signature_match")
-            self.assertEqual(result["signature_match"]["status"], "match")
 
     def test_shortcut_false_not_blocking_copy(self) -> None:
         """T2: shortcut_applied=False тоже копируется (ключ присутствует = False)."""
@@ -78,7 +74,7 @@ class TestEnrichCandidateShortcutPropagation(unittest.TestCase):
             self.assertIsNone(result["shortcut_reason"])
             self.assertEqual(result["signature_match"]["status"], "mismatch")
 
-    def test_shortcut_reason_propagated(self) -> None:
+    def test_enrich_candidate_propagates_shortcut_reason(self) -> None:
         """T3: shortcut_reason конкретная строка сохраняется без изменений."""
         with tempfile.TemporaryDirectory() as tmpdir:
             apk = str(Path(tmpdir) / "fake.apk")
@@ -90,7 +86,7 @@ class TestEnrichCandidateShortcutPropagation(unittest.TestCase):
 
             self.assertEqual(result["shortcut_reason"], "high_confidence_signature_match")
 
-    def test_signature_match_dict_propagated_intact(self) -> None:
+    def test_enrich_candidate_propagates_signature_match(self) -> None:
         """T4: signature_match dict сохраняется целиком (score + status + hash)."""
         with tempfile.TemporaryDirectory() as tmpdir:
             apk = str(Path(tmpdir) / "fake.apk")
@@ -109,7 +105,7 @@ class TestEnrichCandidateShortcutPropagation(unittest.TestCase):
             self.assertEqual(result["signature_match"]["score"], 1.0)
             self.assertEqual(result["signature_match"]["status"], "match")
 
-    def test_no_shortcut_keys_in_candidate_not_added(self) -> None:
+    def test_enrich_candidate_without_shortcut_does_not_add_field(self) -> None:
         """T5: если shortcut-ключей нет в candidate — они не появляются в result."""
         with tempfile.TemporaryDirectory() as tmpdir:
             apk = str(Path(tmpdir) / "fake.apk")

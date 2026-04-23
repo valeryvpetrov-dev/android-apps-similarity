@@ -295,7 +295,71 @@ class TestE2EPipeline(unittest.TestCase):
             msg="contract_links missing per_view_scores linkage: {}".format(link_fields),
         )
 
-    # --- test 3: every stage records a timing ------------------------------
+    # --- test 3: shortcut survives deepening and skips heavy pairwise -------
+
+    def test_e2e_shortcut_survives_deepening_to_pairwise(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="e2e_shortcut_") as tmp:
+            tmpdir = Path(tmp)
+            apk_a = tmpdir / "a.apk"
+            apk_b = tmpdir / "b.apk"
+            _write_fake_apk(apk_a)
+            _write_fake_apk(apk_b)
+
+            screening_candidate = {
+                "app_a": {"app_id": "com.example.a", "apk_path": str(apk_a)},
+                "app_b": {"app_id": "com.example.b", "apk_path": str(apk_b)},
+                "shortcut_applied": True,
+                "shortcut_reason": pairwise_runner.SHORTCUT_REASON_HIGH_CONFIDENCE,
+                "signature_match": {
+                    "status": "match",
+                    "score": 1.0,
+                    "cert_hash": "same-cert",
+                },
+            }
+
+            deepened = deepening_runner.enrich_candidate(
+                candidate=screening_candidate,
+                layers_to_enrich=[],
+                code_cache={},
+                decoded_cache={},
+                feature_cache={},
+            )
+
+            self.assertIs(deepened.get("shortcut_applied"), True)
+            self.assertEqual(
+                deepened.get("shortcut_reason"),
+                pairwise_runner.SHORTCUT_REASON_HIGH_CONFIDENCE,
+            )
+            self.assertEqual(deepened.get("signature_match", {}).get("status"), "match")
+
+            with mock.patch.object(
+                pairwise_runner,
+                "calculate_pair_scores",
+                side_effect=AssertionError("heavy pairwise path must be skipped"),
+            ) as calculate_pair_scores:
+                pair_row = pairwise_runner._compute_pair_row_with_caches(
+                    candidate=deepened,
+                    selected_layers=["code", "metadata"],
+                    metric="jaccard",
+                    threshold=0.0,
+                    ins_block_sim_threshold=0.80,
+                    ged_timeout_sec=30,
+                    processes_count=1,
+                    threads_count=1,
+                    layer_cache={},
+                    code_cache={},
+                    apk_discovery_cache={},
+                )
+
+            calculate_pair_scores.assert_not_called()
+            self.assertEqual(
+                pair_row["deep_verification_status"],
+                pairwise_runner.DEEP_VERIFICATION_STATUS_SKIPPED,
+            )
+            self.assertLessEqual(pair_row["elapsed_ms_deep"], 10)
+            self.assertIs(pair_row["shortcut_applied"], True)
+
+    # --- test 4: every stage records a timing ------------------------------
 
     def test_e2e_pipeline_records_timings(self) -> None:
         with tempfile.TemporaryDirectory(prefix="e2e_test_") as tmp:
