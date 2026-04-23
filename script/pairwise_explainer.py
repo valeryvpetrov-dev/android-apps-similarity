@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import re
 from pathlib import Path
 from typing import Any
@@ -747,24 +748,96 @@ def build_explanation_hints(pair: dict) -> list[dict]:
     return hints
 
 
+def _hints_from_evidence(evidence_list: list[dict]) -> list[dict]:
+    """EXEC-DESCRIBE-PAIR-EVIDENCE-CONTRACT-ALIGN: построить hints напрямую из
+    evidence-записей как из единого источника правды.
+
+    Для каждой валидной evidence-записи (dict) формируется hint вида
+    ``{"type": <layer или signal>, "signal": signal, "entity": entity,
+    "score": score}``:
+
+    - ``signal`` берётся из ``signal_type`` evidence-записи (канонический
+      контракт ``evidence_formatter.make_evidence``);
+    - ``entity`` берётся из ``ref`` evidence-записи (имя слоя либо
+      ``apk_signature`` и тому подобные стабильные указатели);
+    - ``score`` — это ``magnitude`` из evidence в диапазоне [0, 1];
+    - ``type`` — это ``signal_type`` evidence (например, ``layer_score``
+      для per-layer сигнала или ``signature_match`` для подписи APK).
+      ``signal_type`` одновременно играет роль «layer or signal»: для
+      per-layer записей это общий тип ``layer_score``, а конкретный слой
+      (например, ``code``/``component``) находится в поле ``entity``.
+
+    Не-dict и записи без ``signal_type``/``ref``/``magnitude`` пропускаются.
+    """
+    if not isinstance(evidence_list, list):
+        return []
+
+    hints: list[dict] = []
+    for item in evidence_list:
+        if not isinstance(item, dict):
+            continue
+        signal_type = item.get("signal_type")
+        ref = item.get("ref")
+        magnitude_raw = item.get("magnitude")
+        if not isinstance(signal_type, str) or not signal_type.strip():
+            continue
+        if not isinstance(ref, str) or not ref.strip():
+            continue
+        try:
+            score = float(magnitude_raw)
+        except (TypeError, ValueError):
+            continue
+        hints.append(
+            {
+                "type": signal_type,
+                "signal": signal_type,
+                "entity": ref,
+                "score": score,
+            }
+        )
+    return hints
+
+
 def build_output_rows(pair_rows: list[dict]) -> list[dict]:
     output_rows: list[dict] = []
+    logger = logging.getLogger(__name__)
     for pair in pair_rows:
         app_a, app_b = resolve_pair_ids(pair)
+
+        # EXEC-DESCRIBE-PAIR-EVIDENCE-CONTRACT-ALIGN: evidence — единый источник
+        # правды для explanation_hints. Если пара уже имеет непустой evidence
+        # (положен writer'ом pairwise_runner через collect_evidence_from_pairwise),
+        # hints строятся из него. Это устраняет расхождение между двумя
+        # источниками signal/entity (evidence vs legacy-логика по полям pair).
+        # Fallback на legacy build_explanation_hints сохраняется ради обратной
+        # совместимости со старыми pair_row без evidence (например, из прежних
+        # прогонов screening/deepening до EXEC-088-WRITERS).
+        raw_evidence = pair.get("evidence")
+        filtered_evidence: list[dict] = []
+        if isinstance(raw_evidence, list):
+            filtered_evidence = [item for item in raw_evidence if isinstance(item, dict)]
+
+        if filtered_evidence:
+            explanation_hints = _hints_from_evidence(filtered_evidence)
+        else:
+            pair_id = clean_string(pair.get("pair_id")) or f"{app_a}__{app_b}"
+            logger.warning(
+                "evidence empty, falling back to legacy hint construction for pair %s",
+                pair_id,
+            )
+            explanation_hints = build_explanation_hints(pair)
+
         row: dict[str, Any] = {
             "app_a": app_a,
             "app_b": app_b,
             "similarity_score": resolve_similarity_score(pair),
-            "explanation_hints": build_explanation_hints(pair),
+            "explanation_hints": explanation_hints,
         }
         # EXEC-088-WRITERS: прокинуть единый формат Evidence, если писатель
         # pairwise_runner уже записал его на pair_row. Добавляется только
         # при наличии непустого списка dict-записей.
-        raw_evidence = pair.get("evidence")
-        if isinstance(raw_evidence, list):
-            filtered_evidence = [item for item in raw_evidence if isinstance(item, dict)]
-            if filtered_evidence:
-                row["evidence"] = filtered_evidence
+        if filtered_evidence:
+            row["evidence"] = filtered_evidence
         output_rows.append(row)
     return output_rows
 
