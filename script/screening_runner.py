@@ -1648,6 +1648,13 @@ def run_screening(
 
 
 def main() -> None:
+    # SYS-INT-16-VERIFY-DEPS-WIRE: fail-fast при отсутствии обязательных
+    # зависимостей similarity-системы. Дублирует проверку внутри run_screening
+    # намеренно — явный вызов в main() документирует контракт точки входа
+    # и ловит ошибку до парсинга CLI-аргументов.
+    if os.environ.get("SIMILARITY_SKIP_REQ_CHECK") != "1":
+        verify_required_dependencies()
+
     args = parse_args()
     candidate_list = run_screening(
         cascade_config_path=args.cascade_config_path,
