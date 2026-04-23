@@ -14,6 +14,6 @@ stages:
   screening:
     features: [code, metadata]
     metric: jaccard
-    threshold: 0.28  # E-THRESH-003: optimal t=0.28, F1=0.969, CI 95%=[0.951, 0.986]
+    threshold: 0.28  # preliminary t=0.28, калибровка отложена до EXEC-080 (train/test split)
   pairwise:
     features: [code, component, resource, library, metadata]
