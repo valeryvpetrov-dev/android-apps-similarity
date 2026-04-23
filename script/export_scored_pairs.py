@@ -2,7 +2,7 @@
 """Export scored pairs from screening JSON results to CSV.
 
 Output CSV columns:
-  pair_id                — "{app_a}__{app_b}"
+  pair_id                — "{query_app_id}__{candidate_app_id}"
   post_api_fix_score     — final_score alias (= retrieval_score from screening)
   label                  — human label if present, otherwise "unknown"
 
@@ -52,12 +52,17 @@ def load_screening_results(results_dir: Path) -> list[dict]:
 
 
 def build_pair_id(entry: dict) -> str:
-    """Build a canonical pair_id from app_a / app_b fields."""
-    app_a = str(entry.get("app_a") or entry.get("query_app_id") or "").strip()
-    app_b = str(entry.get("app_b") or entry.get("candidate_app_id") or "").strip()
+    """Build a canonical pair_id from query_app_id / candidate_app_id fields.
+
+    Per screening-handoff-contract-v2: query_app_id/candidate_app_id are the
+    canonical source of truth. app_a/app_b are deprecated alias (wave 17).
+    Falls back to app_a/app_b for legacy records only (backward compatibility).
+    """
+    app_a = str(entry.get("query_app_id") or entry.get("app_a") or "").strip()
+    app_b = str(entry.get("candidate_app_id") or entry.get("app_b") or "").strip()
     if not app_a or not app_b:
         raise ValueError(
-            "Entry missing app_a/app_b identifiers: {}".format(
+            "Entry missing query_app_id/candidate_app_id identifiers: {}".format(
                 json.dumps(entry, ensure_ascii=False)[:200]
             )
         )
