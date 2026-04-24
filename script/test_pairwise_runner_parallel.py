@@ -82,6 +82,7 @@ def _fake_worker_success(
     ged_timeout_sec: int,
     processes_count: int,
     threads_count: int,
+    feature_cache_path_str: str | None = None,
 ) -> str:
     """Лёгкий worker: моментально возвращает успешный pair_row.
 
@@ -113,6 +114,7 @@ def _fake_worker_sleep_100ms(
     ged_timeout_sec: int,
     processes_count: int,
     threads_count: int,
+    feature_cache_path_str: str | None = None,
 ) -> str:
     """Worker со спящей задержкой 100 мс — для теста реального speedup.
 
@@ -137,6 +139,7 @@ def _fake_worker_sleep_long(
     ged_timeout_sec: int,
     processes_count: int,
     threads_count: int,
+    feature_cache_path_str: str | None = None,
 ) -> str:
     """Worker с долгим сном (>> pair_timeout_sec) — для теста жёсткого таймаута."""
     time.sleep(5.0)
@@ -157,9 +160,42 @@ def _fake_worker_crash(
     ged_timeout_sec: int,
     processes_count: int,
     threads_count: int,
+    feature_cache_path_str: str | None = None,
 ) -> str:
     """Worker, падающий RuntimeError — для проверки worker_crashed ветки."""
     raise RuntimeError("simulated worker failure")
+
+
+def _fake_worker_report_cache_path(
+    candidate_json: str,
+    config_path_str: str,
+    ins_block_sim_threshold: float,
+    ged_timeout_sec: int,
+    processes_count: int,
+    threads_count: int,
+    feature_cache_path_str: str | None = None,
+) -> str:
+    """Worker, возвращающий путь к feature cache, который он реально увидел."""
+    try:
+        from script.pairwise_runner import _resolve_feature_cache_path as _resolve
+    except Exception:
+        from pairwise_runner import _resolve_feature_cache_path as _resolve  # type: ignore[no-redef]
+
+    candidate = json.loads(candidate_json)
+    app_a = candidate.get("app_a", {}).get("app_id", "A")
+    app_b = candidate.get("app_b", {}).get("app_id", "B")
+    pair_row = {
+        "app_a": app_a,
+        "app_b": app_b,
+        "full_similarity_score": 0.5,
+        "library_reduced_score": 0.4,
+        "status": "success",
+        "views_used": ["component"],
+        "signature_match": {"score": 0.0, "status": "missing"},
+        "evidence": [],
+        "observed_feature_cache_path": str(_resolve(feature_cache_path_str)),
+    }
+    return json.dumps(pair_row)
 
 
 # ---------------------------------------------------------------------------
@@ -496,6 +532,100 @@ class TestWorkersTwoAllShortcutRegression(unittest.TestCase):
             all(row["status"] == "success_shortcut" for row in results)
         )
         self.assertTrue(all(row["shortcut_applied"] is True for row in results))
+
+
+class TestWorkersFeatureCachePathResolution(unittest.TestCase):
+    """Параллельный путь должен резолвить cache path предсказуемо."""
+
+    def test_explicit_feature_cache_path_reaches_parallel_workers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            config_path, enriched_path = _build_enriched_with_n_pairs(root, n_pairs=2)
+            custom_path = root / "custom-feature-cache.sqlite"
+
+            with mock.patch.dict(
+                os.environ,
+                {"FEATURE_CACHE_PATH": "", "SIMILARITY_SKIP_REQ_CHECK": "1"},
+                clear=False,
+            ), mock.patch.object(
+                pairwise_runner, "ProcessPoolExecutor", pairwise_runner.ThreadPoolExecutor
+            ), mock.patch.object(
+                pairwise_runner, "_pair_worker_isolated", _fake_worker_report_cache_path
+            ):
+                results = pairwise_runner.run_pairwise(
+                    config_path=config_path,
+                    enriched_path=enriched_path,
+                    workers=2,
+                    feature_cache_path=custom_path,
+                )
+
+        expected_path = str(pairwise_runner._resolve_feature_cache_path(custom_path))
+        self.assertEqual(
+            [row["observed_feature_cache_path"] for row in results],
+            [expected_path, expected_path],
+        )
+
+    def test_env_feature_cache_path_used_when_explicit_param_is_none(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            config_path, enriched_path = _build_enriched_with_n_pairs(root, n_pairs=2)
+            env_path = root / "env-feature-cache.sqlite"
+
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "FEATURE_CACHE_PATH": str(env_path),
+                    "SIMILARITY_SKIP_REQ_CHECK": "1",
+                },
+                clear=False,
+            ), mock.patch.object(
+                pairwise_runner, "ProcessPoolExecutor", pairwise_runner.ThreadPoolExecutor
+            ), mock.patch.object(
+                pairwise_runner, "_pair_worker_isolated", _fake_worker_report_cache_path
+            ):
+                results = pairwise_runner.run_pairwise(
+                    config_path=config_path,
+                    enriched_path=enriched_path,
+                    workers=2,
+                    feature_cache_path=None,
+                )
+
+        expected_path = str(pairwise_runner._resolve_feature_cache_path(env_path))
+        self.assertEqual(
+            [row["observed_feature_cache_path"] for row in results],
+            [expected_path, expected_path],
+        )
+
+    def test_default_feature_cache_path_used_when_param_and_env_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            config_path, enriched_path = _build_enriched_with_n_pairs(root, n_pairs=2)
+
+            with mock.patch.dict(
+                os.environ,
+                {"FEATURE_CACHE_PATH": "", "SIMILARITY_SKIP_REQ_CHECK": "1"},
+                clear=False,
+            ), mock.patch.object(
+                pairwise_runner, "ProcessPoolExecutor", pairwise_runner.ThreadPoolExecutor
+            ), mock.patch.object(
+                pairwise_runner, "_pair_worker_isolated", _fake_worker_report_cache_path
+            ):
+                results = pairwise_runner.run_pairwise(
+                    config_path=config_path,
+                    enriched_path=enriched_path,
+                    workers=2,
+                    feature_cache_path=None,
+                )
+
+        expected_path = str(
+            pairwise_runner._resolve_feature_cache_path(
+                pairwise_runner.DEFAULT_FEATURE_CACHE_PATH
+            )
+        )
+        self.assertEqual(
+            [row["observed_feature_cache_path"] for row in results],
+            [expected_path, expected_path],
+        )
 
 
 class TestWorkersFourSpeedupOverWorkersOne(unittest.TestCase):
