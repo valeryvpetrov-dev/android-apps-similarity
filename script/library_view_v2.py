@@ -20,6 +20,8 @@ import os
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from tversky_overlap import szymkiewicz_simpson_overlap, tversky_index
+
 # Re-use CATEGORY_LIBRARY and extract_package_path from noise_normalizer.
 # Avoid circular imports by importing lazily inside functions where needed;
 # at module level these are safe as noise_normalizer has no import of v2.
@@ -820,8 +822,15 @@ def compare_libraries_v2(features_a: Dict, features_b: Dict) -> Dict:
     shared = libs_a & libs_b
     union = libs_a | libs_b
     jaccard = len(shared) / len(union) if union else 0.0
+    score_tversky_asym_ab = tversky_index(libs_a, libs_b, alpha=0.9, beta=0.1)
+    score_tversky_asym_ba = tversky_index(libs_a, libs_b, alpha=0.1, beta=0.9)
+    score_overlap = szymkiewicz_simpson_overlap(libs_a, libs_b)
     return {
         "jaccard": jaccard,
+        "score_jaccard": jaccard,
+        "score_tversky_asym_ab": score_tversky_asym_ab,
+        "score_tversky_asym_ba": score_tversky_asym_ba,
+        "score_overlap": score_overlap,
         "shared_libraries": sorted(shared),
         "only_in_a": sorted(libs_a - libs_b),
         "only_in_b": sorted(libs_b - libs_a),
