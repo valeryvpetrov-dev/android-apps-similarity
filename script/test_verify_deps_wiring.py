@@ -37,10 +37,32 @@ from script import system_requirements
 
 # Путь к experiments/scripts/run_e2e_smoke.py в phd superproject.
 _SUBMODULE_ROOT = Path(__file__).resolve().parents[1]
-_PHD_ROOT = _SUBMODULE_ROOT.parent.parent.parent
+_PHD_ROOT_CANDIDATES = [
+    _SUBMODULE_ROOT.parent / "wave17-B-phd",
+    _SUBMODULE_ROOT.parent / "phd",
+    _SUBMODULE_ROOT.parent.parent.parent,
+]
+_PHD_ROOT = next(
+    (
+        candidate
+        for candidate in _PHD_ROOT_CANDIDATES
+        if (candidate / "experiments" / "scripts" / "run_e2e_smoke.py").is_file()
+    ),
+    _PHD_ROOT_CANDIDATES[-1],
+)
 _SMOKE_DIR = _PHD_ROOT / "experiments" / "scripts"
 if str(_SMOKE_DIR) not in sys.path:
     sys.path.insert(0, str(_SMOKE_DIR))
+
+
+def _prepare_libloom_home(monkeypatch, tmp_path: Path) -> Path:
+    libloom_home = tmp_path / "libloom-home"
+    profiles_dir = libloom_home / "libs_profile"
+    profiles_dir.mkdir(parents=True)
+    (libloom_home / "LIBLOOM.jar").write_bytes(b"fake jar")
+    (profiles_dir / "okhttp.txt").write_text("profile", encoding="utf-8")
+    monkeypatch.setenv("LIBLOOM_HOME", str(libloom_home))
+    return libloom_home
 
 
 def _import_success_except(missing_name: str | None = None):
@@ -78,7 +100,7 @@ def _find_spec_success_except(missing_name: str | None = None):
     return find_spec
 
 
-def test_screening_fails_fast_without_androguard(monkeypatch):
+def test_screening_fails_fast_without_androguard(monkeypatch, tmp_path):
     """Отсутствие `androguard` блокирует entry-point screening.
 
     Моделируем отсутствие через монкипатч `importlib.util.find_spec` —
@@ -88,6 +110,7 @@ def test_screening_fails_fast_without_androguard(monkeypatch):
     так, чтобы он поднимал ImportError именно для `androguard`.
     """
     monkeypatch.delenv("SIMILARITY_SKIP_REQ_CHECK", raising=False)
+    _prepare_libloom_home(monkeypatch, tmp_path)
     # Дополнительно патчим find_spec: критерий требует mention find_spec в
     # тестах (устойчивый к реализации check_*).
     monkeypatch.setattr(
@@ -115,9 +138,10 @@ def test_screening_fails_fast_without_androguard(monkeypatch):
     assert "androguard" in str(excinfo.value)
 
 
-def test_deepening_fails_fast_without_apktool(monkeypatch):
+def test_deepening_fails_fast_without_apktool(monkeypatch, tmp_path):
     """Отсутствие CLI `apktool` блокирует entry-point deepening."""
     monkeypatch.delenv("SIMILARITY_SKIP_REQ_CHECK", raising=False)
+    _prepare_libloom_home(monkeypatch, tmp_path)
 
     with mock.patch.object(
         system_requirements.shutil,
@@ -140,9 +164,10 @@ def test_deepening_fails_fast_without_apktool(monkeypatch):
     assert "apktool" in str(excinfo.value)
 
 
-def test_pairwise_fails_fast_without_apkid(monkeypatch):
+def test_pairwise_fails_fast_without_apkid(monkeypatch, tmp_path):
     """Отсутствие CLI `apkid` блокирует entry-point pairwise."""
     monkeypatch.delenv("SIMILARITY_SKIP_REQ_CHECK", raising=False)
+    _prepare_libloom_home(monkeypatch, tmp_path)
 
     with mock.patch.object(
         system_requirements.shutil,
@@ -165,7 +190,7 @@ def test_pairwise_fails_fast_without_apkid(monkeypatch):
     assert "apkid" in str(excinfo.value)
 
 
-def test_e2e_smoke_fails_fast_without_required_dep(monkeypatch):
+def test_e2e_smoke_fails_fast_without_required_dep(monkeypatch, tmp_path):
     """main() в run_e2e_smoke.py падает fail-fast при отсутствии обязательной
     зависимости (androguard).
 
@@ -174,6 +199,7 @@ def test_e2e_smoke_fails_fast_without_required_dep(monkeypatch):
     функцию run_e2e_smoke(). Падение ожидается ДО любой работы с APK.
     """
     monkeypatch.delenv("SIMILARITY_SKIP_REQ_CHECK", raising=False)
+    _prepare_libloom_home(monkeypatch, tmp_path)
 
     # Импорт лениво — модуль уже мог быть импортирован test_e2e_pipeline.
     import run_e2e_smoke

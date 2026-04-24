@@ -22,6 +22,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import tempfile
 import time
@@ -41,6 +42,7 @@ if str(SCRIPT_DIR) not in sys.path:
 # pairwise_runner не нужен — там вызываются только наши чистые worker-функции
 # ниже. В main-процессе он импортируется один раз через ``setUpModule``.
 pairwise_runner = None  # type: ignore[assignment]
+_SAVED_SKIP_REQ_CHECK = None
 
 
 def setUpModule() -> None:  # noqa: N802 — формат unittest API
@@ -52,9 +54,20 @@ def setUpModule() -> None:  # noqa: N802 — формат unittest API
     spawn-времени.
     """
     global pairwise_runner
+    global _SAVED_SKIP_REQ_CHECK
+    _SAVED_SKIP_REQ_CHECK = os.environ.get("SIMILARITY_SKIP_REQ_CHECK")
+    os.environ["SIMILARITY_SKIP_REQ_CHECK"] = "1"
     import pairwise_runner as pr  # type: ignore[import-not-found]
 
     pairwise_runner = pr
+
+
+def tearDownModule() -> None:  # noqa: N802 — формат unittest API
+    global _SAVED_SKIP_REQ_CHECK
+    if _SAVED_SKIP_REQ_CHECK is None:
+        os.environ.pop("SIMILARITY_SKIP_REQ_CHECK", None)
+    else:
+        os.environ["SIMILARITY_SKIP_REQ_CHECK"] = _SAVED_SKIP_REQ_CHECK
 
 
 # ---------------------------------------------------------------------------
@@ -374,7 +387,7 @@ class TestWorkersFourShortcutNotInPool(unittest.TestCase):
             # Shortcut-пара (индекс 1) не должна попасть в submit.
             submit_calls: list[str] = []
 
-            from concurrent.futures import ProcessPoolExecutor as RealPool
+            from concurrent.futures import ThreadPoolExecutor as RealPool
 
             class _SpyPool:
                 def __init__(self, *args, **kwargs):

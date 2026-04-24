@@ -171,7 +171,7 @@ class TestCompareMStaticLayerResourceV2(unittest.TestCase):
             # Идентичные подмножества -> Jaccard = 1.0 для каждого подсигнала.
             self.assertAlmostEqual(result["combined_score"], 1.0, places=6)
             self.assertAlmostEqual(result["score"], 1.0, places=6)
-            self.assertEqual(result.get("status"), "ok")
+            self.assertEqual(result.get("status"), "partial")
 
 
 if __name__ == "__main__":

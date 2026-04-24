@@ -114,41 +114,81 @@ def test_check_apkid_respects_which():
         assert sr.check_apkid() is False
 
 
-def test_check_libloom_false_when_jar_path_is_none():
-    """Без пути к jar libloom считается недоступным."""
+def test_check_libloom_false_when_libloom_home_missing(monkeypatch):
+    """Без `LIBLOOM_HOME` обязательный внешний датасет считается недоступным."""
 
-    assert sr.check_libloom(None) is False
-
-
-def test_check_libloom_false_when_jar_missing(tmp_path):
-    """Если путь задан, но файла нет, libloom недоступен."""
-
-    missing = tmp_path / "libloom-missing.jar"
-    assert sr.check_libloom(str(missing)) is False
+    monkeypatch.delenv("LIBLOOM_HOME", raising=False)
+    assert sr.check_libloom() is False
 
 
-def test_check_libloom_false_when_java_missing(tmp_path):
-    """Даже при наличии jar отсутствие команды java делает libloom недоступным."""
+def test_check_libloom_false_when_jar_missing(tmp_path, monkeypatch):
+    """Если `$LIBLOOM_HOME/LIBLOOM.jar` отсутствует, проверка возвращает False."""
 
-    jar = tmp_path / "libloom.jar"
+    monkeypatch.setenv("LIBLOOM_HOME", str(tmp_path))
+    assert sr.check_libloom() is False
+
+
+def test_check_libloom_false_when_profiles_dir_missing(tmp_path, monkeypatch):
+    """Нужен не только jar, но и каталог профилей."""
+
+    jar = tmp_path / "LIBLOOM.jar"
     jar.write_bytes(b"fake jar content")
+    monkeypatch.setenv("LIBLOOM_HOME", str(tmp_path))
+
+    with mock.patch(
+        "script.system_requirements.shutil.which",
+        return_value="/usr/bin/java",
+    ):
+        assert sr.check_libloom() is False
+
+
+def test_check_libloom_false_when_profiles_dir_empty(tmp_path, monkeypatch):
+    """Пустой `libs_profile/` не считается корректной установкой."""
+
+    jar = tmp_path / "LIBLOOM.jar"
+    jar.write_bytes(b"fake jar content")
+    (tmp_path / "libs_profile").mkdir()
+    monkeypatch.setenv("LIBLOOM_HOME", str(tmp_path))
+
+    with mock.patch(
+        "script.system_requirements.shutil.which",
+        return_value="/usr/bin/java",
+    ):
+        assert sr.check_libloom() is False
+
+
+def test_check_libloom_false_when_java_missing(tmp_path, monkeypatch):
+    """Даже при наличии jar и каталога отсутствие `java` делает libloom недоступным."""
+
+    jar = tmp_path / "LIBLOOM.jar"
+    jar.write_bytes(b"fake jar content")
+    profiles_dir = tmp_path / "libs_profile"
+    profiles_dir.mkdir()
+    (profiles_dir / "okhttp.txt").write_text("profile", encoding="utf-8")
+    monkeypatch.setenv("LIBLOOM_HOME", str(tmp_path))
+
     with mock.patch(
         "script.system_requirements.shutil.which",
         return_value=None,
     ):
-        assert sr.check_libloom(str(jar)) is False
+        assert sr.check_libloom() is False
 
 
-def test_check_libloom_true_when_jar_exists_and_java_available(tmp_path):
-    """Если jar существует и java в PATH — libloom доступен."""
+def test_check_libloom_true_when_home_has_jar_profiles_and_java(tmp_path, monkeypatch):
+    """Корректная внешняя установка в `LIBLOOM_HOME` считается доступной."""
 
-    jar = tmp_path / "libloom.jar"
+    jar = tmp_path / "LIBLOOM.jar"
     jar.write_bytes(b"fake jar content")
+    profiles_dir = tmp_path / "libs_profile"
+    profiles_dir.mkdir()
+    (profiles_dir / "okhttp.txt").write_text("profile", encoding="utf-8")
+    monkeypatch.setenv("LIBLOOM_HOME", str(tmp_path))
+
     with mock.patch(
         "script.system_requirements.shutil.which",
         return_value="/usr/bin/java",
     ) as patched:
-        assert sr.check_libloom(str(jar)) is True
+        assert sr.check_libloom() is True
         patched.assert_called_once_with("java")
 
 
@@ -170,7 +210,7 @@ def test_audit_requirements_returns_status_per_dependency():
         check_pillow=mock.Mock(return_value=False),
         check_tlsh=mock.Mock(return_value=False),
     ):
-        statuses = sr.audit_requirements(libloom_jar="/tmp/libloom.jar")
+        statuses = sr.audit_requirements()
 
     names = [s.name for s in statuses]
     assert names == [
@@ -185,14 +225,14 @@ def test_audit_requirements_returns_status_per_dependency():
 
     by_name = {s.name: s for s in statuses}
     assert by_name["androguard"].required is True
-    assert by_name["libloom"].required is True  # jar задан — становится обязательным
+    assert by_name["libloom"].required is True
     assert by_name["Pillow"].required is False
     assert by_name["tlsh"].required is False
     assert by_name["Pillow"].available is False
 
 
-def test_audit_requirements_libloom_not_required_without_jar():
-    """Если jar не указан, libloom не считается обязательным."""
+def test_audit_requirements_marks_libloom_as_required_even_when_missing():
+    """LIBLOOM остаётся обязательным, даже если внешний датасет не настроен."""
 
     with mock.patch.multiple(
         "script.system_requirements",
@@ -200,13 +240,14 @@ def test_audit_requirements_libloom_not_required_without_jar():
         check_cryptography=mock.Mock(return_value=True),
         check_apktool=mock.Mock(return_value=True),
         check_apkid=mock.Mock(return_value=True),
+        check_libloom=mock.Mock(return_value=False),
         check_pillow=mock.Mock(return_value=True),
         check_tlsh=mock.Mock(return_value=True),
     ):
-        statuses = sr.audit_requirements(libloom_jar=None)
+        statuses = sr.audit_requirements()
 
     libloom = next(s for s in statuses if s.name == "libloom")
-    assert libloom.required is False
+    assert libloom.required is True
     assert libloom.available is False
 
 
@@ -224,7 +265,7 @@ def test_verify_does_not_raise_when_all_mandatory_available():
         check_tlsh=mock.Mock(return_value=False),
     ):
         # Даже если обе опциональные отсутствуют, исключения быть не должно.
-        sr.verify_required_dependencies(libloom_jar="/tmp/libloom.jar")
+        sr.verify_required_dependencies()
 
 
 def test_verify_raises_with_names_of_missing_mandatory():
@@ -241,7 +282,7 @@ def test_verify_raises_with_names_of_missing_mandatory():
         check_tlsh=mock.Mock(return_value=True),
     ):
         with pytest.raises(RuntimeError) as excinfo:
-            sr.verify_required_dependencies(libloom_jar=None)
+            sr.verify_required_dependencies()
 
     message = str(excinfo.value)
     assert "cryptography" in message
@@ -265,11 +306,11 @@ def test_verify_does_not_raise_on_missing_optional_only():
         check_tlsh=mock.Mock(return_value=False),
     ):
         # Pillow и tlsh отсутствуют — это разрешено политикой.
-        sr.verify_required_dependencies(libloom_jar="/tmp/libloom.jar")
+        sr.verify_required_dependencies()
 
 
-def test_verify_ignores_missing_libloom_when_jar_not_configured():
-    """Без настроенного jar libloom не попадает в список обязательных."""
+def test_verify_raises_when_libloom_missing_from_env():
+    """Если внешний датасет LIBLOOM не настроен, fail-fast обязан сработать."""
 
     with mock.patch.multiple(
         "script.system_requirements",
@@ -281,5 +322,7 @@ def test_verify_ignores_missing_libloom_when_jar_not_configured():
         check_pillow=mock.Mock(return_value=True),
         check_tlsh=mock.Mock(return_value=True),
     ):
-        # libloom_jar=None — libloom не обязателен, ошибка не поднимается.
-        sr.verify_required_dependencies(libloom_jar=None)
+        with pytest.raises(RuntimeError) as excinfo:
+            sr.verify_required_dependencies()
+
+    assert "libloom" in str(excinfo.value)

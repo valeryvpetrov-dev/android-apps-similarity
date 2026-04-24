@@ -12,6 +12,16 @@ import screening_runner
 from script import system_requirements
 
 
+def _prepare_libloom_home(monkeypatch, tmp_path: Path) -> Path:
+    libloom_home = tmp_path / "libloom-home"
+    profiles_dir = libloom_home / "libs_profile"
+    profiles_dir.mkdir(parents=True)
+    (libloom_home / "LIBLOOM.jar").write_bytes(b"fake jar")
+    (profiles_dir / "okhttp.txt").write_text("profile", encoding="utf-8")
+    monkeypatch.setenv("LIBLOOM_HOME", str(libloom_home))
+    return libloom_home
+
+
 def _import_success_except(missing_name: str | None = None):
     def import_module(name: str):
         if name == missing_name:
@@ -76,8 +86,9 @@ def _patch_deepening_empty():
 # не разрешается повторно — мы передаём уже загруженный модуль напрямую.
 
 
-def test_run_pairwise_fails_fast_when_androguard_missing(monkeypatch):
+def test_run_pairwise_fails_fast_when_androguard_missing(monkeypatch, tmp_path):
     monkeypatch.delenv("SIMILARITY_SKIP_REQ_CHECK", raising=False)
+    _prepare_libloom_home(monkeypatch, tmp_path)
 
     with mock.patch.object(
         system_requirements.shutil,
@@ -98,8 +109,9 @@ def test_run_pairwise_fails_fast_when_androguard_missing(monkeypatch):
     assert "androguard" in str(excinfo.value)
 
 
-def test_run_screening_fails_fast_when_apktool_missing(monkeypatch):
+def test_run_screening_fails_fast_when_apktool_missing(monkeypatch, tmp_path):
     monkeypatch.delenv("SIMILARITY_SKIP_REQ_CHECK", raising=False)
+    _prepare_libloom_home(monkeypatch, tmp_path)
 
     with mock.patch.object(
         system_requirements.shutil,
@@ -120,8 +132,9 @@ def test_run_screening_fails_fast_when_apktool_missing(monkeypatch):
     assert "apktool" in str(excinfo.value)
 
 
-def test_all_entry_points_continue_when_required_dependencies_exist(monkeypatch):
+def test_all_entry_points_continue_when_required_dependencies_exist(monkeypatch, tmp_path):
     monkeypatch.delenv("SIMILARITY_SKIP_REQ_CHECK", raising=False)
+    _prepare_libloom_home(monkeypatch, tmp_path)
 
     with mock.patch.object(
         system_requirements.shutil,

@@ -37,6 +37,36 @@ def _make_completed_process(
 class LibloomAvailableTests(unittest.TestCase):
     """Контракт `libloom_available`."""
 
+    def test_raises_when_libloom_home_missing_and_no_explicit_path(self) -> None:
+        """Без jar_path функция требует LIBLOOM_HOME и поднимает RuntimeError."""
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("LIBLOOM_HOME", None)
+            with self.assertRaises(RuntimeError) as excinfo:
+                libloom_adapter.libloom_available()
+
+        self.assertIn("LIBLOOM_HOME", str(excinfo.exception))
+
+    def test_raises_when_libloom_home_jar_missing_and_no_explicit_path(self) -> None:
+        """LIBLOOM_HOME задан, но jar отсутствует -> RuntimeError без fallback."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with mock.patch.dict(os.environ, {"LIBLOOM_HOME": tmp_dir}, clear=False):
+                with self.assertRaises(RuntimeError) as excinfo:
+                    libloom_adapter.libloom_available()
+
+        self.assertIn("LIBLOOM.jar", str(excinfo.exception))
+
+    def test_reads_jar_from_libloom_home_when_no_explicit_path(self) -> None:
+        """Без jar_path адаптер читает `$LIBLOOM_HOME/LIBLOOM.jar`."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            jar_path = Path(tmp_dir) / "LIBLOOM.jar"
+            jar_path.write_bytes(b"fake jar")
+
+            with mock.patch.dict(os.environ, {"LIBLOOM_HOME": tmp_dir}, clear=False):
+                with mock.patch.object(
+                    libloom_adapter.shutil, "which", return_value="/usr/bin/java"
+                ):
+                    self.assertTrue(libloom_adapter.libloom_available())
+
     def test_returns_false_on_missing_jar(self) -> None:
         """Jar-файла нет → False (java не проверяется)."""
         self.assertFalse(
