@@ -113,19 +113,21 @@ class TestBuildCandidateListBatchBasics(unittest.TestCase):
         # Поля контракта присутствуют в любой строке результата.
         sample_row = batch[0][0]
         for required in (
-            "app_a",
-            "app_b",
             "query_app_id",
             "candidate_app_id",
+            "screening_status",
             "app_a_apk_path",
             "app_b_apk_path",
             "retrieval_score",
+            "screening_cost_ms",
             "retrieval_rank",
             "per_view_scores",
             "signature_match",
             "shortcut_applied",
         ):
             self.assertIn(required, sample_row, msg=required)
+        self.assertNotIn("app_a", sample_row)
+        self.assertNotIn("app_b", sample_row)
 
     def test_empty_query_returns_empty_list(self) -> None:
         corpus = [

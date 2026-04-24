@@ -18,6 +18,7 @@ from screening_reader import (
     read_candidate_list,
     read_candidate_row,
 )
+from screening_writer import write_candidate_row
 
 
 class TestReadCandidateRowNewFormat(unittest.TestCase):
@@ -28,6 +29,7 @@ class TestReadCandidateRowNewFormat(unittest.TestCase):
         row = {
             "query_app_id": "APP-A",
             "candidate_app_id": "APP-B",
+            "screening_status": "preliminary_positive",
             "retrieval_score": 0.7,
         }
         with warnings.catch_warnings(record=True) as caught:
@@ -42,34 +44,50 @@ class TestReadCandidateRowNewFormat(unittest.TestCase):
         self.assertEqual(result["query_app_id"], "APP-A")
         self.assertEqual(result["candidate_app_id"], "APP-B")
 
-    def test_new_format_with_alias_no_warning(self) -> None:
-        """Запись со всеми четырьмя полями — тоже без предупреждения."""
+    def test_new_format_with_mismatched_alias_raises(self) -> None:
+        """Смешанная запись с рассинхроном полей должна падать явно."""
         row = {
             "query_app_id": "APP-A",
             "candidate_app_id": "APP-B",
-            "app_a": "APP-A",
+            "screening_status": "preliminary_positive",
+            "app_a": "WRONG",
             "app_b": "APP-B",
             "retrieval_score": 0.7,
         }
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            result = read_candidate_row(row)
-
-        deprecation_warnings = [w for w in caught if issubclass(w.category, DeprecationWarning)]
-        self.assertEqual(
-            len(deprecation_warnings), 0,
-            "Не ожидался DeprecationWarning для записи со всеми четырьмя полями",
-        )
-        self.assertEqual(result["query_app_id"], "APP-A")
-        self.assertEqual(result["candidate_app_id"], "APP-B")
+        with self.assertRaises(ValueError) as ctx:
+            read_candidate_row(row)
+        self.assertIn("screening-contract-v1", str(ctx.exception))
 
     def test_new_format_returns_same_row(self) -> None:
         """Запись с canonical-полями возвращается без изменений."""
-        row = {"query_app_id": "APP-A", "candidate_app_id": "APP-B", "retrieval_score": 0.5}
+        row = {
+            "query_app_id": "APP-A",
+            "candidate_app_id": "APP-B",
+            "screening_status": "preliminary_positive",
+            "retrieval_score": 0.5,
+        }
         with warnings.catch_warnings(record=True):
             warnings.simplefilter("always")
             result = read_candidate_row(row)
         self.assertIs(result, row)
+
+    def test_writer_reader_roundtrip_preserves_canonical_contract(self) -> None:
+        """writer -> reader roundtrip остаётся canonical-only."""
+        row = write_candidate_row(
+            "APP-A",
+            "APP-B",
+            {"retrieval_score": 0.8, "retrieval_rank": 1},
+        )
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = read_candidate_row(row)
+
+        self.assertFalse(caught)
+        self.assertEqual(result["query_app_id"], "APP-A")
+        self.assertEqual(result["candidate_app_id"], "APP-B")
+        self.assertEqual(result["screening_status"], "preliminary_positive")
+        self.assertNotIn("app_a", result)
+        self.assertNotIn("app_b", result)
 
 
 class TestReadCandidateRowLegacyFormat(unittest.TestCase):
@@ -93,7 +111,7 @@ class TestReadCandidateRowLegacyFormat(unittest.TestCase):
         )
 
     def test_legacy_format_normalized(self) -> None:
-        """Legacy-запись нормализуется — canonical-поля добавляются из alias."""
+        """Legacy-запись нормализуется в canonical-only формат."""
         row = {"app_a": "APP-A", "app_b": "APP-B", "retrieval_score": 0.6}
         with warnings.catch_warnings(record=True):
             warnings.simplefilter("always")
@@ -101,9 +119,9 @@ class TestReadCandidateRowLegacyFormat(unittest.TestCase):
 
         self.assertEqual(result["query_app_id"], "APP-A")
         self.assertEqual(result["candidate_app_id"], "APP-B")
-        # Оригинальные legacy-поля сохраняются.
-        self.assertEqual(result["app_a"], "APP-A")
-        self.assertEqual(result["app_b"], "APP-B")
+        self.assertEqual(result["screening_status"], "preliminary_positive")
+        self.assertNotIn("app_a", result)
+        self.assertNotIn("app_b", result)
 
     def test_legacy_format_preserves_extra_fields(self) -> None:
         """Дополнительные поля legacy-записи сохраняются."""
@@ -134,7 +152,12 @@ class TestReadCandidateList(unittest.TestCase):
         """Список с legacy и новыми записями нормализуется корректно."""
         records = [
             # Новый формат — без warning.
-            {"query_app_id": "APP-A", "candidate_app_id": "APP-B", "retrieval_score": 0.9},
+            {
+                "query_app_id": "APP-A",
+                "candidate_app_id": "APP-B",
+                "screening_status": "preliminary_positive",
+                "retrieval_score": 0.9,
+            },
             # Legacy формат — с warning.
             {"app_a": "APP-C", "app_b": "APP-D", "retrieval_score": 0.6},
         ]
@@ -147,6 +170,8 @@ class TestReadCandidateList(unittest.TestCase):
         self.assertEqual(result[0]["candidate_app_id"], "APP-B")
         self.assertEqual(result[1]["query_app_id"], "APP-C")
         self.assertEqual(result[1]["candidate_app_id"], "APP-D")
+        self.assertNotIn("app_a", result[1])
+        self.assertNotIn("app_b", result[1])
 
         # Только одна legacy-запись — ровно одно DeprecationWarning.
         deprecation_warnings = [w for w in caught if issubclass(w.category, DeprecationWarning)]
@@ -159,7 +184,12 @@ class TestLoadCandidateListJson(unittest.TestCase):
     def test_load_new_format_no_warning(self) -> None:
         """JSON с canonical-полями загружается без DeprecationWarning."""
         data = [
-            {"query_app_id": "APP-A", "candidate_app_id": "APP-B", "retrieval_score": 0.8},
+            {
+                "query_app_id": "APP-A",
+                "candidate_app_id": "APP-B",
+                "screening_status": "preliminary_positive",
+                "retrieval_score": 0.8,
+            },
         ]
         with tempfile.NamedTemporaryFile(
             suffix=".json", mode="w", encoding="utf-8", delete=False
@@ -200,6 +230,9 @@ class TestLoadCandidateListJson(unittest.TestCase):
         self.assertGreater(len(deprecation_warnings), 0)
         self.assertEqual(result[0]["query_app_id"], "APP-A")
         self.assertEqual(result[0]["candidate_app_id"], "APP-B")
+        self.assertEqual(result[0]["screening_status"], "preliminary_positive")
+        self.assertNotIn("app_a", result[0])
+        self.assertNotIn("app_b", result[0])
 
 
 if __name__ == "__main__":

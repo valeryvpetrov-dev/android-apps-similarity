@@ -6,6 +6,11 @@ import json
 from pathlib import Path
 from typing import Any
 
+try:
+    from script.screening_reader import read_candidate_list
+except Exception:
+    from screening_reader import read_candidate_list  # type: ignore[no-redef]
+
 
 FORMAT_VERSION = "screening-explanation-v1"
 MAX_DOMINANT_SIGNALS = 3
@@ -195,37 +200,42 @@ def canonical_noise_class(raw_value: Any) -> str:
 
 
 def normalize_candidate_rows(payload: Any) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]]
     if isinstance(payload, list):
-        return [item for item in payload if isinstance(item, dict)]
-    if not isinstance(payload, dict):
+        rows = [item for item in payload if isinstance(item, dict)]
+    elif not isinstance(payload, dict):
         raise ValueError("candidate_list JSON must be a list or an object wrapper.")
+    else:
+        rows = []
+        for key in ("candidate_list", "candidates", "rows", "results", "items", "data"):
+            value = payload.get(key)
+            if isinstance(value, list):
+                rows = [item for item in value if isinstance(item, dict)]
+                break
+            if isinstance(value, dict):
+                extracted = []
+                for nested_key, nested_value in value.items():
+                    if isinstance(nested_value, dict):
+                        row = dict(nested_value)
+                        row.setdefault("row_id", nested_key)
+                        extracted.append(row)
+                if extracted:
+                    rows = extracted
+                    break
 
-    for key in ("candidate_list", "candidates", "rows", "results", "items", "data"):
-        value = payload.get(key)
-        if isinstance(value, list):
-            return [item for item in value if isinstance(item, dict)]
-        if isinstance(value, dict):
-            extracted = []
-            for nested_key, nested_value in value.items():
+        if not rows and any(key in payload for key in ("app_a", "app_b", "query_app_id", "candidate_app_id")):
+            rows = [payload]
+
+        if not rows:
+            for nested_key, nested_value in payload.items():
                 if isinstance(nested_value, dict):
                     row = dict(nested_value)
                     row.setdefault("row_id", nested_key)
-                    extracted.append(row)
-            if extracted:
-                return extracted
+                    rows.append(row)
+        if not rows:
+            raise ValueError("Unable to find candidate rows in candidate_list JSON.")
 
-    if any(key in payload for key in ("app_a", "app_b", "query_app_id", "candidate_app_id")):
-        return [payload]
-
-    extracted = []
-    for nested_key, nested_value in payload.items():
-        if isinstance(nested_value, dict):
-            row = dict(nested_value)
-            row.setdefault("row_id", nested_key)
-            extracted.append(row)
-    if extracted:
-        return extracted
-    raise ValueError("Unable to find candidate rows in candidate_list JSON.")
+    return read_candidate_list(rows)
 
 
 def normalize_noise_rows(payload: Any) -> list[dict[str, Any]]:
@@ -283,8 +293,8 @@ def build_noise_index(rows: list[dict[str, Any]]) -> tuple[dict[str, list[dict[s
     app_index: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
         pair_id = get_first(row, ("pair_id", "pair_key"), "")
-        query_app_id = get_first(row, ("query_app_id", "app_a"), "")
-        candidate_app_id = get_first(row, ("candidate_app_id", "app_b"), "")
+        query_app_id = get_first(row, ("query_app_id",), "")
+        candidate_app_id = get_first(row, ("candidate_app_id",), "")
         app_id = get_first(row, ("app_id",), "")
 
         keys = []
@@ -963,8 +973,8 @@ def build_screening_explanation(
     pair_index: dict[str, list[dict[str, Any]]],
     app_index: dict[str, list[dict[str, Any]]],
 ) -> dict[str, Any]:
-    app_a = str(get_first(row, ("app_a", "query_app_id", "first"), "")).strip()
-    app_b = str(get_first(row, ("app_b", "candidate_app_id", "second"), "")).strip()
+    app_a = str(get_first(row, ("query_app_id", "first"), "")).strip()
+    app_b = str(get_first(row, ("candidate_app_id", "second"), "")).strip()
     if not app_a or not app_b:
         raise ValueError(f"Candidate row at index {row_index} does not define app ids.")
 
@@ -1010,8 +1020,8 @@ def build_screening_explanation(
             explanation["evidence"] = filtered_evidence
 
     return {
-        "app_a": app_a,
-        "app_b": app_b,
+        "query_app_id": app_a,
+        "candidate_app_id": app_b,
         "screening_explanation": explanation,
     }
 

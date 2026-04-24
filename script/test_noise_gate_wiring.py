@@ -202,8 +202,8 @@ class TestNoiseGateConfigWiring(unittest.TestCase):
             # Должны построиться пары от всех трёх app (adware/fake не отсечены).
             app_ids_seen = set()
             for row in candidate_list:
-                app_ids_seen.add(row.get("app_a"))
-                app_ids_seen.add(row.get("app_b"))
+                app_ids_seen.add(row.get("query_app_id"))
+                app_ids_seen.add(row.get("candidate_app_id"))
             self.assertIn("APP-1", app_ids_seen)
             self.assertIn("APP-2", app_ids_seen)
             self.assertIn("APP-3", app_ids_seen)
@@ -236,8 +236,8 @@ class TestNoiseGateConfigWiring(unittest.TestCase):
             # Остались только APP-3 и APP-4 (adware/fake отсечены).
             app_ids_seen = set()
             for row in candidate_list:
-                app_ids_seen.add(row.get("app_a"))
-                app_ids_seen.add(row.get("app_b"))
+                app_ids_seen.add(row.get("query_app_id"))
+                app_ids_seen.add(row.get("candidate_app_id"))
             self.assertNotIn("APP-1", app_ids_seen)
             self.assertNotIn("APP-2", app_ids_seen)
             self.assertIn("APP-3", app_ids_seen)

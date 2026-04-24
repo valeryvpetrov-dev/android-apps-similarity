@@ -7,7 +7,7 @@ import logging
 import math
 import os
 import re
-import warnings
+import time
 import zipfile
 from itertools import combinations
 from pathlib import Path
@@ -20,12 +20,20 @@ try:
         collect_noise_gate_triggers,
         should_reject_by_noise_gate,
     )
+    from script.screening_writer import (
+        SCREENING_STATUS_PRELIMINARY_POSITIVE,
+        write_candidate_row,
+    )
 except Exception:
     from system_requirements import verify_required_dependencies  # type: ignore[no-redef]
     from evidence_formatter import collect_evidence_from_screening_layers  # type: ignore[no-redef]
     from noise_integration import (  # type: ignore[no-redef]
         collect_noise_gate_triggers,
         should_reject_by_noise_gate,
+    )
+    from screening_writer import (  # type: ignore[no-redef]
+        SCREENING_STATUS_PRELIMINARY_POSITIVE,
+        write_candidate_row,
     )
 
 
@@ -40,12 +48,6 @@ HIGH_CONFIDENCE_SCORE_THRESHOLD = 0.95  # library_reduced или агрегир�
 SHORTCUT_REQUIRES_SIGNATURE_MATCH = True  # жёсткое требование совпадения подписи
 SHORTCUT_STATUS = "success_shortcut"
 SHORTCUT_REASON_HIGH_CONFIDENCE = "high_confidence_signature_match"
-
-# SCREENING-17-APP-KEYS-DEPRECATION-WARNING: поля app_a/app_b устарели с волны 17.
-_APP_AB_DEPRECATION_MSG = (
-    "Fields app_a/app_b are deprecated since screening-handoff-contract-v2; "
-    "read query_app_id/candidate_app_id instead."
-)
 
 M_STATIC_LAYERS = ("code", "component", "resource", "metadata", "library")
 LAYER_ALIASES = {
@@ -1280,6 +1282,7 @@ def build_candidate_list(
 
     candidate_list = []
     for app_a, app_b in combinations(records, 2):
+        screening_started = time.perf_counter()
         if allowed_pairs is not None:
             if _pair_key(app_a["app_id"], app_b["app_id"]) not in allowed_pairs:
                 continue
@@ -1334,19 +1337,15 @@ def build_candidate_list(
         app_a_apk_path = app_a.get("apk_path")
         app_b_apk_path = app_b.get("apk_path")
 
-        # SCREENING-17-APP-KEYS-DEPRECATION-WARNING: app_a/app_b — deprecated alias
-        # до волны 18. Canonical source of truth: query_app_id/candidate_app_id.
-        warnings.warn(_APP_AB_DEPRECATION_MSG, DeprecationWarning, stacklevel=2)
-        row = {
-            # Канонические поля (source of truth по контракту v2).
-            "query_app_id": app_a["app_id"],
-            "candidate_app_id": app_b["app_id"],
-            # Deprecated alias до волны 18.
-            "app_a": app_a["app_id"],
-            "app_b": app_b["app_id"],
+        row = write_candidate_row(
+            app_a["app_id"],
+            app_b["app_id"],
+            {
+            "screening_status": SCREENING_STATUS_PRELIMINARY_POSITIVE,
             "app_a_apk_path": app_a_apk_path,
             "app_b_apk_path": app_b_apk_path,
             "retrieval_score": float(score),
+            "screening_cost_ms": int(round((time.perf_counter() - screening_started) * 1000.0)),
             "features_used": list(selected_layers),
             "retrieval_features_used": list(selected_layers),
             "screening_warnings": noise_warnings,
@@ -1355,7 +1354,8 @@ def build_candidate_list(
             "shortcut_applied": shortcut_applied,
             "shortcut_reason": shortcut_reason,
             "shortcut_status": shortcut_status,
-        }
+            },
+        )
         if per_view_scores is not None:
             row["per_view_scores"] = per_view_scores
             # EXEC-088-WRITERS: единый формат Evidence для первичного отбора.
@@ -1415,19 +1415,15 @@ def _compose_candidate_row(
     app_a_apk_path = query_app.get("apk_path")
     app_b_apk_path = corpus_app.get("apk_path")
 
-    # SCREENING-17-APP-KEYS-DEPRECATION-WARNING: app_a/app_b — deprecated alias
-    # до волны 18. Canonical source of truth: query_app_id/candidate_app_id.
-    warnings.warn(_APP_AB_DEPRECATION_MSG, DeprecationWarning, stacklevel=2)
-    row = {
-        # Канонические поля (source of truth по контракту v2).
-        "query_app_id": query_app["app_id"],
-        "candidate_app_id": corpus_app["app_id"],
-        # Deprecated alias до волны 18.
-        "app_a": query_app["app_id"],
-        "app_b": corpus_app["app_id"],
+    row = write_candidate_row(
+        query_app["app_id"],
+        corpus_app["app_id"],
+        {
+        "screening_status": SCREENING_STATUS_PRELIMINARY_POSITIVE,
         "app_a_apk_path": app_a_apk_path,
         "app_b_apk_path": app_b_apk_path,
         "retrieval_score": float(score),
+        "screening_cost_ms": 0,
         "features_used": list(selected_layers),
         "retrieval_features_used": list(selected_layers),
         "screening_warnings": noise_warnings,
@@ -1436,7 +1432,8 @@ def _compose_candidate_row(
         "shortcut_applied": shortcut_applied,
         "shortcut_reason": shortcut_reason,
         "shortcut_status": shortcut_status,
-    }
+        },
+    )
     if per_view_scores is not None:
         row["per_view_scores"] = per_view_scores
         row["evidence"] = collect_evidence_from_screening_layers(
@@ -1596,9 +1593,9 @@ def parse_args() -> argparse.Namespace:
         description=(
             "Run cascade-config screening stage and return candidate_list in JSON "
             "with screening handoff fields "
-            "[{app_a, app_b, query_app_id, candidate_app_id, retrieval_rank, "
+            "[{query_app_id, candidate_app_id, screening_status, retrieval_rank, "
             "retrieval_score, features_used, retrieval_features_used, "
-            "screening_warnings, screening_explanation}]."
+            "screening_cost_ms, screening_warnings, screening_explanation}]."
         )
     )
     parser.add_argument("cascade_config_path", help="Path to YAML cascade-config")
