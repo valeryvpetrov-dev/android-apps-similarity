@@ -555,9 +555,22 @@ def _jaccard_on_sets(set_a: set, set_b: set) -> float:
 
 
 def _compare_layer_quick(layer: str, feat_a: Any, feat_b: Any) -> dict:
-    """Fallback comparison: Jaccard on string sets."""
+    """Fallback comparison: Jaccard on string sets.
+
+    DEEP-20-BOTH-EMPTY-AUDIT: если оба множества пусты, возвращаем
+    ``status='both_empty', both_empty=True`` вместо обычного
+    ``status='quick'``. Это позволяет
+    ``_include_layer_in_weighted_score`` исключать quick-слой из
+    взвешенного среднего ровно по единому признаку для всех слоёв.
+    """
     left = feat_a if isinstance(feat_a, set) else set()
     right = feat_b if isinstance(feat_b, set) else set()
+    if not left and not right:
+        return {
+            "score": 0.0,
+            "status": "both_empty",
+            "both_empty": True,
+        }
     return {"score": _jaccard_on_sets(left, right), "status": "quick"}
 
 
@@ -644,16 +657,19 @@ def _compare_api(chain_a=None, chain_b=None) -> dict:
 def _include_layer_in_weighted_score(layer: str, layer_result: dict[str, Any]) -> bool:
     """Return whether a layer should contribute to weighted aggregation.
 
-    ``api`` with ``status == "both_empty"`` means extractor returned no API
-    signal for either APK. That is treated as missing evidence, not as a real
-    similarity/dissimilarity observation, so the layer is removed from the
-    weighted average and the remaining weights are renormalized.
+    DEEP-20-BOTH-EMPTY-AUDIT: обобщение правила на все слои static view.
+    Любой слой с ``status == "both_empty"`` означает, что ни у одной
+    стороны не было сигнала (пустые code-отпечатки, пустой манифест,
+    нет ресурсов, нет библиотек, нет API-цепочки). Такое наблюдение
+    не является свидетельством ни сходства, ни различия — слой
+    удаляется из взвешенного среднего, а оставшиеся веса
+    перенормируются. Ранее правило было зашито только для ``api``;
+    после единой ``both_empty``-семантики по 6 слоям ветвление по
+    имени слоя больше не требуется.
 
-    ``one_empty`` stays included: one side has API evidence while the other
-    does not, which remains an informative asymmetric signal.
+    ``one_empty`` остаётся включённым: асимметрия «сигнал на одной
+    стороне, нет — на другой» — информативна.
     """
-    if layer != "api":
-        return True
     return layer_result.get("status") != "both_empty"
 
 
@@ -772,22 +788,31 @@ def compare_m_static_layer(
         if compare_code_v4 is None:
             return {"score": 0.0, "status": "v4_unavailable"}
         result = compare_code_v4(features_a, features_b)
-        return {
+        wrapped = {
             "score": float(result.get("score", 0.0)),
             "status": result.get("status", "jaccard_ok"),
             "matched_methods": result.get("matched_methods", 0),
             "union_methods": result.get("union_methods", 0),
         }
+        # DEEP-20-BOTH-EMPTY-AUDIT: флаг both_empty пробрасывается
+        # наружу, чтобы `_include_layer_in_weighted_score` мог
+        # исключить слой из взвешенного среднего.
+        if result.get("both_empty"):
+            wrapped["both_empty"] = True
+        return wrapped
     if layer_name == "code_v4_shingled":
         if compare_code_v4_shingled is None:
             return {"score": 0.0, "status": "v4_shingled_unavailable"}
         result = compare_code_v4_shingled(features_a, features_b)
-        return {
+        wrapped = {
             "score": float(result.get("score", 0.0)),
             "status": result.get("status", "jaccard_ok"),
             "matched_methods": result.get("matched_methods", 0),
             "union_methods": result.get("union_methods", 0),
         }
+        if result.get("both_empty"):
+            wrapped["both_empty"] = True
+        return wrapped
     if layer_name == "resource_v2":
         if compare_resource_view_v2 is None:
             return {"score": 0.0, "status": "v2_unavailable", "combined_score": 0.0}

@@ -598,7 +598,14 @@ def compare_resource_view_v2(features_a: Dict, features_b: Dict) -> Dict:
 
     total_signals = len(_JACCARD_SUBSETS) + 1  # +1 за иконку
     if not contributing_scores:
-        status = "empty"
+        # DEEP-20-BOTH-EMPTY-AUDIT: канонический статус на «обе стороны
+        # без ресурсов и без иконки» — ``both_empty`` (вместо прежнего
+        # ``empty``), плюс явный флаг ``both_empty=True``. Это единая
+        # семантика со всеми остальными слоями static view; downstream
+        # (``_include_layer_in_weighted_score``) теперь может исключить
+        # resource_v2 из взвешенного среднего ровно по этому признаку.
+        status = "both_empty"
+        result["both_empty"] = True
     elif (present_subsets + (1 if icon_present else 0)) == total_signals:
         status = "ok"
     else:

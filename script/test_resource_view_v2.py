@@ -315,9 +315,15 @@ class TestCompareResourceViewV2(unittest.TestCase):
         self.assertEqual(result["status"], "ok")
 
     def test_all_empty_status_empty(self) -> None:
+        # DEEP-20-BOTH-EMPTY-AUDIT: канонический статус для «обе
+        # стороны без ресурсов и без иконки» — 'both_empty' + флаг
+        # both_empty=True (ранее — 'empty' без флага). Единая семантика
+        # со всеми слоями static view; downstream может исключить
+        # resource_v2 из взвешенного среднего по признаку both_empty.
         f = self._features()
         result = compare_resource_view_v2(f, f)
-        self.assertEqual(result["status"], "empty")
+        self.assertEqual(result["status"], "both_empty")
+        self.assertIs(result.get("both_empty"), True)
         self.assertEqual(result["combined_score"], 0.0)
 
     def test_partial_status_when_some_subsets_empty(self) -> None:

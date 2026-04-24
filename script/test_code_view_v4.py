@@ -164,10 +164,16 @@ def _simhash_feature_from_opcodes(method_id: str, opcodes: tuple[int, ...]) -> d
 class TestCompareCodeV4Logic(unittest.TestCase):
     """Pure logic tests — no APK required."""
 
-    def test_both_none_score_1(self):
+    def test_both_none_returns_zero_with_both_empty_flag(self):
+        # DEEP-20-BOTH-EMPTY-AUDIT: единая семантика both_empty.
+        # Оба входа None → score=0.0 (а не 1.0!) + both_empty=True.
+        # Ранее считалось «два пустых = клоны», что маскировало
+        # отсутствие сигнала. Канонический контракт:
+        # `D-2026-04-DEEP-20-BOTH-EMPTY`.
         r = compare_code_v4(None, None)
-        self.assertEqual(r["score"], 1.0)
+        self.assertEqual(r["score"], 0.0)
         self.assertEqual(r["status"], "both_empty")
+        self.assertIs(r.get("both_empty"), True)
 
     def test_one_none_score_0(self):
         fa = _feature_dict({"Lfoo;->bar()V": "S:abcd"})
@@ -178,11 +184,14 @@ class TestCompareCodeV4Logic(unittest.TestCase):
         self.assertEqual(r2["score"], 0.0)
         self.assertEqual(r2["status"], "one_empty")
 
-    def test_both_empty_score_1(self):
+    def test_both_empty_returns_zero_with_both_empty_flag(self):
+        # DEEP-20-BOTH-EMPTY-AUDIT: два пустых v4-бандла больше не
+        # считаются клонами — score=0.0, both_empty=True.
         fa = _feature_dict({})
         r = compare_code_v4(fa, fa)
-        self.assertEqual(r["score"], 1.0)
+        self.assertEqual(r["score"], 0.0)
         self.assertEqual(r["status"], "both_empty")
+        self.assertIs(r.get("both_empty"), True)
 
     def test_identical_features_score_1(self):
         pairs = {

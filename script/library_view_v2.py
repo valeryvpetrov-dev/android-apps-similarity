@@ -816,6 +816,13 @@ def compare_libraries_v2(features_a: Dict, features_b: Dict) -> Dict:
     """Compat wrapper: compare two v2 feature dicts.
 
     Returns Jaccard on detected TPL sets + shared/only_a/only_b.
+
+    DEEP-20-BOTH-EMPTY-AUDIT: если оба набора библиотек пусты,
+    возвращается ``jaccard=0.0, status='both_empty', both_empty=True``.
+    Ранее на пустом union jaccard тоже был 0.0, но downstream
+    (``pairwise_runner``, evidence) не мог отличить «обе стороны без
+    библиотек» от «нулевого пересечения при непустых наборах». Явный
+    флаг позволяет агрегации исключать слой из взвешенного среднего.
     """
     libs_a = set(features_a.get("libraries", {}).keys())
     libs_b = set(features_b.get("libraries", {}).keys())
@@ -825,7 +832,7 @@ def compare_libraries_v2(features_a: Dict, features_b: Dict) -> Dict:
     score_tversky_asym_ab = tversky_index(libs_a, libs_b, alpha=0.9, beta=0.1)
     score_tversky_asym_ba = tversky_index(libs_a, libs_b, alpha=0.1, beta=0.9)
     score_overlap = szymkiewicz_simpson_overlap(libs_a, libs_b)
-    return {
+    result = {
         "jaccard": jaccard,
         "score_jaccard": jaccard,
         "score_tversky_asym_ab": score_tversky_asym_ab,
@@ -838,6 +845,10 @@ def compare_libraries_v2(features_a: Dict, features_b: Dict) -> Dict:
         "library_count_b": len(libs_b),
         "v2": True,
     }
+    if not libs_a and not libs_b:
+        result["status"] = "both_empty"
+        result["both_empty"] = True
+    return result
 
 
 def library_explanation_hints_v2(comparison: Dict) -> List[Dict]:

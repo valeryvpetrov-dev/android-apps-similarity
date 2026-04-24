@@ -53,8 +53,16 @@ class TestExtractApkSignatureHash(unittest.TestCase):
 class TestCompareSignatures(unittest.TestCase):
 
     def test_both_none(self):
+        # DEEP-20-BOTH-EMPTY-AUDIT: оба хеша None → канонический
+        # статус 'both_missing' + both_empty=True (ранее был общий
+        # 'missing' для one_empty/both_empty). Этот контракт позволяет
+        # агрегации compare_all исключить signing-слой из взвешенного
+        # среднего по единому признаку.
         r = compare_signatures(None, None)
-        self.assertEqual(r, {'score': 0.0, 'status': 'missing'})
+        self.assertEqual(
+            r,
+            {'score': 0.0, 'status': 'both_missing', 'both_empty': True},
+        )
 
     def test_one_none(self):
         self.assertEqual(compare_signatures('a', None)['status'], 'missing')
