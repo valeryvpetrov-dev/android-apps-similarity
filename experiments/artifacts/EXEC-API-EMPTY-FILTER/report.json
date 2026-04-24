@@ -1,0 +1,40 @@
+{
+  "report_id": "EXEC-API-EMPTY-FILTER",
+  "dataset": "synthetic_from_test_m_static_views_scoring",
+  "threshold": 0.6,
+  "f1_old": 0.6666666666666666,
+  "f1_new": 1.0,
+  "pairs_filtered_total": 1,
+  "pairs_filtered_by_reason": {
+    "api_view.status=both_empty": 1
+  },
+  "cases": [
+    {
+      "pair_id": "present-clone",
+      "label": 1,
+      "api_status": "markov_cosine",
+      "score_old": 0.6956521739130435,
+      "score_new": 0.6956521739130435,
+      "pred_old": 1,
+      "pred_new": 1
+    },
+    {
+      "pair_id": "both-empty-clone",
+      "label": 1,
+      "api_status": "both_empty",
+      "score_old": 0.5652173913043479,
+      "score_new": 0.65,
+      "pred_old": 0,
+      "pred_new": 1
+    },
+    {
+      "pair_id": "one-empty-non-clone",
+      "label": 0,
+      "api_status": "one_empty",
+      "score_old": 0.5652173913043479,
+      "score_new": 0.5652173913043479,
+      "pred_old": 0,
+      "pred_new": 0
+    }
+  ]
+}
