@@ -263,6 +263,44 @@ def _build_enriched_mixed_shortcut(root: Path) -> tuple[Path, Path]:
     return config_path, enriched_path
 
 
+def _build_enriched_all_shortcut(root: Path, n_pairs: int = 2) -> tuple[Path, Path]:
+    """Создать enriched.json, где все пары идут по shortcut-ветке."""
+    config_path = root / "config.yaml"
+    enriched_path = root / "enriched.json"
+    _write_config(config_path)
+
+    items = []
+    for index in range(n_pairs):
+        apk_a = root / "shortcut_a_{}.apk".format(index)
+        apk_b = root / "shortcut_b_{}.apk".format(index)
+        _touch_apk(apk_a)
+        _touch_apk(apk_b)
+        items.append(
+            {
+                "app_a": {
+                    "app_id": "SA{}".format(index),
+                    "apk_path": str(apk_a),
+                    "decoded_dir": "/tmp/dsa{}".format(index),
+                },
+                "app_b": {
+                    "app_id": "SB{}".format(index),
+                    "apk_path": str(apk_b),
+                    "decoded_dir": "/tmp/dsb{}".format(index),
+                },
+                "shortcut_applied": True,
+                "shortcut_reason": pairwise_runner.SHORTCUT_REASON_HIGH_CONFIDENCE,
+                "signature_match": {"score": 1.0, "status": "match"},
+                "test_index": index,
+            }
+        )
+
+    enriched_path.write_text(
+        json.dumps({"enriched_candidates": items}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    return config_path, enriched_path
+
+
 # ---------------------------------------------------------------------------
 # Tests.
 # ---------------------------------------------------------------------------
@@ -436,6 +474,28 @@ class TestWorkersFourShortcutNotInPool(unittest.TestCase):
                 shortcut_row.get("deep_verification_status"),
                 pairwise_runner.DEEP_VERIFICATION_STATUS_SKIPPED,
             )
+
+
+class TestWorkersTwoAllShortcutRegression(unittest.TestCase):
+    """workers=2 + все shortcut-пары не должны приводить к None."""
+
+    def test_workers_two_all_shortcut_pairs_return_results_list(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            config_path, enriched_path = _build_enriched_all_shortcut(root, n_pairs=2)
+
+            results = pairwise_runner.run_pairwise(
+                config_path=config_path,
+                enriched_path=enriched_path,
+                workers=2,
+            )
+
+        self.assertIsNotNone(results)
+        self.assertEqual(len(results), 2)
+        self.assertTrue(
+            all(row["status"] == "success_shortcut" for row in results)
+        )
+        self.assertTrue(all(row["shortcut_applied"] is True for row in results))
 
 
 class TestWorkersFourSpeedupOverWorkersOne(unittest.TestCase):

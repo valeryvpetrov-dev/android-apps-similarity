@@ -1647,6 +1647,9 @@ def run_pairwise(
             else:
                 heavy_indices.append(index)
 
+        if not heavy_indices:
+            return [results_by_index[i] for i in range(len(candidates))]
+
     if heavy_indices:
         config_path_str = str(config_path)
         with _process_pool_sysconf_workaround(), _make_parallel_executor(max_workers=workers) as executor:
