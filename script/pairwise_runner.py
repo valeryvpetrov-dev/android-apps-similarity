@@ -37,6 +37,7 @@ SHORTCUT_VERDICT_LIKELY_CLONE = "likely_clone_by_signature"
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_FEATURE_CACHE_PATH = PROJECT_ROOT / "experiments" / "artifacts" / ".feature_cache.sqlite"
+FEATURE_CACHE_VERSION = "v1"
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -966,7 +967,7 @@ def load_layers_for_pairwise(
     apk_sha256 = None
     if feature_cache is not None:
         apk_sha256 = _sha256_of_file(apk_file)
-        feature_bundle = feature_cache.get(apk_sha256)
+        feature_bundle = feature_cache.get(apk_sha256, FEATURE_CACHE_VERSION)
 
     if extract_all_features is None:
         raise PairwiseAnalysisError("m_static_views_unavailable")
@@ -980,7 +981,7 @@ def load_layers_for_pairwise(
         except Exception as error:
             raise PairwiseAnalysisError("feature_bundle_error: {}".format(error)) from error
         if feature_cache is not None and apk_sha256 is not None:
-            feature_cache.set(apk_sha256, feature_bundle)
+            feature_cache.put(apk_sha256, FEATURE_CACHE_VERSION, feature_bundle)
 
     layers = {
         "code": normalize_pairwise_layer_tokens("code", feature_bundle.get("code", set())),
