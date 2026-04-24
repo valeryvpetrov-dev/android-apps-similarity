@@ -22,6 +22,7 @@ Run:
 """
 from __future__ import annotations
 
+from contextlib import ExitStack
 import json
 import os
 import sys
@@ -59,6 +60,16 @@ if str(SMOKE_DIR) not in sys.path:
 import deepening_runner  # noqa: E402
 import pairwise_runner  # noqa: E402
 import run_e2e_smoke  # noqa: E402
+
+try:
+    import script.deepening_runner as packaged_deepening_runner  # type: ignore  # noqa: E402
+except Exception:
+    packaged_deepening_runner = deepening_runner
+
+try:
+    import script.pairwise_runner as packaged_pairwise_runner  # type: ignore  # noqa: E402
+except Exception:
+    packaged_pairwise_runner = pairwise_runner
 
 
 # ---------------------------------------------------------------------------
@@ -198,43 +209,104 @@ class TestE2EPipeline(unittest.TestCase):
         ):
             return 0.85, 0.80, list(selected_layers)
 
-        with mock.patch(
-            "apkid_adapter.apkid_available", return_value=True
-        ), mock.patch(
-            "apkid_adapter.detect_classifiers", return_value=fake_classification
-        ), mock.patch(
-            "libloom_adapter.detect_libraries",
-            return_value={
-                "status": "ok",
-                "libraries": [
-                    {"name": "androidx.compose", "version": ["1.0"], "similarity": 0.95}
-                ],
-                "unknown_packages": [],
-                "elapsed_sec": 0.1,
-                "raw_stdout": None,
-                "raw_stderr": None,
-                "appname": "query",
-                "error_reason": None,
-            },
-        ), mock.patch(
-            "libloom_adapter.libloom_available", return_value=True
-        ), mock.patch.object(
-            deepening_runner,
-            "resolve_or_materialize_decoded_dir",
-            side_effect=_fake_decode,
-        ), mock.patch.object(
-            deepening_runner,
-            "load_enhanced_features",
-            return_value=_mocked_enhanced_features(),
-        ), mock.patch.object(
-            deepening_runner,
-            "build_code_layer",
-            side_effect=lambda apk_path, cache: (5, False),
-        ), mock.patch.object(
-            pairwise_runner,
-            "calculate_pair_scores",
-            side_effect=_fake_pair_scores,
-        ):
+        def _fake_run_pairwise(config_path, enriched_path):
+            payload = json.loads(Path(enriched_path).read_text(encoding="utf-8"))
+            rows = []
+            for candidate in payload:
+                app_a = candidate.get("app_a")
+                app_b = candidate.get("app_b")
+                rows.append(
+                    {
+                        "app_a": app_a,
+                        "app_b": app_b,
+                        "full_similarity_score": 0.85,
+                        "library_reduced_score": 0.80,
+                        "status": "success",
+                        "views_used": ["code", "metadata"],
+                        "signature_match": candidate.get("signature_match", {"score": 0.0, "status": "missing"}),
+                        "elapsed_ms_deep": 0,
+                        "evidence": [
+                            {
+                                "source_stage": "pairwise",
+                                "signal_type": "layer_score",
+                                "magnitude": 0.80,
+                                "ref": "code",
+                            },
+                            {
+                                "source_stage": "pairwise",
+                                "signal_type": "layer_score",
+                                "magnitude": 0.80,
+                                "ref": "metadata",
+                            },
+                        ],
+                    }
+                )
+            return rows
+
+        with ExitStack() as stack:
+            stack.enter_context(
+                mock.patch("apkid_adapter.apkid_available", return_value=True)
+            )
+            stack.enter_context(
+                mock.patch("apkid_adapter.detect_classifiers", return_value=fake_classification)
+            )
+            stack.enter_context(
+                mock.patch(
+                    "libloom_adapter.detect_libraries",
+                    return_value={
+                        "status": "ok",
+                        "libraries": [
+                            {"name": "androidx.compose", "version": ["1.0"], "similarity": 0.95}
+                        ],
+                        "unknown_packages": [],
+                        "elapsed_sec": 0.1,
+                        "raw_stdout": None,
+                        "raw_stderr": None,
+                        "appname": "query",
+                        "error_reason": None,
+                    },
+                )
+            )
+            stack.enter_context(
+                mock.patch("libloom_adapter.libloom_available", return_value=True)
+            )
+            for module in {deepening_runner, packaged_deepening_runner}:
+                stack.enter_context(
+                    mock.patch.object(
+                        module,
+                        "resolve_or_materialize_decoded_dir",
+                        side_effect=_fake_decode,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        module,
+                        "load_enhanced_features",
+                        return_value=_mocked_enhanced_features(),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        module,
+                        "build_code_layer",
+                        side_effect=lambda apk_path, cache: (5, False),
+                    )
+                )
+            for module in {pairwise_runner, packaged_pairwise_runner}:
+                stack.enter_context(
+                    mock.patch.object(
+                        module,
+                        "calculate_pair_scores",
+                        side_effect=_fake_pair_scores,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        module,
+                        "run_pairwise",
+                        side_effect=_fake_run_pairwise,
+                    )
+                )
             # Force a usable "jar" + "profile dir" for LIBLOOM gating, but the
             # adapter functions are mocked above so no real java is invoked.
             fake_jar = tmpdir / "LIBLOOM.jar"

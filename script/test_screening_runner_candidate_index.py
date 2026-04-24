@@ -4,10 +4,12 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -289,10 +291,11 @@ class TestRunScreeningIntegration(unittest.TestCase):
 
             # Two configs: one without candidate_index, one with.
             config_no_index = _write_config(tmpdir, candidate_index_block=None)
-            result_without_index = run_screening(
-                cascade_config_path=config_no_index,
-                apps_features_json_path=apps_path,
-            )
+            with mock.patch.dict(os.environ, {"SIMILARITY_SKIP_REQ_CHECK": "1"}):
+                result_without_index = run_screening(
+                    cascade_config_path=config_no_index,
+                    apps_features_json_path=apps_path,
+                )
             # Baseline: exact O(n^2) screening. Record pairs passing threshold.
             pairs_without_index = {
                 (row["query_app_id"], row["candidate_app_id"]): row["retrieval_score"]
@@ -301,10 +304,11 @@ class TestRunScreeningIntegration(unittest.TestCase):
             self.assertGreater(len(pairs_without_index), 0)
             # Run the same config through the screening_runner once more and
             # confirm identical output — baseline is stable.
-            result_without_index_again = run_screening(
-                cascade_config_path=config_no_index,
-                apps_features_json_path=apps_path,
-            )
+            with mock.patch.dict(os.environ, {"SIMILARITY_SKIP_REQ_CHECK": "1"}):
+                result_without_index_again = run_screening(
+                    cascade_config_path=config_no_index,
+                    apps_features_json_path=apps_path,
+                )
             self.assertEqual(result_without_index, result_without_index_again)
 
     def test_run_screening_with_lsh_has_high_recall_on_small_corpus(self) -> None:
@@ -340,14 +344,15 @@ class TestRunScreeningIntegration(unittest.TestCase):
                 filename="cascade_with_index.yaml",
             )
 
-            result_exact = run_screening(
-                cascade_config_path=config_no_index,
-                apps_features_json_path=apps_path,
-            )
-            result_lsh = run_screening(
-                cascade_config_path=config_with_index,
-                apps_features_json_path=apps_path,
-            )
+            with mock.patch.dict(os.environ, {"SIMILARITY_SKIP_REQ_CHECK": "1"}):
+                result_exact = run_screening(
+                    cascade_config_path=config_no_index,
+                    apps_features_json_path=apps_path,
+                )
+                result_lsh = run_screening(
+                    cascade_config_path=config_with_index,
+                    apps_features_json_path=apps_path,
+                )
 
             exact_pairs = {
                 (row["query_app_id"], row["candidate_app_id"])
