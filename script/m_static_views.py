@@ -617,11 +617,25 @@ def _compare_component_enhanced(feat_a: dict, feat_b: dict) -> dict:
 
 def _compare_api(chain_a=None, chain_b=None) -> dict:
     """Compare API Markov chains via cosine similarity (R_api layer)."""
-    if chain_a is None and chain_b is None:
-        return {"score": 0.0, "status": "no_data"}
     if compare_api is None:
         return {"score": 0.0, "status": "not_available"}
     return compare_api(chain_a, chain_b)
+
+
+def _include_layer_in_weighted_score(layer: str, layer_result: dict[str, Any]) -> bool:
+    """Return whether a layer should contribute to weighted aggregation.
+
+    ``api`` with ``status == "both_empty"`` means extractor returned no API
+    signal for either APK. That is treated as missing evidence, not as a real
+    similarity/dissimilarity observation, so the layer is removed from the
+    weighted average and the remaining weights are renormalized.
+
+    ``one_empty`` stays included: one side has API evidence while the other
+    does not, which remains an informative asymmetric signal.
+    """
+    if layer != "api":
+        return True
+    return layer_result.get("status") != "both_empty"
 
 
 def _compare_library_enhanced(feat_a: dict, feat_b: dict) -> dict:
@@ -857,7 +871,10 @@ def compare_all(
         weight = LAYER_WEIGHTS.get(layer)
         if weight is None:
             continue
-        layer_score = per_layer.get(layer, {}).get("score", 0.0)
+        layer_result = per_layer.get(layer, {})
+        if not _include_layer_in_weighted_score(layer, layer_result):
+            continue
+        layer_score = layer_result.get("score", 0.0)
         weighted_sum += weight * layer_score
         weight_total += weight
 
@@ -872,7 +889,10 @@ def compare_all(
         weight = LAYER_WEIGHTS.get(layer)
         if weight is None:
             continue
-        layer_score = per_layer.get(layer, {}).get("score", 0.0)
+        layer_result = per_layer.get(layer, {})
+        if not _include_layer_in_weighted_score(layer, layer_result):
+            continue
+        layer_score = layer_result.get("score", 0.0)
         reduced_sum += weight * layer_score
         reduced_total += weight
 
