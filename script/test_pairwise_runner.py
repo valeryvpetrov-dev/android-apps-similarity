@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import importlib
 import json
 import sys
 import tempfile
@@ -241,6 +242,89 @@ stages:
         result = payload[0]
         self.assertEqual(result["status"], "success")
         self.assertEqual(result["views_used"], ["component", "resource"])
+
+    def test_pair_worker_reuses_sqlite_cache_across_independent_invocations(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            packaged_pairwise_runner = importlib.import_module("script.pairwise_runner")
+            root = Path(tmpdir)
+            config_path = root / "config.yaml"
+            apk_a = root / "a.apk"
+            apk_b = root / "b.apk"
+            cache_path = root / "feature-cache.sqlite"
+            apk_a.write_bytes(b"fake_apk_a")
+            apk_b.write_bytes(b"fake_apk_b")
+
+            write_text(
+                config_path,
+                """
+stages:
+  pairwise:
+    features: [component, resource, library]
+    metric: cosine
+    threshold: 0.10
+""".strip(),
+            )
+            candidate = {
+                "app_a": {
+                    "app_id": "A",
+                    "apk_path": str(apk_a),
+                    "decoded_dir": "/tmp/decoded-a",
+                },
+                "app_b": {
+                    "app_id": "B",
+                    "apk_path": str(apk_b),
+                    "decoded_dir": "/tmp/decoded-b",
+                },
+            }
+            feature_bundle = {
+                "mode": "enhanced",
+                "code": set(),
+                "metadata": set(),
+                "component": {
+                    "activities": [{"name": ".MainActivity"}],
+                    "services": [],
+                    "receivers": [],
+                    "providers": [],
+                    "permissions": {"android.permission.INTERNET"},
+                    "features": set(),
+                },
+                "resource": {
+                    "resource_digests": {("res/layout/main.xml", "digest-1")},
+                },
+                "library": {
+                    "libraries": {"androidx.appcompat": {"class_count": 10}},
+                },
+            }
+
+            with mock.patch.dict("os.environ", {"FEATURE_CACHE_PATH": str(cache_path)}), mock.patch.object(
+                packaged_pairwise_runner,
+                "extract_all_features",
+                side_effect=[feature_bundle, feature_bundle],
+            ) as features_mock:
+                row_one = json.loads(
+                    packaged_pairwise_runner._pair_worker_isolated(
+                        json.dumps(candidate),
+                        str(config_path),
+                        0.8,
+                        30,
+                        1,
+                        2,
+                    )
+                )
+                row_two = json.loads(
+                    packaged_pairwise_runner._pair_worker_isolated(
+                        json.dumps(candidate),
+                        str(config_path),
+                        0.8,
+                        30,
+                        1,
+                        2,
+                    )
+                )
+
+        self.assertEqual(features_mock.call_count, 2)
+        self.assertEqual(row_one["status"], "success")
+        self.assertEqual(row_two["status"], "success")
 
 
 if __name__ == "__main__":

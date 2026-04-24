@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -35,6 +36,7 @@ SHORTCUT_VERDICT_LIKELY_CLONE = "likely_clone_by_signature"
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_FEATURE_CACHE_PATH = PROJECT_ROOT / "experiments" / "artifacts" / ".feature_cache.sqlite"
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -106,6 +108,14 @@ except Exception:
         from timeout_incident_registry import record_timeout_incident  # type: ignore[no-redef]
     except Exception:
         record_timeout_incident = None  # type: ignore[assignment]
+
+try:
+    from script.feature_cache_sqlite import FeatureCacheSqlite
+except Exception:
+    try:
+        from feature_cache_sqlite import FeatureCacheSqlite  # type: ignore[no-redef]
+    except Exception:
+        FeatureCacheSqlite = None  # type: ignore[assignment]
 
 
 def collect_signature_match(apk_a: str | None, apk_b: str | None) -> dict:
@@ -207,6 +217,77 @@ def working_directory(path: Path):
         os.chdir(previous)
 
 
+def _sha256_of_file(apk_path: Path) -> str:
+    hasher = hashlib.sha256()
+    with apk_path.open("rb") as fh:
+        while True:
+            chunk = fh.read(1024 * 1024)
+            if not chunk:
+                break
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
+def _resolve_feature_cache_path(
+    feature_cache_path: str | os.PathLike[str] | None = None,
+) -> Path:
+    raw = feature_cache_path
+    if raw is None:
+        raw = os.environ.get("FEATURE_CACHE_PATH") or DEFAULT_FEATURE_CACHE_PATH
+    path = Path(raw).expanduser()
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+    return path.resolve()
+
+
+@contextmanager
+def _feature_cache_path_override(
+    feature_cache_path: str | os.PathLike[str] | None = None,
+):
+    resolved_path = _resolve_feature_cache_path(feature_cache_path)
+    previous = os.environ.get("FEATURE_CACHE_PATH")
+    os.environ["FEATURE_CACHE_PATH"] = str(resolved_path)
+    try:
+        yield resolved_path
+    finally:
+        if previous is None:
+            os.environ.pop("FEATURE_CACHE_PATH", None)
+        else:
+            os.environ["FEATURE_CACHE_PATH"] = previous
+
+
+def _open_feature_cache_from_env() -> Any | None:
+    if FeatureCacheSqlite is None:
+        return None
+    return FeatureCacheSqlite(_resolve_feature_cache_path())
+
+
+@contextmanager
+def _process_pool_sysconf_workaround():
+    """Sandbox workaround: some hosts deny os.sysconf(SC_SEM_NSEMS_MAX)."""
+    try:
+        import concurrent.futures.process as _process_mod
+    except Exception:
+        yield
+        return
+
+    original_sysconf = _process_mod.os.sysconf
+
+    def safe_sysconf(name: str):
+        if name == "SC_SEM_NSEMS_MAX":
+            try:
+                return original_sysconf(name)
+            except PermissionError:
+                return 256
+        return original_sysconf(name)
+
+    _process_mod.os.sysconf = safe_sysconf
+    try:
+        yield
+    finally:
+        _process_mod.os.sysconf = original_sysconf
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="pairwise_runner.py",
@@ -235,6 +316,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ged-timeout-sec", type=int, default=30)
     parser.add_argument("--processes-count", type=int, default=1)
     parser.add_argument("--threads-count", type=int, default=2)
+    parser.add_argument(
+        "--feature-cache-path",
+        required=False,
+        default=None,
+        help=(
+            "Optional SQLite file for shared worker cache. "
+            "Defaults to FEATURE_CACHE_PATH or experiments/artifacts/.feature_cache.sqlite."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -843,6 +933,7 @@ def load_layers_for_pairwise(
     decoded_dir: str | None,
     selected_layers: list[str],
     layer_cache: dict[tuple[str, str | None], dict[str, set[str]]],
+    feature_cache: Any | None = None,
 ) -> dict[str, set[str]]:
     cache_key = (apk_path, decoded_dir)
     if cache_key in layer_cache:
@@ -856,16 +947,25 @@ def load_layers_for_pairwise(
     if requires_decoded and not decoded_dir:
         raise PairwiseAnalysisError("missing_decoded_dir")
 
+    feature_bundle = None
+    apk_sha256 = None
+    if feature_cache is not None:
+        apk_sha256 = _sha256_of_file(apk_file)
+        feature_bundle = feature_cache.get(apk_sha256)
+
     if extract_all_features is None:
         raise PairwiseAnalysisError("m_static_views_unavailable")
 
-    try:
-        feature_bundle = extract_all_features(
-            apk_path=str(apk_file),
-            unpacked_dir=decoded_dir,
-        )
-    except Exception as error:
-        raise PairwiseAnalysisError("feature_bundle_error: {}".format(error)) from error
+    if feature_bundle is None:
+        try:
+            feature_bundle = extract_all_features(
+                apk_path=str(apk_file),
+                unpacked_dir=decoded_dir,
+            )
+        except Exception as error:
+            raise PairwiseAnalysisError("feature_bundle_error: {}".format(error)) from error
+        if feature_cache is not None and apk_sha256 is not None:
+            feature_cache.set(apk_sha256, feature_bundle)
 
     layers = {
         "code": stringify_tokens(feature_bundle.get("code", set())),
@@ -967,9 +1067,22 @@ def calculate_set_scores(
     selected_layers: list[str],
     metric: str,
     layer_cache: dict[tuple[str, str | None], dict[str, set[str]]],
+    feature_cache: Any | None = None,
 ) -> tuple[float, float]:
-    layers_a = load_layers_for_pairwise(apk_a, decoded_a, selected_layers, layer_cache)
-    layers_b = load_layers_for_pairwise(apk_b, decoded_b, selected_layers, layer_cache)
+    layers_a = load_layers_for_pairwise(
+        apk_a,
+        decoded_a,
+        selected_layers,
+        layer_cache,
+        feature_cache=feature_cache,
+    )
+    layers_b = load_layers_for_pairwise(
+        apk_b,
+        decoded_b,
+        selected_layers,
+        layer_cache,
+        feature_cache=feature_cache,
+    )
 
     full_left = aggregate_features(layers_a, selected_layers)
     full_right = aggregate_features(layers_b, selected_layers)
@@ -998,6 +1111,7 @@ def calculate_pair_scores(
     threads_count: int,
     layer_cache: dict[tuple[str, str | None], dict[str, set[str]]],
     code_cache: dict[str, list],
+    feature_cache: Any | None = None,
 ) -> tuple[float, float, list[str]]:
     if metric == "ged":
         if "code" not in selected_layers:
@@ -1042,6 +1156,7 @@ def calculate_pair_scores(
                 selected_layers=non_code_layers,
                 metric="cosine",
                 layer_cache=layer_cache,
+                feature_cache=feature_cache,
             )
             full_parts.append(non_code_full)
             reduced_parts.append(non_code_reduced)
@@ -1062,6 +1177,7 @@ def calculate_pair_scores(
         selected_layers=selected_layers,
         metric=metric,
         layer_cache=layer_cache,
+        feature_cache=feature_cache,
     )
     return full, reduced, list(selected_layers)
 
@@ -1142,6 +1258,7 @@ def _compute_pair_row_with_caches(
     layer_cache: dict[tuple[str, str | None], dict[str, set[str]]],
     code_cache: dict[str, list],
     apk_discovery_cache: dict[str, str | None],
+    feature_cache: Any | None = None,
 ) -> dict[str, Any]:
     """Compute a single pair_row using provided caches.
 
@@ -1213,6 +1330,7 @@ def _compute_pair_row_with_caches(
             threads_count=threads_count,
             layer_cache=layer_cache,
             code_cache=code_cache,
+            feature_cache=feature_cache,
         )
 
         decision_score = reduced_score
@@ -1318,20 +1436,25 @@ def _pair_worker_isolated(
     layer_cache: dict[tuple[str, str | None], dict[str, set[str]]] = {}
     code_cache: dict[str, list] = {}
     apk_discovery_cache: dict[str, str | None] = {}
-
-    row = _compute(
-        candidate=candidate,
-        selected_layers=selected_layers,
-        metric=metric,
-        threshold=threshold,
-        ins_block_sim_threshold=ins_block_sim_threshold,
-        ged_timeout_sec=ged_timeout_sec,
-        processes_count=processes_count,
-        threads_count=threads_count,
-        layer_cache=layer_cache,
-        code_cache=code_cache,
-        apk_discovery_cache=apk_discovery_cache,
-    )
+    feature_cache = _open_feature_cache_from_env()
+    try:
+        row = _compute(
+            candidate=candidate,
+            selected_layers=selected_layers,
+            metric=metric,
+            threshold=threshold,
+            ins_block_sim_threshold=ins_block_sim_threshold,
+            ged_timeout_sec=ged_timeout_sec,
+            processes_count=processes_count,
+            threads_count=threads_count,
+            layer_cache=layer_cache,
+            code_cache=code_cache,
+            apk_discovery_cache=apk_discovery_cache,
+            feature_cache=feature_cache,
+        )
+    finally:
+        if feature_cache is not None:
+            feature_cache.close()
     return _json.dumps(row)
 
 
@@ -1384,7 +1507,7 @@ def _run_single_pair_with_timeout(
     candidate_json = json.dumps(candidate)
     config_path_str = str(config_path)
     try:
-        with ProcessPoolExecutor(max_workers=1) as executor:
+        with _process_pool_sysconf_workaround(), ProcessPoolExecutor(max_workers=1) as executor:
             future = executor.submit(
                 _pair_worker_isolated,
                 candidate_json,
@@ -1427,6 +1550,7 @@ def run_pairwise(
     threads_count: int = 2,
     pair_timeout_sec: int | None = None,
     workers: int = 1,
+    feature_cache_path: str | os.PathLike[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Запустить pairwise-этап по кандидатам из ``enriched_path``.
 
@@ -1448,65 +1572,35 @@ def run_pairwise(
     процесса) не глотаются: соответствующий ``pair_row`` помечается
     ``status="analysis_failed"`` и ``analysis_failed_reason="worker_crashed"``.
     """
-    if os.environ.get("SIMILARITY_SKIP_REQ_CHECK") != "1":
-        verify_required_dependencies()
+    with _feature_cache_path_override(feature_cache_path):
+        if os.environ.get("SIMILARITY_SKIP_REQ_CHECK") != "1":
+            verify_required_dependencies()
 
-    config = load_config(config_path)
-    selected_layers, metric, threshold = parse_pairwise_stage(config)
-    candidates = load_enriched_candidates(enriched_path)
+        config = load_config(config_path)
+        selected_layers, metric, threshold = parse_pairwise_stage(config)
+        candidates = load_enriched_candidates(enriched_path)
 
-    layer_cache: dict[tuple[str, str | None], dict[str, set[str]]] = {}
-    code_cache: dict[str, list] = {}
-    apk_discovery_cache: dict[str, str | None] = {}
+        layer_cache: dict[tuple[str, str | None], dict[str, set[str]]] = {}
+        code_cache: dict[str, list] = {}
+        apk_discovery_cache: dict[str, str | None] = {}
 
-    use_hard_timeout = isinstance(pair_timeout_sec, int) and pair_timeout_sec > 0
-    use_parallel = isinstance(workers, int) and workers > 1 and len(candidates) > 1
+        use_hard_timeout = isinstance(pair_timeout_sec, int) and pair_timeout_sec > 0
+        use_parallel = isinstance(workers, int) and workers > 1 and len(candidates) > 1
 
-    def run_one_sequential(candidate: dict[str, Any]) -> dict[str, Any]:
-        """Один pair_row в основном процессе (workers=1 или < 2 кандидатов)."""
-        if use_hard_timeout:
-            return _run_single_pair_with_timeout(
-                candidate=candidate,
-                selected_layers=selected_layers,
-                config_path=config_path,
-                ins_block_sim_threshold=ins_block_sim_threshold,
-                ged_timeout_sec=ged_timeout_sec,
-                processes_count=processes_count,
-                threads_count=threads_count,
-                pair_timeout_sec=pair_timeout_sec,
-            )
-        return _compute_pair_row_with_caches(
-            candidate=candidate,
-            selected_layers=selected_layers,
-            metric=metric,
-            threshold=threshold,
-            ins_block_sim_threshold=ins_block_sim_threshold,
-            ged_timeout_sec=ged_timeout_sec,
-            processes_count=processes_count,
-            threads_count=threads_count,
-            layer_cache=layer_cache,
-            code_cache=code_cache,
-            apk_discovery_cache=apk_discovery_cache,
-        )
-
-    # workers=1 — полностью прежнее последовательное поведение.
-    if not use_parallel:
-        results: list[dict[str, Any]] = []
-        for candidate in candidates:
-            results.append(run_one_sequential(candidate))
-        return results
-
-    # workers>1 — параллельный путь. Shortcut-пары отделяем и считаем сразу,
-    # тяжёлые пары отправляем в ProcessPoolExecutor. Порядок результатов
-    # восстанавливается по исходному индексу кандидата.
-    results_by_index: dict[int, dict[str, Any]] = {}
-    heavy_indices: list[int] = []
-
-    for index, candidate in enumerate(candidates):
-        if _should_skip_deep_verification(candidate):
-            # EXEC-091-EXEC: shortcut-пара не уходит в пул — считаем в основном
-            # процессе теми же функциями, что и при workers=1.
-            results_by_index[index] = _compute_pair_row_with_caches(
+        def run_one_sequential(candidate: dict[str, Any]) -> dict[str, Any]:
+            """Один pair_row в основном процессе (workers=1 или < 2 кандидатов)."""
+            if use_hard_timeout:
+                return _run_single_pair_with_timeout(
+                    candidate=candidate,
+                    selected_layers=selected_layers,
+                    config_path=config_path,
+                    ins_block_sim_threshold=ins_block_sim_threshold,
+                    ged_timeout_sec=ged_timeout_sec,
+                    processes_count=processes_count,
+                    threads_count=threads_count,
+                    pair_timeout_sec=pair_timeout_sec,
+                )
+            return _compute_pair_row_with_caches(
                 candidate=candidate,
                 selected_layers=selected_layers,
                 metric=metric,
@@ -1519,12 +1613,43 @@ def run_pairwise(
                 code_cache=code_cache,
                 apk_discovery_cache=apk_discovery_cache,
             )
-        else:
-            heavy_indices.append(index)
+
+        # workers=1 — полностью прежнее последовательное поведение.
+        if not use_parallel:
+            results: list[dict[str, Any]] = []
+            for candidate in candidates:
+                results.append(run_one_sequential(candidate))
+            return results
+
+        # workers>1 — параллельный путь. Shortcut-пары отделяем и считаем сразу,
+        # тяжёлые пары отправляем в ProcessPoolExecutor. Порядок результатов
+        # восстанавливается по исходному индексу кандидата.
+        results_by_index: dict[int, dict[str, Any]] = {}
+        heavy_indices: list[int] = []
+
+        for index, candidate in enumerate(candidates):
+            if _should_skip_deep_verification(candidate):
+                # EXEC-091-EXEC: shortcut-пара не уходит в пул — считаем в основном
+                # процессе теми же функциями, что и при workers=1.
+                results_by_index[index] = _compute_pair_row_with_caches(
+                    candidate=candidate,
+                    selected_layers=selected_layers,
+                    metric=metric,
+                    threshold=threshold,
+                    ins_block_sim_threshold=ins_block_sim_threshold,
+                    ged_timeout_sec=ged_timeout_sec,
+                    processes_count=processes_count,
+                    threads_count=threads_count,
+                    layer_cache=layer_cache,
+                    code_cache=code_cache,
+                    apk_discovery_cache=apk_discovery_cache,
+                )
+            else:
+                heavy_indices.append(index)
 
     if heavy_indices:
         config_path_str = str(config_path)
-        with _make_parallel_executor(max_workers=workers) as executor:
+        with _process_pool_sysconf_workaround(), _make_parallel_executor(max_workers=workers) as executor:
             future_to_index: dict[Any, int] = {}
             for index in heavy_indices:
                 candidate = candidates[index]
@@ -1569,7 +1694,7 @@ def run_pairwise(
                         selected_layers=selected_layers,
                     )
 
-    return [results_by_index[i] for i in range(len(candidates))]
+        return [results_by_index[i] for i in range(len(candidates))]
 
 
 def resolve_pair_id(candidate: dict[str, Any], index: int) -> str:
@@ -1921,6 +2046,7 @@ def main() -> None:
         ged_timeout_sec=args.ged_timeout_sec,
         processes_count=args.processes_count,
         threads_count=args.threads_count,
+        feature_cache_path=args.feature_cache_path,
     )
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)

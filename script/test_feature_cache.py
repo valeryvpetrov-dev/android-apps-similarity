@@ -17,8 +17,10 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import sqlite3
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -36,6 +38,7 @@ from feature_cache import (  # noqa: E402
     get_or_extract,
     sha256_of_file,
 )
+from feature_cache_sqlite import FeatureCacheSqlite  # noqa: E402
 
 
 def _write_bytes(path: Path, payload: bytes) -> Path:
@@ -241,6 +244,143 @@ class TestWarmCachePerformance(unittest.TestCase):
                 0.010,
                 "Тёплый вызов занял {:.4f} с, ожидалось ≤ 0.010 с".format(warm_elapsed),
             )
+
+
+class TestFeatureCacheSqlite(unittest.TestCase):
+    """SQLite-кэш должен быть устойчивым и пригодным для shared worker-cache."""
+
+    def test_sqlite_set_then_get_roundtrip(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = FeatureCacheSqlite(Path(tmp) / "feature-cache.sqlite")
+            payload = {
+                "code": {"token-a", "token-b"},
+                "resource": {
+                    "resource_digests": {
+                        ("res/layout/main.xml", "digest-1"),
+                    },
+                },
+                "metadata": {"minSdk:24"},
+            }
+            cache.set("a" * 64, payload)
+            restored = cache.get("a" * 64)
+            cache.close()
+
+            self.assertEqual(restored, payload)
+
+    def test_sqlite_get_missing_returns_none(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = FeatureCacheSqlite(Path(tmp) / "feature-cache.sqlite")
+            self.assertIsNone(cache.get("b" * 64))
+            cache.close()
+
+    def test_sqlite_schema_passes_integrity_check(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "feature-cache.sqlite"
+            cache = FeatureCacheSqlite(db_path)
+            cache.set("c" * 64, {"mode": "enhanced"})
+            cache.close()
+
+            with sqlite3.connect(db_path) as conn:
+                row = conn.execute("PRAGMA integrity_check").fetchone()
+                table_info = conn.execute("PRAGMA table_info(feature_cache)").fetchall()
+
+            self.assertEqual(row[0], "ok")
+            self.assertEqual(
+                [column[1] for column in table_info],
+                ["sha256", "features_json", "created_at"],
+            )
+
+    def test_sqlite_concurrent_threads_observe_committed_rows(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "feature-cache.sqlite"
+            seen: dict[str, dict | None] = {}
+            failures: list[BaseException] = []
+            first_commit_done = threading.Event()
+            second_commit_done = threading.Event()
+
+            def writer_one() -> None:
+                cache = FeatureCacheSqlite(db_path)
+                try:
+                    cache.set("d" * 64, {"mode": "writer-one"})
+                    first_commit_done.set()
+                    self.assertTrue(second_commit_done.wait(timeout=5.0))
+                    seen["writer_one_reads"] = cache.get("e" * 64)
+                except BaseException as exc:  # pragma: no cover - test plumbing
+                    failures.append(exc)
+                finally:
+                    cache.close()
+
+            def writer_two() -> None:
+                cache = FeatureCacheSqlite(db_path)
+                try:
+                    self.assertTrue(first_commit_done.wait(timeout=5.0))
+                    seen["writer_two_reads"] = cache.get("d" * 64)
+                    cache.set("e" * 64, {"mode": "writer-two"})
+                    second_commit_done.set()
+                except BaseException as exc:  # pragma: no cover - test plumbing
+                    failures.append(exc)
+                finally:
+                    cache.close()
+
+            thread_a = threading.Thread(target=writer_one)
+            thread_b = threading.Thread(target=writer_two)
+            thread_a.start()
+            thread_b.start()
+            thread_a.join()
+            thread_b.join()
+
+            self.assertEqual(failures, [])
+            self.assertEqual(seen["writer_two_reads"], {"mode": "writer-one"})
+            self.assertEqual(seen["writer_one_reads"], {"mode": "writer-two"})
+
+    def test_sqlite_reopen_preserves_rows(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "feature-cache.sqlite"
+            first = FeatureCacheSqlite(db_path)
+            first.set("f" * 64, {"mode": "first-open"})
+            first.close()
+
+            second = FeatureCacheSqlite(db_path)
+            restored = second.get("f" * 64)
+            second.close()
+
+            self.assertEqual(restored, {"mode": "first-open"})
+
+    def test_sqlite_large_payload_roundtrip(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = FeatureCacheSqlite(Path(tmp) / "feature-cache.sqlite")
+            payload = {
+                "code": {"token-{:05d}".format(index) for index in range(4000)},
+                "resource": {
+                    "resource_digests": {
+                        (
+                            "res/layout/item_{:04d}.xml".format(index),
+                            "{:064x}".format(index),
+                        )
+                        for index in range(750)
+                    },
+                },
+                "metadata": {
+                    "manifest-entries": [
+                        {"name": "entry-{:04d}".format(index), "value": index}
+                        for index in range(500)
+                    ],
+                },
+            }
+            cache.set("1" * 64, payload)
+            restored = cache.get("1" * 64)
+            cache.close()
+
+            self.assertEqual(restored, payload)
+
+    def test_sqlite_rejects_invalid_sha256_length(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = FeatureCacheSqlite(Path(tmp) / "feature-cache.sqlite")
+            with self.assertRaises(ValueError):
+                cache.get("short")
+            with self.assertRaises(ValueError):
+                cache.set("still-short", {"mode": "broken"})
+            cache.close()
 
 
 if __name__ == "__main__":
