@@ -1,0 +1,12 @@
+{
+  "stages": {
+    "pairwise": {
+      "features": [
+        "code",
+        "metadata"
+      ],
+      "metric": "jaccard",
+      "threshold": 0.0
+    }
+  }
+}

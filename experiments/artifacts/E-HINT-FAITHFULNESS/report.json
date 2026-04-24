@@ -1,52 +1,161 @@
 {
-  "generated_at": "2026-04-24T06:53:31Z",
-  "source": {
-    "type": "synthetic",
-    "input_csv": "/private/tmp/wave17-F-submodule/experiments/artifacts/E-HINT-004/deep-184-annotated.csv",
-    "rows_evaluated": 4
+  "generated_at": "2026-04-24T08:43:21Z",
+  "synthetic_run": {
+    "source": {
+      "type": "synthetic",
+      "input_csv": "experiments/artifacts/E-HINT-004/deep-184-annotated.csv",
+      "rows_evaluated": 4
+    },
+    "n_hints": 4,
+    "results": [
+      {
+        "hint_id": "SYN-HINT-001",
+        "faithfulness": 1.0,
+        "sufficiency": 1.0,
+        "comprehensiveness": 1.0
+      },
+      {
+        "hint_id": "SYN-HINT-002",
+        "faithfulness": 1.0,
+        "sufficiency": 0.7,
+        "comprehensiveness": 0.7
+      },
+      {
+        "hint_id": "SYN-HINT-003",
+        "faithfulness": 1.0,
+        "sufficiency": 0.4,
+        "comprehensiveness": 0.4
+      },
+      {
+        "hint_id": "SYN-HINT-004",
+        "faithfulness": -1.0,
+        "sufficiency": 1.0,
+        "comprehensiveness": 1.0
+      }
+    ],
+    "aggregate": {
+      "count": 4,
+      "faithfulness": {
+        "mean": 0.5,
+        "median": 1.0,
+        "stddev": 0.866025
+      },
+      "sufficiency": {
+        "mean": 0.775,
+        "median": 0.85,
+        "stddev": 0.248747
+      },
+      "comprehensiveness": {
+        "mean": 0.775,
+        "median": 0.85,
+        "stddev": 0.248747
+      }
+    },
+    "faithfulness_mean": 0.5,
+    "faithfulness_median": 1.0,
+    "faithfulness_stddev": 0.866025,
+    "sufficiency_mean": 0.775,
+    "sufficiency_median": 0.85,
+    "sufficiency_stddev": 0.248747,
+    "comprehensiveness_mean": 0.775,
+    "comprehensiveness_median": 0.85,
+    "comprehensiveness_stddev": 0.248747
   },
-  "results": [
-    {
-      "hint_id": "SYN-HINT-001",
-      "faithfulness": 1.0,
-      "sufficiency": 1.0,
-      "comprehensiveness": 1.0
+  "real_data_run": {
+    "source": {
+      "type": "pairwise_json",
+      "pairwise_json": "experiments/artifacts/E-HINT-FAITHFULNESS/semi-real-pairwise.json",
+      "pairs_loaded": 10
     },
-    {
-      "hint_id": "SYN-HINT-002",
-      "faithfulness": 1.0,
-      "sufficiency": 0.7,
-      "comprehensiveness": 0.7
+    "n_hints": 10,
+    "results": [
+      {
+        "hint_id": "simple_app-empty__simple_app-releaseNonOptimized",
+        "faithfulness": 1.0,
+        "sufficiency": 0.666667,
+        "comprehensiveness": 0.666667
+      },
+      {
+        "hint_id": "simple_app-empty__simple_app-releaseOptimized",
+        "faithfulness": 1.0,
+        "sufficiency": 0.666667,
+        "comprehensiveness": 0.666667
+      },
+      {
+        "hint_id": "simple_app-empty__simple_app-releaseRename",
+        "faithfulness": 1.0,
+        "sufficiency": 0.666667,
+        "comprehensiveness": 0.666667
+      },
+      {
+        "hint_id": "simple_app-empty__snake",
+        "faithfulness": 1.0,
+        "sufficiency": 0.666667,
+        "comprehensiveness": 0.666667
+      },
+      {
+        "hint_id": "simple_app-releaseNonOptimized__simple_app-releaseOptimized",
+        "faithfulness": 1.0,
+        "sufficiency": 0.666667,
+        "comprehensiveness": 0.666667
+      },
+      {
+        "hint_id": "simple_app-releaseNonOptimized__simple_app-releaseRename",
+        "faithfulness": 1.0,
+        "sufficiency": 0.666667,
+        "comprehensiveness": 0.666667
+      },
+      {
+        "hint_id": "simple_app-releaseNonOptimized__snake",
+        "faithfulness": 1.0,
+        "sufficiency": 0.666667,
+        "comprehensiveness": 0.666667
+      },
+      {
+        "hint_id": "simple_app-releaseOptimized__simple_app-releaseRename",
+        "faithfulness": 1.0,
+        "sufficiency": 0.666667,
+        "comprehensiveness": 0.666667
+      },
+      {
+        "hint_id": "simple_app-releaseOptimized__snake",
+        "faithfulness": 1.0,
+        "sufficiency": 0.666667,
+        "comprehensiveness": 0.666667
+      },
+      {
+        "hint_id": "simple_app-releaseRename__snake",
+        "faithfulness": 1.0,
+        "sufficiency": 0.666667,
+        "comprehensiveness": 0.666667
+      }
+    ],
+    "aggregate": {
+      "count": 10,
+      "faithfulness": {
+        "mean": 1.0,
+        "median": 1.0,
+        "stddev": 0.0
+      },
+      "sufficiency": {
+        "mean": 0.666667,
+        "median": 0.666667,
+        "stddev": 0.0
+      },
+      "comprehensiveness": {
+        "mean": 0.666667,
+        "median": 0.666667,
+        "stddev": 0.0
+      }
     },
-    {
-      "hint_id": "SYN-HINT-003",
-      "faithfulness": 1.0,
-      "sufficiency": 0.4,
-      "comprehensiveness": 0.4
-    },
-    {
-      "hint_id": "SYN-HINT-004",
-      "faithfulness": -1.0,
-      "sufficiency": 1.0,
-      "comprehensiveness": 1.0
-    }
-  ],
-  "aggregate": {
-    "count": 4,
-    "faithfulness": {
-      "mean": 0.5,
-      "median": 1.0,
-      "stddev": 0.866025
-    },
-    "sufficiency": {
-      "mean": 0.775,
-      "median": 0.85,
-      "stddev": 0.248747
-    },
-    "comprehensiveness": {
-      "mean": 0.775,
-      "median": 0.85,
-      "stddev": 0.248747
-    }
+    "faithfulness_mean": 1.0,
+    "faithfulness_median": 1.0,
+    "faithfulness_stddev": 0.0,
+    "sufficiency_mean": 0.666667,
+    "sufficiency_median": 0.666667,
+    "sufficiency_stddev": 0.0,
+    "comprehensiveness_mean": 0.666667,
+    "comprehensiveness_median": 0.666667,
+    "comprehensiveness_stddev": 0.0
   }
 }
