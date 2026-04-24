@@ -1,0 +1,13 @@
+cascade_config_version: v1
+
+stages:
+  screening:
+    features: [code, metadata]
+    metric: jaccard
+    threshold: 0.28
+    candidate_index:
+      type: minhash_lsh
+      num_perm: 128
+      bands: 32
+      seed: 42
+      features: [code, metadata]
