@@ -563,6 +563,9 @@ def compare_resource_view_v2(features_a: Dict, features_b: Dict) -> Dict:
             если абсолютно все подмножества пустые с обеих сторон и
             иконки отсутствуют.
     """
+    # TODO(REPR-20-IDF-WEIGHTED-JACCARD): add optional IDF-weighted
+    # resource channels once there is a stable snapshot contract for
+    # strings/drawables/layouts/assets across unpacked APK corpora.
     result: Dict[str, float] = {}
     contributing_scores = []
     present_subsets = 0

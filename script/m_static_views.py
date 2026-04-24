@@ -660,15 +660,13 @@ def _include_layer_in_weighted_score(layer: str, layer_result: dict[str, Any]) -
 def _compare_library_enhanced(feat_a: dict, feat_b: dict) -> dict:
     """Enhanced library comparison via library_view module.
 
-    REPR-19-TVERSKY-WIRE: помимо симметричного Жаккара ``score`` возвращает
-    явные каналы ``jaccard``, ``tversky_a`` (|A ∩ B| / |A|),
-    ``tversky_b`` (|A ∩ B| / |B|), ``overlap_min`` (|A ∩ B| / min(|A|,|B|)).
-    Эти поля — простой проброс из `compare_libraries_v2` в main flow, чтобы
-    downstream (`screening_runner`, `pairwise_runner`, evidence-слой) могли
-    использовать асимметричные сигналы, добавленные волной 17
-    (`EXEC-TVERSKY-OVERLAP`). Старый ключ ``score`` = Jaccard сохранён для
-    обратной совместимости с `compare_all.full_similarity_score` до
-    калибровки весов EXEC-086.
+    REPR-19/20: помимо симметричного Жаккара ``score`` возвращает явные
+    каналы ``jaccard``, ``tversky_a`` (|A ∩ B| / |A|), ``tversky_b``
+    (|A ∩ B| / |B|), ``overlap_min`` (|A ∩ B| / min(|A|,|B|)) и, если
+    доступен IDF snapshot, дополняет их ``jaccard_idf``,
+    ``tversky_a_idf``, ``tversky_b_idf``. Старый ключ ``score`` =
+    plain Jaccard сохранён для обратной совместимости с
+    `compare_all.full_similarity_score` до калибровки весов EXEC-086.
     """
     if compare_libraries is None:
         return {"score": 0.0, "status": "not_available"}
@@ -690,7 +688,7 @@ def _compare_library_enhanced(feat_a: dict, feat_b: dict) -> dict:
         tversky_b = (shared / size_b) if size_b > 0 else 0.0
         min_size = min(size_a, size_b) if (size_a and size_b) else 0
         overlap_min = (shared / min_size) if min_size > 0 else 0.0
-        return {
+        result = {
             "score": jaccard_value,
             "status": "enhanced_v2",
             "jaccard": jaccard_value,
@@ -710,6 +708,15 @@ def _compare_library_enhanced(feat_a: dict, feat_b: dict) -> dict:
                 "b_only_count": only_b,
             },
         }
+        if "jaccard_idf" in comparison:
+            result["jaccard_idf"] = float(comparison["jaccard_idf"])
+        if "tversky_a_idf" in comparison:
+            result["tversky_a_idf"] = float(comparison["tversky_a_idf"])
+        if "tversky_b_idf" in comparison:
+            result["tversky_b_idf"] = float(comparison["tversky_b_idf"])
+        if "jaccard_idf" in result:
+            result["details"]["weighted_library_score_idf"] = result["jaccard_idf"]
+        return result
     jaccard_value = float(comparison.get("library_jaccard_score", 0.0))
     shared = len(comparison.get("shared", []))
     only_a = len(comparison.get("a_only", []))
