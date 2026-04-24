@@ -136,8 +136,8 @@ def test_noise_gate_rejects_adware_marked_apk_before_screening() -> None:
 
         app_ids_seen = set()
         for row in candidate_list:
-            app_ids_seen.add(row.get("app_a"))
-            app_ids_seen.add(row.get("app_b"))
+            app_ids_seen.add(row.get("query_app_id"))
+            app_ids_seen.add(row.get("candidate_app_id"))
 
         assert "APP-ADWARE" not in app_ids_seen
         assert "APP-CLEAN" in app_ids_seen
@@ -182,8 +182,8 @@ def test_noise_gate_passes_known_clean_apk() -> None:
 
         app_ids_seen = set()
         for row in candidate_list:
-            app_ids_seen.add(row.get("app_a"))
-            app_ids_seen.add(row.get("app_b"))
+            app_ids_seen.add(row.get("query_app_id"))
+            app_ids_seen.add(row.get("candidate_app_id"))
 
         assert "APP-CLEAN" in app_ids_seen
         assert "APP-PEER" in app_ids_seen
