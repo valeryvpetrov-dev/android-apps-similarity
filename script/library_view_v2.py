@@ -951,7 +951,14 @@ def compare_libraries_v2(features_a: Dict, features_b: Dict) -> Dict:
     """Compat wrapper: compare two v2 feature dicts.
 
     Returns plain Jaccard plus optional IDF-weighted channels when an
-    IDF snapshot is available.
+    IDF snapshot is available (REPR-20-IDF-WEIGHTED-JACCARD).
+
+    DEEP-20-BOTH-EMPTY-AUDIT: если оба набора библиотек пусты,
+    возвращается ``jaccard=0.0, status='both_empty', both_empty=True``.
+    Ранее на пустом union jaccard тоже был 0.0, но downstream
+    (``pairwise_runner``, evidence) не мог отличить «обе стороны без
+    библиотек» от «нулевого пересечения при непустых наборах». Явный
+    флаг позволяет агрегации исключать слой из взвешенного среднего.
     """
     libs_a = set(features_a.get("libraries", {}).keys())
     libs_b = set(features_b.get("libraries", {}).keys())
@@ -974,6 +981,14 @@ def compare_libraries_v2(features_a: Dict, features_b: Dict) -> Dict:
         "library_count_b": len(libs_b),
         "v2": True,
     }
+    if not libs_a and not libs_b:
+        # DEEP-20-BOTH-EMPTY-AUDIT: обе стороны пусты — явный флаг для
+        # downstream-агрегации (weighted_score исключает слой).
+        # IDF-взвешенные каналы не считаем: на пустых множествах они
+        # дадут нули и никакой дополнительной информации не добавят.
+        result["status"] = "both_empty"
+        result["both_empty"] = True
+        return result
     idf_weights = _load_idf_weights_for_layer("library")
     if idf_weights:
         tversky_a_idf, tversky_b_idf = _compute_idf_weighted_tversky(

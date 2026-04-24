@@ -393,6 +393,13 @@ def compare_components(features_a: dict, features_b: dict) -> dict:
     -------
     dict with per-type Jaccard scores, diffs, and aggregate
     ``component_jaccard_score``.
+
+    DEEP-20-BOTH-EMPTY-AUDIT: если все признаки с обеих сторон пусты
+    (нет activities/services/receivers/providers/permissions/features),
+    возвращается ``component_jaccard_score=0.0, status='both_empty',
+    both_empty=True``. Ранее ``_jaccard({}, {}) == 1.0`` давал
+    ``component_jaccard_score=1.0`` без флага — «оба пустых манифеста
+    равны клонам». Канонический контракт: `D-2026-04-DEEP-20-BOTH-EMPTY`.
     """
     # TODO(REPR-20-IDF-WEIGHTED-JACCARD): add optional IDF-weighted
     # per-type channels once we have a stable component-token snapshot
@@ -401,23 +408,70 @@ def compare_components(features_a: dict, features_b: dict) -> dict:
     type_keys = ("activities", "services", "receivers", "providers")
     per_type: dict[str, Any] = {}
 
+    # DEEP-20-BOTH-EMPTY-AUDIT: единая семантика both_empty.
+    # Все пять компонентных множеств + permissions + features пусты
+    # с обеих сторон → отсутствие сигнала, а не совпадение.
+    names_by_type_a: dict[str, set[str]] = {}
+    names_by_type_b: dict[str, set[str]] = {}
     for key in type_keys:
-        names_a = _component_names(features_a.get(key, []))
-        names_b = _component_names(features_b.get(key, []))
+        names_by_type_a[key] = _component_names(features_a.get(key, []))
+        names_by_type_b[key] = _component_names(features_b.get(key, []))
+    perm_a = set(features_a.get("permissions", set()))
+    perm_b = set(features_b.get("permissions", set()))
+    feat_a = set(features_a.get("features", set()))
+    feat_b = set(features_b.get("features", set()))
+    all_empty_a = (
+        all(not names_by_type_a[k] for k in type_keys)
+        and not perm_a
+        and not feat_a
+    )
+    all_empty_b = (
+        all(not names_by_type_b[k] for k in type_keys)
+        and not perm_b
+        and not feat_b
+    )
+    if all_empty_a and all_empty_b:
+        icc_a = extract_icc_tuples(features_a)
+        icc_b = extract_icc_tuples(features_b)
+        if not icc_a and not icc_b:
+            empty_per_type = {
+                k: {"jaccard": 0.0, "diff": _diff_sets(set(), set())}
+                for k in type_keys
+            }
+            empty_per_type["permissions"] = {
+                "jaccard": 0.0, "diff": _diff_sets(set(), set()),
+            }
+            empty_per_type["features"] = {
+                "jaccard": 0.0, "diff": _diff_sets(set(), set()),
+            }
+            return {
+                "component_jaccard_score": 0.0,
+                "icc_jaccard_score": 0.0,
+                "combined_component_icc_score": 0.0,
+                "icc_matched": 0,
+                "icc_union": 0,
+                "icc_tuples_a": 0,
+                "icc_tuples_b": 0,
+                "per_type": empty_per_type,
+                "package_a": features_a.get("package", ""),
+                "package_b": features_b.get("package", ""),
+                "status": "both_empty",
+                "both_empty": True,
+            }
+
+    for key in type_keys:
+        names_a = names_by_type_a[key]
+        names_b = names_by_type_b[key]
         per_type[key] = {
             "jaccard": _jaccard(names_a, names_b),
             "diff": _diff_sets(names_a, names_b),
         }
 
-    perm_a = set(features_a.get("permissions", set()))
-    perm_b = set(features_b.get("permissions", set()))
     per_type["permissions"] = {
         "jaccard": _jaccard(perm_a, perm_b),
         "diff": _diff_sets(perm_a, perm_b),
     }
 
-    feat_a = set(features_a.get("features", set()))
-    feat_b = set(features_b.get("features", set()))
     per_type["features"] = {
         "jaccard": _jaccard(feat_a, feat_b),
         "diff": _diff_sets(feat_a, feat_b),

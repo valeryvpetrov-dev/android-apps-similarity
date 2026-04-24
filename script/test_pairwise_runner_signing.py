@@ -138,8 +138,17 @@ class TestSignatureMatchInPairRow(unittest.TestCase):
         self.assertEqual(result["signature_match"]["score"], 0.0)
 
     def test_missing_when_both_hashes_are_none(self):
+        # DEEP-20-BOTH-EMPTY-AUDIT: единая семантика both_empty.
+        # Оба хеша None → status='both_missing', both_empty=True
+        # (ранее был 'missing' — общий статус для one_empty/both_empty,
+        # что не давало downstream исключить слой из агрегации).
         result = self._run_with_hashes(None, None)
-        self.assertEqual(result["signature_match"]["status"], "missing")
+        self.assertEqual(
+            result["signature_match"]["status"], "both_missing",
+        )
+        self.assertIs(
+            result["signature_match"].get("both_empty"), True,
+        )
 
 
 if __name__ == "__main__":

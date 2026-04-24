@@ -267,11 +267,12 @@ def compare_code_v4_shingled(
     """
     if features_a is None and features_b is None:
         return {
-            "score": 1.0,
+            "score": 0.0,
             "matched_methods": 0,
             "union_methods": 0,
             "denominator_methods": 0,
             "status": "both_empty",
+            "both_empty": True,
         }
     if features_a is None or features_b is None:
         return {
@@ -289,11 +290,12 @@ def compare_code_v4_shingled(
 
     if not ids_a and not ids_b:
         return {
-            "score": 1.0,
+            "score": 0.0,
             "matched_methods": 0,
             "union_methods": 0,
             "denominator_methods": 0,
             "status": "both_empty",
+            "both_empty": True,
         }
     if not ids_a or not ids_b:
         return {

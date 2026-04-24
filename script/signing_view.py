@@ -159,8 +159,13 @@ def compare_signatures(hash_a: Optional[str], hash_b: Optional[str]) -> dict:
     Выход: {'score': float (0.0 или 1.0), 'status': str}.
       'match' — оба хеша существуют и совпадают, score = 1.0.
       'mismatch' — оба хеша существуют, но различаются, score = 0.0.
-      'missing' — хотя бы один хеш None, score = 0.0.
+      'both_missing' — оба хеша None, score = 0.0, both_empty=True
+        (DEEP-20-BOTH-EMPTY-AUDIT: единая семантика «обе стороны
+        без сигнала» через канонический флаг ``both_empty``).
+      'missing' — ровно одна сторона без подписи, score = 0.0.
     """
+    if hash_a is None and hash_b is None:
+        return {'score': 0.0, 'status': 'both_missing', 'both_empty': True}
     if hash_a is None or hash_b is None:
         return {'score': 0.0, 'status': 'missing'}
     if hash_a == hash_b:
