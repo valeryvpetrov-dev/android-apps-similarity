@@ -7,6 +7,7 @@ import logging
 import math
 import os
 import re
+import warnings
 import zipfile
 from itertools import combinations
 from pathlib import Path
@@ -33,6 +34,12 @@ HIGH_CONFIDENCE_SCORE_THRESHOLD = 0.95  # library_reduced или агрегир�
 SHORTCUT_REQUIRES_SIGNATURE_MATCH = True  # жёсткое требование совпадения подписи
 SHORTCUT_STATUS = "success_shortcut"
 SHORTCUT_REASON_HIGH_CONFIDENCE = "high_confidence_signature_match"
+
+# SCREENING-17-APP-KEYS-DEPRECATION-WARNING: поля app_a/app_b устарели с волны 17.
+_APP_AB_DEPRECATION_MSG = (
+    "Fields app_a/app_b are deprecated since screening-handoff-contract-v2; "
+    "read query_app_id/candidate_app_id instead."
+)
 
 M_STATIC_LAYERS = ("code", "component", "resource", "metadata", "library")
 LAYER_ALIASES = {
@@ -1321,11 +1328,16 @@ def build_candidate_list(
         app_a_apk_path = app_a.get("apk_path")
         app_b_apk_path = app_b.get("apk_path")
 
+        # SCREENING-17-APP-KEYS-DEPRECATION-WARNING: app_a/app_b — deprecated alias
+        # до волны 18. Canonical source of truth: query_app_id/candidate_app_id.
+        warnings.warn(_APP_AB_DEPRECATION_MSG, DeprecationWarning, stacklevel=2)
         row = {
-            "app_a": app_a["app_id"],
-            "app_b": app_b["app_id"],
+            # Канонические поля (source of truth по контракту v2).
             "query_app_id": app_a["app_id"],
             "candidate_app_id": app_b["app_id"],
+            # Deprecated alias до волны 18.
+            "app_a": app_a["app_id"],
+            "app_b": app_b["app_id"],
             "app_a_apk_path": app_a_apk_path,
             "app_b_apk_path": app_b_apk_path,
             "retrieval_score": float(score),
@@ -1348,7 +1360,7 @@ def build_candidate_list(
             )
         candidate_list.append(row)
     candidate_list.sort(
-        key=lambda item: (-item["retrieval_score"], item["app_a"], item["app_b"])
+        key=lambda item: (-item["retrieval_score"], item["query_app_id"], item["candidate_app_id"])
     )
     for index, item in enumerate(candidate_list, start=1):
         item["retrieval_rank"] = index
@@ -1397,11 +1409,16 @@ def _compose_candidate_row(
     app_a_apk_path = query_app.get("apk_path")
     app_b_apk_path = corpus_app.get("apk_path")
 
+    # SCREENING-17-APP-KEYS-DEPRECATION-WARNING: app_a/app_b — deprecated alias
+    # до волны 18. Canonical source of truth: query_app_id/candidate_app_id.
+    warnings.warn(_APP_AB_DEPRECATION_MSG, DeprecationWarning, stacklevel=2)
     row = {
-        "app_a": query_app["app_id"],
-        "app_b": corpus_app["app_id"],
+        # Канонические поля (source of truth по контракту v2).
         "query_app_id": query_app["app_id"],
         "candidate_app_id": corpus_app["app_id"],
+        # Deprecated alias до волны 18.
+        "app_a": query_app["app_id"],
+        "app_b": corpus_app["app_id"],
         "app_a_apk_path": app_a_apk_path,
         "app_b_apk_path": app_b_apk_path,
         "retrieval_score": float(score),
@@ -1559,7 +1576,7 @@ def build_candidate_list_batch(
             per_query_rows.append(row)
 
         per_query_rows.sort(
-            key=lambda item: (-item["retrieval_score"], item["app_a"], item["app_b"])
+            key=lambda item: (-item["retrieval_score"], item["query_app_id"], item["candidate_app_id"])
         )
         for rank, item in enumerate(per_query_rows, start=1):
             item["retrieval_rank"] = rank
