@@ -256,10 +256,12 @@ def _feature_cache_path_override(
             os.environ["FEATURE_CACHE_PATH"] = previous
 
 
-def _open_feature_cache_from_env() -> Any | None:
+def _open_feature_cache(
+    feature_cache_path: str | os.PathLike[str] | None = None,
+) -> Any | None:
     if FeatureCacheSqlite is None:
         return None
-    return FeatureCacheSqlite(_resolve_feature_cache_path())
+    return FeatureCacheSqlite(_resolve_feature_cache_path(feature_cache_path))
 
 
 @contextmanager
@@ -1401,6 +1403,7 @@ def _pair_worker_isolated(
     ged_timeout_sec: int,
     processes_count: int,
     threads_count: int,
+    feature_cache_path_str: str | None = None,
 ) -> str:
     """Top-level worker for ProcessPoolExecutor (pickle-compatible).
 
@@ -1436,7 +1439,7 @@ def _pair_worker_isolated(
     layer_cache: dict[tuple[str, str | None], dict[str, set[str]]] = {}
     code_cache: dict[str, list] = {}
     apk_discovery_cache: dict[str, str | None] = {}
-    feature_cache = _open_feature_cache_from_env()
+    feature_cache = _open_feature_cache(feature_cache_path_str)
     try:
         row = _compute(
             candidate=candidate,
@@ -1499,6 +1502,7 @@ def _run_single_pair_with_timeout(
     processes_count: int,
     threads_count: int,
     pair_timeout_sec: int,
+    feature_cache_path_str: str | None = None,
 ) -> dict[str, Any]:
     """EXEC-090: один pair_row в изолированном ProcessPoolExecutor(max_workers=1)
     с жёстким таймаутом. Таймаут => budget_exceeded; другая ошибка воркера =>
@@ -1516,6 +1520,7 @@ def _run_single_pair_with_timeout(
                 ged_timeout_sec,
                 processes_count,
                 threads_count,
+                feature_cache_path_str,
             )
             result_json = future.result(timeout=pair_timeout_sec)
         return json.loads(result_json)
@@ -1579,6 +1584,7 @@ def run_pairwise(
         config = load_config(config_path)
         selected_layers, metric, threshold = parse_pairwise_stage(config)
         candidates = load_enriched_candidates(enriched_path)
+        resolved_feature_cache_path = str(_resolve_feature_cache_path(feature_cache_path))
 
         layer_cache: dict[tuple[str, str | None], dict[str, set[str]]] = {}
         code_cache: dict[str, list] = {}
@@ -1599,6 +1605,7 @@ def run_pairwise(
                     processes_count=processes_count,
                     threads_count=threads_count,
                     pair_timeout_sec=pair_timeout_sec,
+                    feature_cache_path_str=resolved_feature_cache_path,
                 )
             return _compute_pair_row_with_caches(
                 candidate=candidate,
@@ -1647,6 +1654,9 @@ def run_pairwise(
             else:
                 heavy_indices.append(index)
 
+        if not heavy_indices:
+            return [results_by_index[i] for i in range(len(candidates))]
+
     if heavy_indices:
         config_path_str = str(config_path)
         with _process_pool_sysconf_workaround(), _make_parallel_executor(max_workers=workers) as executor:
@@ -1662,6 +1672,7 @@ def run_pairwise(
                     ged_timeout_sec,
                     processes_count,
                     threads_count,
+                    resolved_feature_cache_path,
                 )
                 future_to_index[future] = index
 
