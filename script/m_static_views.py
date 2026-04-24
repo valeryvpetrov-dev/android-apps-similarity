@@ -182,12 +182,31 @@ ALL_LAYERS = (
 # code_v4 / code_v4_shingled are registered with weight 0.0 — layers are plumbed
 # through aggregation but are not part of the default weighted score until
 # calibrated by EXEC-086. Existing weights are intentionally unchanged.
+#
+# DEEP-19-LAYER-WEIGHTS-CALIBRATE: активные веса калиброваны до суммы
+# ``1.0``. Ранее использовались интуитивные значения
+# ``{code: 0.45, component: 0.25, resource: 0.20, library: 0.10, api: 0.15}``
+# с суммой ``1.15``, что нарушало инвариант «веса распределения
+# единичны» (критик волны 18,
+# ``inbox/critics/deep-verification-2026-04-24.md`` раздел 1).
+#
+# Метод калибровки — нормировка ``new_w = old_w / sum(old_w)``:
+# относительные пропорции сохранены (code/library = 4.5,
+# component/api = 5/3), поэтому агрегированный score
+# ``full_similarity_score`` и ``library_reduced_score`` численно
+# совпадают со значениями до калибровки (формула в ``compare_all``
+# делит на ``weight_total``, см. строки ~870–900 ниже). Калибровка —
+# инвариантное исправление словаря, а не изменение метрики.
+#
+# Обучение весов по корпусу (EXEC-086, логистическая регрессия / learn-
+# to-rank по per-view scores) остаётся в бэклоге: задача заблокирована
+# EXEC-080 (train/test split с AndroZoo key).
 LAYER_WEIGHTS = {
-    "code": 0.45,
-    "component": 0.25,
-    "resource": 0.20,
-    "library": 0.10,
-    "api": 0.15,
+    "code": 0.45 / 1.15,
+    "component": 0.25 / 1.15,
+    "resource": 0.20 / 1.15,
+    "library": 0.10 / 1.15,
+    "api": 0.15 / 1.15,
     "code_v4": 0.0,
     "code_v4_shingled": 0.0,
     # resource_v2: подключено, не активировано до калибровки EXEC-086.
