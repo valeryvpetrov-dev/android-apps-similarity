@@ -598,6 +598,80 @@ def _russian_signal_word(count: int, texts: dict) -> str:
     return texts["signal_word_many"]
 
 
+# ---------------------------------------------------------------------------
+# EXEC-HINT-20-EVIDENCE-CANON: канонический вывод hint-строки из Evidence.
+#
+# `Evidence` — источник фактов. `hint` — производная человеко-читаемая
+# строка, построенная функцией `format_hint_from_evidence(evidence) -> str`.
+# Инварианты:
+# - факты в hint ⊆ факты в Evidence (hint не может содержать сигнал,
+#   которого нет в Evidence);
+# - пустой Evidence (пустой список / None / не-список / только невалидные
+#   записи) -> пустая/дефолтная строка, без исключений.
+#
+# Канонический документ: `system/result-interpretation-contract-v1.md`.
+# ---------------------------------------------------------------------------
+
+_HINT_EMPTY_DEFAULT = ""
+
+
+def _hint_fragment(item: dict) -> str | None:
+    """Сформировать одну человеко-читаемую часть hint из записи Evidence.
+
+    Возвращает None для некорректных записей — такие записи в hint
+    не попадают (инвариант: hint ⊆ Evidence).
+    """
+    if not isinstance(item, dict):
+        return None
+    signal_type = item.get("signal_type")
+    ref = item.get("ref")
+    if not isinstance(signal_type, str) or not signal_type.strip():
+        return None
+    if not isinstance(ref, str) or not ref.strip():
+        return None
+    try:
+        magnitude = float(item.get("magnitude", 0.0))
+    except (TypeError, ValueError):
+        return None
+
+    if signal_type == "layer_score":
+        return "{ref}={magnitude:.2f}".format(ref=ref.strip(), magnitude=magnitude)
+    if signal_type == "signature_match":
+        return "{ref}={magnitude:.2f} (подпись)".format(
+            ref=ref.strip(), magnitude=magnitude
+        )
+    return "{ref}:{signal}={magnitude:.2f}".format(
+        ref=ref.strip(),
+        signal=signal_type.strip(),
+        magnitude=magnitude,
+    )
+
+
+def format_hint_from_evidence(evidence_list: object) -> str:
+    """Сформировать единую hint-строку из списка Evidence.
+
+    Канонический путь: Evidence -> hint. Инварианты:
+    - факты в hint ⊆ факты в Evidence (каждая часть строки построена по
+      валидной evidence-записи, других фактов hint не вносит);
+    - пустой/невалидный вход -> возвращается пустая строка ``""``
+      (безопасный дефолт для raw-режима, когда hint не показывается);
+    - функция не бросает исключений на любых некорректных входах.
+    """
+    if not isinstance(evidence_list, list):
+        return _HINT_EMPTY_DEFAULT
+
+    fragments: list[str] = []
+    for item in evidence_list:
+        fragment = _hint_fragment(item)
+        if fragment is not None:
+            fragments.append(fragment)
+
+    if len(fragments) == 0:
+        return _HINT_EMPTY_DEFAULT
+
+    return "; ".join(fragments)
+
+
 def render_single_evidence(evidence: dict, locale: str = "ru") -> str:
     """Сформировать одну строку markdown-таблицы для Evidence-записи.
 

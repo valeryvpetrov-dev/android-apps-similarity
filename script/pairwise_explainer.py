@@ -798,6 +798,33 @@ def _hints_from_evidence(evidence_list: list[dict]) -> list[dict]:
     return hints
 
 
+def generate_hint(pair_row: dict) -> str:
+    """Deprecated: формирует hint-строку для пары.
+
+    EXEC-HINT-20-EVIDENCE-CANON: hint — производная из Evidence, а не
+    независимый объект. Эта функция сохраняет прежнюю сигнатуру, но
+    внутри делегирует в канонический путь:
+
+        evidence_formatter.collect_evidence_from_pairwise(pair_row)
+          -> evidence_formatter.format_hint_from_evidence(evidence)
+
+    Таким образом pairwise_explainer больше не вычисляет hint независимо
+    от Evidence, и инвариант «факты в hint ⊆ факты в Evidence»
+    сохраняется по построению.
+
+    Новый код должен пользоваться `format_hint_from_evidence` напрямую.
+    Канонический документ: `system/result-interpretation-contract-v1.md`.
+    """
+    # Импорт внутри функции — чтобы избежать циклических зависимостей
+    # и чтобы legacy-потребители модуля не тянули reader-path.
+    import evidence_formatter  # noqa: WPS433
+
+    if not isinstance(pair_row, dict):
+        return evidence_formatter.format_hint_from_evidence(None)
+    evidence = evidence_formatter.collect_evidence_from_pairwise(pair_row)
+    return evidence_formatter.format_hint_from_evidence(evidence)
+
+
 def build_output_rows(pair_rows: list[dict]) -> list[dict]:
     output_rows: list[dict] = []
     logger = logging.getLogger(__name__)
