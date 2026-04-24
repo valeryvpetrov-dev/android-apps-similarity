@@ -218,7 +218,7 @@ class TestExtractCandidateIndexParams(unittest.TestCase):
 
 
 class TestBuildCandidateListWithLSH(unittest.TestCase):
-    def test_build_candidate_list_without_index_keeps_legacy_behavior(self) -> None:
+    def test_build_candidate_list_without_index_keeps_canonical_contract(self) -> None:
         records = _build_small_corpus()
         result = build_candidate_list(
             app_records=records,
@@ -231,13 +231,14 @@ class TestBuildCandidateListWithLSH(unittest.TestCase):
             threads_count=2,
             candidate_index_params=None,
         )
-        pairs = sorted((row["app_a"], row["app_b"]) for row in result)
+        pairs = sorted((row["query_app_id"], row["candidate_app_id"]) for row in result)
         # Expect intra-cluster pairs to be present; outlier APP-Z disjoint.
         self.assertIn(("APP-X1", "APP-X2"), pairs)
         self.assertIn(("APP-X1", "APP-X3"), pairs)
         self.assertIn(("APP-X2", "APP-X3"), pairs)
         self.assertIn(("APP-Y1", "APP-Y2"), pairs)
         self.assertNotIn(("APP-X1", "APP-Z"), pairs)
+        self.assertTrue(all("app_a" not in row and "app_b" not in row for row in result))
 
     def test_build_candidate_list_with_lsh_preserves_intra_cluster_pairs(self) -> None:
         records = _build_small_corpus()
@@ -259,11 +260,12 @@ class TestBuildCandidateListWithLSH(unittest.TestCase):
             threads_count=2,
             candidate_index_params=params,
         )
-        pairs = sorted((row["app_a"], row["app_b"]) for row in result)
+        pairs = sorted((row["query_app_id"], row["candidate_app_id"]) for row in result)
         self.assertIn(("APP-X1", "APP-X2"), pairs)
         self.assertIn(("APP-X1", "APP-X3"), pairs)
         self.assertIn(("APP-X2", "APP-X3"), pairs)
         self.assertIn(("APP-Y1", "APP-Y2"), pairs)
+        self.assertTrue(all("app_a" not in row and "app_b" not in row for row in result))
 
 
 class TestRunScreeningIntegration(unittest.TestCase):
@@ -293,7 +295,7 @@ class TestRunScreeningIntegration(unittest.TestCase):
             )
             # Baseline: exact O(n^2) screening. Record pairs passing threshold.
             pairs_without_index = {
-                (row["app_a"], row["app_b"]): row["retrieval_score"]
+                (row["query_app_id"], row["candidate_app_id"]): row["retrieval_score"]
                 for row in result_without_index
             }
             self.assertGreater(len(pairs_without_index), 0)
@@ -347,8 +349,14 @@ class TestRunScreeningIntegration(unittest.TestCase):
                 apps_features_json_path=apps_path,
             )
 
-            exact_pairs = {(row["app_a"], row["app_b"]) for row in result_exact}
-            lsh_pairs = {(row["app_a"], row["app_b"]) for row in result_lsh}
+            exact_pairs = {
+                (row["query_app_id"], row["candidate_app_id"])
+                for row in result_exact
+            }
+            lsh_pairs = {
+                (row["query_app_id"], row["candidate_app_id"])
+                for row in result_lsh
+            }
 
             # LSH-screened output is a subset of exact output (since LSH only
             # filters candidate pairs, exact Jaccard runs afterwards).

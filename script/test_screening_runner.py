@@ -93,12 +93,14 @@ class TestScreeningRunnerCandidateListContract(unittest.TestCase):
 
         self.assertEqual(len(candidate_list), 1)
         row = candidate_list[0]
-        self.assertEqual(row["app_a"], "APP-A")
-        self.assertEqual(row["app_b"], "APP-B")
         self.assertEqual(row["query_app_id"], "APP-A")
         self.assertEqual(row["candidate_app_id"], "APP-B")
         self.assertEqual(row["retrieval_rank"], 1)
         self.assertEqual(row["retrieval_features_used"], ["code"])
+        self.assertEqual(row["screening_status"], "preliminary_positive")
+        self.assertIsInstance(row["screening_cost_ms"], int)
+        self.assertNotIn("app_a", row)
+        self.assertNotIn("app_b", row)
         self.assertEqual(row["screening_warnings"], [])
         self.assertIsNone(row["screening_explanation"])
 
@@ -138,7 +140,15 @@ class TestScreeningRunnerCandidateListContract(unittest.TestCase):
             screening_runner.calculate_pair_score = original_score  # type: ignore[assignment]
 
         self.assertEqual(
-            [(row["app_a"], row["app_b"], row["retrieval_score"], row["retrieval_rank"]) for row in candidate_list],
+            [
+                (
+                    row["query_app_id"],
+                    row["candidate_app_id"],
+                    row["retrieval_score"],
+                    row["retrieval_rank"],
+                )
+                for row in candidate_list
+            ],
             [
                 ("APP-A", "APP-C", 0.70, 1),
                 ("APP-B", "APP-C", 0.70, 2),
