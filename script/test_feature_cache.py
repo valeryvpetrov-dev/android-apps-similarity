@@ -261,8 +261,8 @@ class TestFeatureCacheSqlite(unittest.TestCase):
                 },
                 "metadata": {"minSdk:24"},
             }
-            cache.set("a" * 64, payload)
-            restored = cache.get("a" * 64)
+            cache.put("a" * 64, "v1", payload)
+            restored = cache.get("a" * 64, "v1")
             cache.close()
 
             self.assertEqual(restored, payload)
@@ -270,24 +270,24 @@ class TestFeatureCacheSqlite(unittest.TestCase):
     def test_sqlite_get_missing_returns_none(self):
         with tempfile.TemporaryDirectory() as tmp:
             cache = FeatureCacheSqlite(Path(tmp) / "feature-cache.sqlite")
-            self.assertIsNone(cache.get("b" * 64))
+            self.assertIsNone(cache.get("b" * 64, "v1"))
             cache.close()
 
     def test_sqlite_schema_passes_integrity_check(self):
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp) / "feature-cache.sqlite"
             cache = FeatureCacheSqlite(db_path)
-            cache.set("c" * 64, {"mode": "enhanced"})
+            cache.put("c" * 64, "v1", {"mode": "enhanced"})
             cache.close()
 
             with sqlite3.connect(db_path) as conn:
                 row = conn.execute("PRAGMA integrity_check").fetchone()
-                table_info = conn.execute("PRAGMA table_info(feature_cache)").fetchall()
+                table_info = conn.execute("PRAGMA table_info(features)").fetchall()
 
             self.assertEqual(row[0], "ok")
             self.assertEqual(
                 [column[1] for column in table_info],
-                ["sha256", "features_json", "created_at"],
+                ["sha256", "feature_version", "blob"],
             )
 
     def test_sqlite_concurrent_threads_observe_committed_rows(self):
@@ -301,10 +301,10 @@ class TestFeatureCacheSqlite(unittest.TestCase):
             def writer_one() -> None:
                 cache = FeatureCacheSqlite(db_path)
                 try:
-                    cache.set("d" * 64, {"mode": "writer-one"})
+                    cache.put("d" * 64, "v1", {"mode": "writer-one"})
                     first_commit_done.set()
                     self.assertTrue(second_commit_done.wait(timeout=5.0))
-                    seen["writer_one_reads"] = cache.get("e" * 64)
+                    seen["writer_one_reads"] = cache.get("e" * 64, "v1")
                 except BaseException as exc:  # pragma: no cover - test plumbing
                     failures.append(exc)
                 finally:
@@ -314,8 +314,8 @@ class TestFeatureCacheSqlite(unittest.TestCase):
                 cache = FeatureCacheSqlite(db_path)
                 try:
                     self.assertTrue(first_commit_done.wait(timeout=5.0))
-                    seen["writer_two_reads"] = cache.get("d" * 64)
-                    cache.set("e" * 64, {"mode": "writer-two"})
+                    seen["writer_two_reads"] = cache.get("d" * 64, "v1")
+                    cache.put("e" * 64, "v1", {"mode": "writer-two"})
                     second_commit_done.set()
                 except BaseException as exc:  # pragma: no cover - test plumbing
                     failures.append(exc)
@@ -337,11 +337,11 @@ class TestFeatureCacheSqlite(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp) / "feature-cache.sqlite"
             first = FeatureCacheSqlite(db_path)
-            first.set("f" * 64, {"mode": "first-open"})
+            first.put("f" * 64, "v1", {"mode": "first-open"})
             first.close()
 
             second = FeatureCacheSqlite(db_path)
-            restored = second.get("f" * 64)
+            restored = second.get("f" * 64, "v1")
             second.close()
 
             self.assertEqual(restored, {"mode": "first-open"})
@@ -367,8 +367,8 @@ class TestFeatureCacheSqlite(unittest.TestCase):
                     ],
                 },
             }
-            cache.set("1" * 64, payload)
-            restored = cache.get("1" * 64)
+            cache.put("1" * 64, "v1", payload)
+            restored = cache.get("1" * 64, "v1")
             cache.close()
 
             self.assertEqual(restored, payload)
@@ -377,9 +377,9 @@ class TestFeatureCacheSqlite(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             cache = FeatureCacheSqlite(Path(tmp) / "feature-cache.sqlite")
             with self.assertRaises(ValueError):
-                cache.get("short")
+                cache.get("short", "v1")
             with self.assertRaises(ValueError):
-                cache.set("still-short", {"mode": "broken"})
+                cache.put("still-short", "v1", {"mode": "broken"})
             cache.close()
 
 
