@@ -1,0 +1,52 @@
+{
+  "generated_at": "2026-04-24T06:53:31Z",
+  "source": {
+    "type": "synthetic",
+    "input_csv": "/private/tmp/wave17-F-submodule/experiments/artifacts/E-HINT-004/deep-184-annotated.csv",
+    "rows_evaluated": 4
+  },
+  "results": [
+    {
+      "hint_id": "SYN-HINT-001",
+      "faithfulness": 1.0,
+      "sufficiency": 1.0,
+      "comprehensiveness": 1.0
+    },
+    {
+      "hint_id": "SYN-HINT-002",
+      "faithfulness": 1.0,
+      "sufficiency": 0.7,
+      "comprehensiveness": 0.7
+    },
+    {
+      "hint_id": "SYN-HINT-003",
+      "faithfulness": 1.0,
+      "sufficiency": 0.4,
+      "comprehensiveness": 0.4
+    },
+    {
+      "hint_id": "SYN-HINT-004",
+      "faithfulness": -1.0,
+      "sufficiency": 1.0,
+      "comprehensiveness": 1.0
+    }
+  ],
+  "aggregate": {
+    "count": 4,
+    "faithfulness": {
+      "mean": 0.5,
+      "median": 1.0,
+      "stddev": 0.866025
+    },
+    "sufficiency": {
+      "mean": 0.775,
+      "median": 0.85,
+      "stddev": 0.248747
+    },
+    "comprehensiveness": {
+      "mean": 0.775,
+      "median": 0.85,
+      "stddev": 0.248747
+    }
+  }
+}
