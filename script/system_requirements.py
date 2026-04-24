@@ -15,7 +15,7 @@
 Соответствие с ``system/system-requirements-v1.md``:
 
 * Обязательные: ``androguard``, ``cryptography``, ``apktool``, ``apkid``,
-  ``libloom`` (только если в конфигурации задан путь к jar-файлу).
+  ``libloom`` (внешний датасет в ``LIBLOOM_HOME``).
 * Опциональные: ``Pillow``, ``tlsh``.
 """
 
@@ -25,7 +25,11 @@ import importlib
 import os
 import shutil
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
+
+LIBLOOM_HOME_ENV_VAR = "LIBLOOM_HOME"
+LIBLOOM_JAR_NAME = "LIBLOOM.jar"
+LIBLOOM_PROFILE_DIR_NAME = "libs_profile"
 
 
 # ---------------------------------------------------------------------------
@@ -44,8 +48,7 @@ class RequirementStatus:
     * ``type`` — тип зависимости: ``"pip"`` для Python-пакета или
       ``"cli"`` для внешнего исполняемого файла или jar-файла.
     * ``required`` — является ли зависимость обязательной в текущем
-      запуске. Для ``libloom`` это значение зависит от того, указан ли
-      путь к jar-файлу в настройке каскада.
+      запуске. Для текущего контура ``libloom`` тоже обязателен.
     * ``available`` — удалось ли обнаружить зависимость.
     * ``detection_details`` — подробности о том, как именно была
       выполнена проверка и что именно найдено. Используется для
@@ -144,24 +147,39 @@ def check_apkid() -> bool:
     return shutil.which("apkid") is not None
 
 
-def check_libloom(jar_path: Optional[str]) -> bool:
+def check_libloom() -> bool:
     """Проверить доступность инструмента ``libloom``.
 
-    ``libloom`` — это внешний Java-инструмент, упакованный в jar-файл. Он
-    считается доступным только если одновременно выполнены два условия:
+    ``libloom`` — это обязательный внешний датасет и Java-инструмент. Он
+    считается доступным только если одновременно выполнены три условия:
 
-    1. Путь ``jar_path`` указан и файл по этому пути существует.
-    2. В системе доступна команда ``java`` (JDK 17 по требованиям).
+    1. Задана переменная окружения ``LIBLOOM_HOME``.
+    2. В ``$LIBLOOM_HOME`` существуют ``LIBLOOM.jar`` и непустой каталог
+       ``libs_profile/``.
+    3. В системе доступна команда ``java`` (JDK 17 по требованиям).
 
-    Если ``jar_path`` не задан (``None``), считаем инструмент
-    недоступным. Это отражает политику: в тех запусках, где путь не
-    указан, ``libloom`` просто не считается обязательным.
+    При любой проблеме функция возвращает ``False``: отсутствие env
+    переменной, jar-файла, каталога профилей, пустой каталог профилей или
+    отсутствие ``java`` на ``PATH``.
     """
 
-    if jar_path is None:
+    libloom_home = os.environ.get(LIBLOOM_HOME_ENV_VAR, "").strip()
+    if not libloom_home:
         return False
+
+    jar_path = os.path.join(libloom_home, LIBLOOM_JAR_NAME)
     if not os.path.isfile(jar_path):
         return False
+
+    profiles_dir = os.path.join(libloom_home, LIBLOOM_PROFILE_DIR_NAME)
+    if not os.path.isdir(profiles_dir):
+        return False
+    try:
+        if not any(os.scandir(profiles_dir)):
+            return False
+    except OSError:
+        return False
+
     return shutil.which("java") is not None
 
 
@@ -170,22 +188,24 @@ def check_libloom(jar_path: Optional[str]) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def audit_requirements(
-    libloom_jar: Optional[str] = None,
-) -> List[RequirementStatus]:
+def audit_requirements() -> List[RequirementStatus]:
     """Собрать статусы всех зависимостей similarity-системы.
 
     Порядок в списке совпадает с порядком таблиц из
     ``system/system-requirements-v1.md``: сначала обязательные, затем
     опциональные. Это удобно для формирования сообщения об ошибке.
-
-    Зависимость ``libloom`` считается обязательной только если задан
-    ``libloom_jar``. Так задача стыкуется с политикой документа:
-    конфигурация каскада сама выбирает, использовать ли libloom на
-    конкретном прогоне.
     """
-
-    libloom_required = libloom_jar is not None
+    libloom_home = os.environ.get(LIBLOOM_HOME_ENV_VAR, "").strip()
+    jar_path = (
+        os.path.join(libloom_home, LIBLOOM_JAR_NAME)
+        if libloom_home
+        else None
+    )
+    profiles_dir = (
+        os.path.join(libloom_home, LIBLOOM_PROFILE_DIR_NAME)
+        if libloom_home
+        else None
+    )
 
     statuses: List[RequirementStatus] = [
         RequirementStatus(
@@ -221,10 +241,13 @@ def audit_requirements(
         RequirementStatus(
             name="libloom",
             type="cli",
-            required=libloom_required,
-            available=check_libloom(libloom_jar),
+            required=True,
+            available=check_libloom(),
             detection_details={
-                "jar_path": libloom_jar,
+                "env_var": LIBLOOM_HOME_ENV_VAR,
+                "libloom_home": libloom_home or None,
+                "jar_path": jar_path,
+                "profiles_dir": profiles_dir,
                 "needs_java": True,
             },
         ),
@@ -246,9 +269,7 @@ def audit_requirements(
     return statuses
 
 
-def verify_required_dependencies(
-    libloom_jar: Optional[str] = None,
-) -> None:
+def verify_required_dependencies() -> None:
     """Выполнить fail-fast проверку обязательных зависимостей.
 
     Поднимает ``RuntimeError`` с понятным текстом, если хотя бы одна
@@ -261,7 +282,7 @@ def verify_required_dependencies(
     исключение не попадает — это соответствует политике документа.
     """
 
-    statuses = audit_requirements(libloom_jar=libloom_jar)
+    statuses = audit_requirements()
     missing = [s for s in statuses if s.required and not s.available]
     if not missing:
         return
@@ -275,8 +296,10 @@ def verify_required_dependencies(
         ),
         "apkid": "pip install apkid и установить Yara в систему",
         "libloom": (
-            "скачать собранный jar libloom и указать путь в настройке "
-            "каскада; установить JDK 17 (команда java должна быть в PATH)"
+            "запустить `LIBLOOM_HOME=~/tools/libloom bash "
+            "experiments/scripts/setup_libloom.sh`, затем проверить "
+            "`$LIBLOOM_HOME/LIBLOOM.jar`, непустой `$LIBLOOM_HOME/libs_profile` "
+            "и наличие `java` в PATH"
         ),
     }
 

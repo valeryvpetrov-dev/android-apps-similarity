@@ -17,6 +17,7 @@ LIBLOOM особенности:
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -26,13 +27,38 @@ from typing import Any
 
 DEFAULT_TIMEOUT_SEC = 600  # 315 сек по публикации + buffer
 DEFAULT_JAVA_HEAP_MB = 2048
+LIBLOOM_HOME_ENV_VAR = "LIBLOOM_HOME"
+LIBLOOM_JAR_NAME = "LIBLOOM.jar"
 
 _STDOUT_TAIL_BYTES = 4096
 
 
-def libloom_available(jar_path: str) -> bool:
-    """Check whether LIBLOOM jar is a file and java is on PATH."""
-    if not Path(jar_path).is_file():
+def resolve_libloom_jar_path() -> str:
+    """Resolve `$LIBLOOM_HOME/LIBLOOM.jar` or raise a clear RuntimeError."""
+    libloom_home = os.environ.get(LIBLOOM_HOME_ENV_VAR, "").strip()
+    if not libloom_home:
+        raise RuntimeError(
+            "LIBLOOM_HOME is not set; install LIBLOOM via "
+            "`experiments/scripts/setup_libloom.sh` and export LIBLOOM_HOME"
+        )
+
+    jar_path = Path(libloom_home) / LIBLOOM_JAR_NAME
+    if not jar_path.is_file():
+        raise RuntimeError(
+            f"LIBLOOM jar not found at {jar_path}; "
+            "run `experiments/scripts/setup_libloom.sh` again"
+        )
+    return str(jar_path)
+
+
+def libloom_available(jar_path: str | None = None) -> bool:
+    """Check whether LIBLOOM jar is a file and java is on PATH.
+
+    If `jar_path` is omitted, it is resolved strictly from `LIBLOOM_HOME`.
+    Missing env var or missing jar are configuration errors, not silent fallbacks.
+    """
+    resolved_jar_path = resolve_libloom_jar_path() if jar_path is None else jar_path
+    if not Path(resolved_jar_path).is_file():
         return False
     return shutil.which("java") is not None
 
