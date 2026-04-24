@@ -1,6 +1,6 @@
 {
   "artifact_id": "EXEC-PAIRWISE-SHARED-CACHE",
-  "measured_at_utc": "2026-04-24T07:01:06Z",
+  "measured_at_utc": "2026-04-24T07:01:50Z",
   "workload": {
     "workers": 2,
     "unique_apks": 5,
@@ -30,8 +30,8 @@
     "repeats_per_pattern": 4,
     "synthetic_extract_sleep_seconds": 0.12
   },
-  "time_before_seconds": 2.574022,
-  "time_after_seconds": 0.477043,
-  "speedup_ratio": 5.395783,
+  "time_before_seconds": 2.568739,
+  "time_after_seconds": 0.464588,
+  "speedup_ratio": 5.529069,
   "cache_rows_after_run": 5
 }

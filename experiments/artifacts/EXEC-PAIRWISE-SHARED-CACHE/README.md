@@ -28,9 +28,9 @@ python3 experiments/artifacts/EXEC-PAIRWISE-SHARED-CACHE/measure_benchmark.py
 
 ## Последний замер
 
-- `time_before_seconds = 2.574022`
-- `time_after_seconds = 0.477043`
-- `speedup_ratio = 5.395783`
+- `time_before_seconds = 2.568739`
+- `time_after_seconds = 0.464588`
+- `speedup_ratio = 5.529069`
 - `cache_rows_after_run = 5`
 
 Требование `>= 2x` выполнено.
