@@ -1,0 +1,362 @@
+[
+  {
+    "app_a": "simple_app-empty",
+    "app_b": "simple_app-releaseNonOptimized",
+    "full_similarity_score": 0.35714285714285715,
+    "library_reduced_score": 0.35714285714285715,
+    "status": "success",
+    "views_used": [
+      "code",
+      "metadata"
+    ],
+    "signature_match": {
+      "score": 0.0,
+      "status": "mismatch"
+    },
+    "elapsed_ms_deep": 45,
+    "evidence": [
+      {
+        "source_stage": "pairwise",
+        "signal_type": "layer_score",
+        "magnitude": 0.35714285714285715,
+        "ref": "code"
+      },
+      {
+        "source_stage": "pairwise",
+        "signal_type": "layer_score",
+        "magnitude": 0.35714285714285715,
+        "ref": "metadata"
+      },
+      {
+        "source_stage": "signing",
+        "signal_type": "signature_match",
+        "magnitude": 0.0,
+        "ref": "apk_signature"
+      }
+    ]
+  },
+  {
+    "app_a": "simple_app-empty",
+    "app_b": "simple_app-releaseOptimized",
+    "full_similarity_score": 0.35714285714285715,
+    "library_reduced_score": 0.35714285714285715,
+    "status": "success",
+    "views_used": [
+      "code",
+      "metadata"
+    ],
+    "signature_match": {
+      "score": 0.0,
+      "status": "mismatch"
+    },
+    "elapsed_ms_deep": 3,
+    "evidence": [
+      {
+        "source_stage": "pairwise",
+        "signal_type": "layer_score",
+        "magnitude": 0.35714285714285715,
+        "ref": "code"
+      },
+      {
+        "source_stage": "pairwise",
+        "signal_type": "layer_score",
+        "magnitude": 0.35714285714285715,
+        "ref": "metadata"
+      },
+      {
+        "source_stage": "signing",
+        "signal_type": "signature_match",
+        "magnitude": 0.0,
+        "ref": "apk_signature"
+      }
+    ]
+  },
+  {
+    "app_a": "simple_app-empty",
+    "app_b": "simple_app-releaseRename",
+    "full_similarity_score": 0.35714285714285715,
+    "library_reduced_score": 0.35714285714285715,
+    "status": "success",
+    "views_used": [
+      "code",
+      "metadata"
+    ],
+    "signature_match": {
+      "score": 0.0,
+      "status": "mismatch"
+    },
+    "elapsed_ms_deep": 3,
+    "evidence": [
+      {
+        "source_stage": "pairwise",
+        "signal_type": "layer_score",
+        "magnitude": 0.35714285714285715,
+        "ref": "code"
+      },
+      {
+        "source_stage": "pairwise",
+        "signal_type": "layer_score",
+        "magnitude": 0.35714285714285715,
+        "ref": "metadata"
+      },
+      {
+        "source_stage": "signing",
+        "signal_type": "signature_match",
+        "magnitude": 0.0,
+        "ref": "apk_signature"
+      }
+    ]
+  },
+  {
+    "app_a": "simple_app-empty",
+    "app_b": "snake",
+    "full_similarity_score": 0.26666666666666666,
+    "library_reduced_score": 0.26666666666666666,
+    "status": "success",
+    "views_used": [
+      "code",
+      "metadata"
+    ],
+    "signature_match": {
+      "score": 0.0,
+      "status": "mismatch"
+    },
+    "elapsed_ms_deep": 5,
+    "evidence": [
+      {
+        "source_stage": "pairwise",
+        "signal_type": "layer_score",
+        "magnitude": 0.26666666666666666,
+        "ref": "code"
+      },
+      {
+        "source_stage": "pairwise",
+        "signal_type": "layer_score",
+        "magnitude": 0.26666666666666666,
+        "ref": "metadata"
+      },
+      {
+        "source_stage": "signing",
+        "signal_type": "signature_match",
+        "magnitude": 0.0,
+        "ref": "apk_signature"
+      }
+    ]
+  },
+  {
+    "app_a": "simple_app-releaseNonOptimized",
+    "app_b": "simple_app-releaseOptimized",
+    "full_similarity_score": 0.6666666666666666,
+    "library_reduced_score": 0.6666666666666666,
+    "status": "success",
+    "views_used": [
+      "code",
+      "metadata"
+    ],
+    "signature_match": {
+      "score": 0.0,
+      "status": "mismatch"
+    },
+    "elapsed_ms_deep": 0,
+    "evidence": [
+      {
+        "source_stage": "pairwise",
+        "signal_type": "layer_score",
+        "magnitude": 0.6666666666666666,
+        "ref": "code"
+      },
+      {
+        "source_stage": "pairwise",
+        "signal_type": "layer_score",
+        "magnitude": 0.6666666666666666,
+        "ref": "metadata"
+      },
+      {
+        "source_stage": "signing",
+        "signal_type": "signature_match",
+        "magnitude": 0.0,
+        "ref": "apk_signature"
+      }
+    ]
+  },
+  {
+    "app_a": "simple_app-releaseNonOptimized",
+    "app_b": "simple_app-releaseRename",
+    "full_similarity_score": 0.6666666666666666,
+    "library_reduced_score": 0.6666666666666666,
+    "status": "success",
+    "views_used": [
+      "code",
+      "metadata"
+    ],
+    "signature_match": {
+      "score": 0.0,
+      "status": "mismatch"
+    },
+    "elapsed_ms_deep": 0,
+    "evidence": [
+      {
+        "source_stage": "pairwise",
+        "signal_type": "layer_score",
+        "magnitude": 0.6666666666666666,
+        "ref": "code"
+      },
+      {
+        "source_stage": "pairwise",
+        "signal_type": "layer_score",
+        "magnitude": 0.6666666666666666,
+        "ref": "metadata"
+      },
+      {
+        "source_stage": "signing",
+        "signal_type": "signature_match",
+        "magnitude": 0.0,
+        "ref": "apk_signature"
+      }
+    ]
+  },
+  {
+    "app_a": "simple_app-releaseNonOptimized",
+    "app_b": "snake",
+    "full_similarity_score": 0.5384615384615384,
+    "library_reduced_score": 0.5384615384615384,
+    "status": "success",
+    "views_used": [
+      "code",
+      "metadata"
+    ],
+    "signature_match": {
+      "score": 0.0,
+      "status": "mismatch"
+    },
+    "elapsed_ms_deep": 0,
+    "evidence": [
+      {
+        "source_stage": "pairwise",
+        "signal_type": "layer_score",
+        "magnitude": 0.5384615384615384,
+        "ref": "code"
+      },
+      {
+        "source_stage": "pairwise",
+        "signal_type": "layer_score",
+        "magnitude": 0.5384615384615384,
+        "ref": "metadata"
+      },
+      {
+        "source_stage": "signing",
+        "signal_type": "signature_match",
+        "magnitude": 0.0,
+        "ref": "apk_signature"
+      }
+    ]
+  },
+  {
+    "app_a": "simple_app-releaseOptimized",
+    "app_b": "simple_app-releaseRename",
+    "full_similarity_score": 0.6666666666666666,
+    "library_reduced_score": 0.6666666666666666,
+    "status": "success",
+    "views_used": [
+      "code",
+      "metadata"
+    ],
+    "signature_match": {
+      "score": 0.0,
+      "status": "mismatch"
+    },
+    "elapsed_ms_deep": 0,
+    "evidence": [
+      {
+        "source_stage": "pairwise",
+        "signal_type": "layer_score",
+        "magnitude": 0.6666666666666666,
+        "ref": "code"
+      },
+      {
+        "source_stage": "pairwise",
+        "signal_type": "layer_score",
+        "magnitude": 0.6666666666666666,
+        "ref": "metadata"
+      },
+      {
+        "source_stage": "signing",
+        "signal_type": "signature_match",
+        "magnitude": 0.0,
+        "ref": "apk_signature"
+      }
+    ]
+  },
+  {
+    "app_a": "simple_app-releaseOptimized",
+    "app_b": "snake",
+    "full_similarity_score": 0.5384615384615384,
+    "library_reduced_score": 0.5384615384615384,
+    "status": "success",
+    "views_used": [
+      "code",
+      "metadata"
+    ],
+    "signature_match": {
+      "score": 0.0,
+      "status": "mismatch"
+    },
+    "elapsed_ms_deep": 0,
+    "evidence": [
+      {
+        "source_stage": "pairwise",
+        "signal_type": "layer_score",
+        "magnitude": 0.5384615384615384,
+        "ref": "code"
+      },
+      {
+        "source_stage": "pairwise",
+        "signal_type": "layer_score",
+        "magnitude": 0.5384615384615384,
+        "ref": "metadata"
+      },
+      {
+        "source_stage": "signing",
+        "signal_type": "signature_match",
+        "magnitude": 0.0,
+        "ref": "apk_signature"
+      }
+    ]
+  },
+  {
+    "app_a": "simple_app-releaseRename",
+    "app_b": "snake",
+    "full_similarity_score": 0.5384615384615384,
+    "library_reduced_score": 0.5384615384615384,
+    "status": "success",
+    "views_used": [
+      "code",
+      "metadata"
+    ],
+    "signature_match": {
+      "score": 0.0,
+      "status": "mismatch"
+    },
+    "elapsed_ms_deep": 0,
+    "evidence": [
+      {
+        "source_stage": "pairwise",
+        "signal_type": "layer_score",
+        "magnitude": 0.5384615384615384,
+        "ref": "code"
+      },
+      {
+        "source_stage": "pairwise",
+        "signal_type": "layer_score",
+        "magnitude": 0.5384615384615384,
+        "ref": "metadata"
+      },
+      {
+        "source_stage": "signing",
+        "signal_type": "signature_match",
+        "magnitude": 0.0,
+        "ref": "apk_signature"
+      }
+    ]
+  }
+]

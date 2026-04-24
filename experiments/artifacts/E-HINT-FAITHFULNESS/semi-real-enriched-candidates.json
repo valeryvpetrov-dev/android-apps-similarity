@@ -1,0 +1,114 @@
+{
+  "enriched_candidates": [
+    {
+      "pair_id": "SEMIREAL-001",
+      "app_a": {
+        "app_id": "simple_app-empty",
+        "apk_path": "/tmp/wave19-F-submodule/apk/simple_app/simple_app-empty.apk"
+      },
+      "app_b": {
+        "app_id": "simple_app-releaseNonOptimized",
+        "apk_path": "/tmp/wave19-F-submodule/apk/simple_app/simple_app-releaseNonOptimized.apk"
+      }
+    },
+    {
+      "pair_id": "SEMIREAL-002",
+      "app_a": {
+        "app_id": "simple_app-empty",
+        "apk_path": "/tmp/wave19-F-submodule/apk/simple_app/simple_app-empty.apk"
+      },
+      "app_b": {
+        "app_id": "simple_app-releaseOptimized",
+        "apk_path": "/tmp/wave19-F-submodule/apk/simple_app/simple_app-releaseOptimized.apk"
+      }
+    },
+    {
+      "pair_id": "SEMIREAL-003",
+      "app_a": {
+        "app_id": "simple_app-empty",
+        "apk_path": "/tmp/wave19-F-submodule/apk/simple_app/simple_app-empty.apk"
+      },
+      "app_b": {
+        "app_id": "simple_app-releaseRename",
+        "apk_path": "/tmp/wave19-F-submodule/apk/simple_app/simple_app-releaseRename.apk"
+      }
+    },
+    {
+      "pair_id": "SEMIREAL-004",
+      "app_a": {
+        "app_id": "simple_app-empty",
+        "apk_path": "/tmp/wave19-F-submodule/apk/simple_app/simple_app-empty.apk"
+      },
+      "app_b": {
+        "app_id": "snake",
+        "apk_path": "/tmp/wave19-F-submodule/apk/snake/snake.apk"
+      }
+    },
+    {
+      "pair_id": "SEMIREAL-005",
+      "app_a": {
+        "app_id": "simple_app-releaseNonOptimized",
+        "apk_path": "/tmp/wave19-F-submodule/apk/simple_app/simple_app-releaseNonOptimized.apk"
+      },
+      "app_b": {
+        "app_id": "simple_app-releaseOptimized",
+        "apk_path": "/tmp/wave19-F-submodule/apk/simple_app/simple_app-releaseOptimized.apk"
+      }
+    },
+    {
+      "pair_id": "SEMIREAL-006",
+      "app_a": {
+        "app_id": "simple_app-releaseNonOptimized",
+        "apk_path": "/tmp/wave19-F-submodule/apk/simple_app/simple_app-releaseNonOptimized.apk"
+      },
+      "app_b": {
+        "app_id": "simple_app-releaseRename",
+        "apk_path": "/tmp/wave19-F-submodule/apk/simple_app/simple_app-releaseRename.apk"
+      }
+    },
+    {
+      "pair_id": "SEMIREAL-007",
+      "app_a": {
+        "app_id": "simple_app-releaseNonOptimized",
+        "apk_path": "/tmp/wave19-F-submodule/apk/simple_app/simple_app-releaseNonOptimized.apk"
+      },
+      "app_b": {
+        "app_id": "snake",
+        "apk_path": "/tmp/wave19-F-submodule/apk/snake/snake.apk"
+      }
+    },
+    {
+      "pair_id": "SEMIREAL-008",
+      "app_a": {
+        "app_id": "simple_app-releaseOptimized",
+        "apk_path": "/tmp/wave19-F-submodule/apk/simple_app/simple_app-releaseOptimized.apk"
+      },
+      "app_b": {
+        "app_id": "simple_app-releaseRename",
+        "apk_path": "/tmp/wave19-F-submodule/apk/simple_app/simple_app-releaseRename.apk"
+      }
+    },
+    {
+      "pair_id": "SEMIREAL-009",
+      "app_a": {
+        "app_id": "simple_app-releaseOptimized",
+        "apk_path": "/tmp/wave19-F-submodule/apk/simple_app/simple_app-releaseOptimized.apk"
+      },
+      "app_b": {
+        "app_id": "snake",
+        "apk_path": "/tmp/wave19-F-submodule/apk/snake/snake.apk"
+      }
+    },
+    {
+      "pair_id": "SEMIREAL-010",
+      "app_a": {
+        "app_id": "simple_app-releaseRename",
+        "apk_path": "/tmp/wave19-F-submodule/apk/simple_app/simple_app-releaseRename.apk"
+      },
+      "app_b": {
+        "app_id": "snake",
+        "apk_path": "/tmp/wave19-F-submodule/apk/snake/snake.apk"
+      }
+    }
+  ]
+}

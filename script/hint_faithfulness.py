@@ -26,6 +26,7 @@ from dataclasses import asdict
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 from typing import Callable
 from typing import Iterable
 from typing import Mapping
@@ -347,14 +348,157 @@ def build_synthetic_rows() -> list[dict[str, object]]:
     ]
 
 
-def generate_report(input_csv: Optional[Path], output_json: Path) -> dict[str, object]:
-    source_type = "synthetic"
-    if input_csv is not None and input_csv.exists():
-        rows = load_csv_rows(input_csv)
-        source_type = "csv"
-    else:
-        rows = build_synthetic_rows()
+def _canonical_pair_feature_name(signal_type: str, ref: str) -> str:
+    return f"{signal_type}:{ref}"
 
+
+def _to_float_or_none(value: object) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _load_pairwise_explainer():
+    try:
+        from script.pairwise_explainer import build_output_rows
+    except Exception:
+        from pairwise_explainer import build_output_rows  # type: ignore
+    return build_output_rows
+
+
+def load_pairwise_rows(json_path: Path) -> list[dict[str, object]]:
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if isinstance(payload, dict):
+        for key in ("pairs", "pairwise", "results", "candidates", "items", "data"):
+            value = payload.get(key)
+            if isinstance(value, list):
+                return [item for item in value if isinstance(item, dict)]
+        return [payload]
+    return []
+
+
+def _feature_map_from_evidence(evidence: object) -> dict[str, float]:
+    if not isinstance(evidence, list):
+        return {}
+
+    features: dict[str, float] = {}
+    for item in evidence:
+        if not isinstance(item, dict):
+            continue
+        signal_type = item.get("signal_type")
+        ref = item.get("ref")
+        magnitude = _to_float_or_none(item.get("magnitude"))
+        if not isinstance(signal_type, str) or not signal_type.strip():
+            continue
+        if not isinstance(ref, str) or not ref.strip():
+            continue
+        if magnitude is None:
+            continue
+        features[_canonical_pair_feature_name(signal_type.strip(), ref.strip())] = magnitude
+    return features
+
+
+def _pair_features_from_row(pair_row: Mapping[str, object]) -> dict[str, float]:
+    features = _feature_map_from_evidence(pair_row.get("evidence"))
+
+    full_score = _to_float_or_none(pair_row.get("full_similarity_score"))
+    if full_score is not None:
+        features["pair:full_similarity_score"] = full_score
+
+    library_reduced = _to_float_or_none(pair_row.get("library_reduced_score"))
+    if library_reduced is not None and (full_score is None or not math.isclose(library_reduced, full_score)):
+        features["pair:library_reduced_score"] = library_reduced
+
+    if not features:
+        per_view = pair_row.get("per_view_scores")
+        if isinstance(per_view, dict):
+            for layer_name, score in per_view.items():
+                if not isinstance(layer_name, str) or not layer_name.strip():
+                    continue
+                parsed = _to_float_or_none(score)
+                if parsed is None:
+                    continue
+                features[_canonical_pair_feature_name("layer_score", layer_name.strip())] = parsed
+
+        signature_match = pair_row.get("signature_match")
+        if isinstance(signature_match, dict):
+            signature_score = _to_float_or_none(signature_match.get("score"))
+            if signature_score is not None:
+                features[_canonical_pair_feature_name("signature_match", "apk_signature")] = signature_score
+
+    return features
+
+
+def _hint_features_from_explanations(explanation_hints: object, fallback_evidence: object) -> dict[str, float]:
+    features: dict[str, float] = {}
+    if isinstance(explanation_hints, list):
+        for hint in explanation_hints:
+            if not isinstance(hint, dict):
+                continue
+            signal_type = hint.get("signal") or hint.get("type")
+            ref = hint.get("entity") or hint.get("ref")
+            score = _to_float_or_none(hint.get("score"))
+            if not isinstance(signal_type, str) or not signal_type.strip():
+                continue
+            if not isinstance(ref, str) or not ref.strip():
+                continue
+            if score is None:
+                continue
+            features[_canonical_pair_feature_name(signal_type.strip(), ref.strip())] = score
+    if features:
+        return features
+    return _feature_map_from_evidence(fallback_evidence)
+
+
+def _pair_hint_id(pair_row: Mapping[str, object]) -> str:
+    pair_id = pair_row.get("pair_id")
+    if isinstance(pair_id, str) and pair_id.strip():
+        return pair_id.strip()
+    app_a = str(pair_row.get("app_a") or "unknown_app_a").strip() or "unknown_app_a"
+    app_b = str(pair_row.get("app_b") or "unknown_app_b").strip() or "unknown_app_b"
+    return f"{app_a}__{app_b}"
+
+
+def build_real_data_rows_from_pairwise(pair_rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    if not pair_rows:
+        return []
+
+    build_output_rows = _load_pairwise_explainer()
+    explained_rows = build_output_rows(pair_rows)
+
+    rows: list[dict[str, object]] = []
+    for pair_row, explained_row in zip(pair_rows, explained_rows):
+        pair_features = _pair_features_from_row(pair_row)
+        hint_features = _hint_features_from_explanations(
+            explained_row.get("explanation_hints"),
+            pair_row.get("evidence"),
+        )
+        if not pair_features or not hint_features:
+            continue
+        hint_only_features = {
+            name: pair_features[name]
+            for name in hint_features
+            if name in pair_features
+        }
+        if not hint_only_features:
+            continue
+        rows.append(
+            {
+                "hint_id": _pair_hint_id(pair_row),
+                "pair_features": pair_features,
+                "hint_features": hint_features,
+                "hint_only_features": hint_only_features,
+            }
+        )
+    return rows
+
+
+def _build_run_section(rows: list[dict[str, object]], source: dict[str, object]) -> dict[str, object]:
     results = [
         evaluate_hint(
             row["pair_features"],
@@ -365,13 +509,10 @@ def generate_report(input_csv: Optional[Path], output_json: Path) -> dict[str, o
         for row in rows
     ]
 
-    report = {
-        "generated_at": datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
-        "source": {
-            "type": source_type,
-            "input_csv": str(input_csv) if input_csv is not None else None,
-            "rows_evaluated": len(results),
-        },
+    aggregate = aggregate_results(results)
+    return {
+        "source": source,
+        "n_hints": len(results),
         "results": [
             {
                 "hint_id": result.hint_id,
@@ -381,7 +522,62 @@ def generate_report(input_csv: Optional[Path], output_json: Path) -> dict[str, o
             }
             for result in results
         ],
-        "aggregate": aggregate_results(results),
+        "aggregate": aggregate,
+        "faithfulness_mean": aggregate["faithfulness"]["mean"],
+        "faithfulness_median": aggregate["faithfulness"]["median"],
+        "faithfulness_stddev": aggregate["faithfulness"]["stddev"],
+        "sufficiency_mean": aggregate["sufficiency"]["mean"],
+        "sufficiency_median": aggregate["sufficiency"]["median"],
+        "sufficiency_stddev": aggregate["sufficiency"]["stddev"],
+        "comprehensiveness_mean": aggregate["comprehensiveness"]["mean"],
+        "comprehensiveness_median": aggregate["comprehensiveness"]["median"],
+        "comprehensiveness_stddev": aggregate["comprehensiveness"]["stddev"],
+    }
+
+
+def generate_report(
+    input_csv: Optional[Path],
+    output_json: Path,
+    *,
+    pairwise_json: Optional[Path] = None,
+) -> dict[str, object]:
+    synthetic_rows = build_synthetic_rows()
+    synthetic_run = _build_run_section(
+        synthetic_rows,
+        {
+            "type": "synthetic",
+            "input_csv": str(input_csv) if input_csv is not None else None,
+            "rows_evaluated": len(synthetic_rows),
+        },
+    )
+
+    real_data_run: dict[str, object] | None = None
+    if input_csv is not None and input_csv.exists():
+        real_rows = load_csv_rows(input_csv)
+        real_data_run = _build_run_section(
+            real_rows,
+            {
+                "type": "csv",
+                "input_csv": str(input_csv),
+                "rows_loaded": len(real_rows),
+            },
+        )
+    elif pairwise_json is not None and pairwise_json.exists():
+        pair_rows = load_pairwise_rows(pairwise_json)
+        real_rows = build_real_data_rows_from_pairwise(pair_rows)
+        real_data_run = _build_run_section(
+            real_rows,
+            {
+                "type": "pairwise_json",
+                "pairwise_json": str(pairwise_json),
+                "pairs_loaded": len(pair_rows),
+            },
+        )
+
+    report = {
+        "generated_at": datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+        "synthetic_run": synthetic_run,
+        "real_data_run": real_data_run,
     }
 
     output_json.parent.mkdir(parents=True, exist_ok=True)
@@ -396,6 +592,11 @@ def parse_args() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(description="Generate automatic hint faithfulness metrics report.")
     parser.add_argument("--input-csv", default=str(default_input), help="Input CSV with exported hint features.")
+    parser.add_argument(
+        "--pairwise-json",
+        default=None,
+        help="Optional pairwise JSON to use when --input-csv is absent.",
+    )
     parser.add_argument("--output-json", default=str(default_output), help="Path to JSON report.")
     return parser.parse_args()
 
@@ -403,13 +604,23 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     input_csv = Path(args.input_csv)
+    pairwise_json = Path(args.pairwise_json) if args.pairwise_json else None
     output_json = Path(args.output_json)
-    report = generate_report(input_csv, output_json)
+    report = generate_report(input_csv, output_json, pairwise_json=pairwise_json)
     print(
         json.dumps(
             {
-                "source_type": report["source"]["type"],
-                "rows_evaluated": report["source"]["rows_evaluated"],
+                "synthetic_hints": report["synthetic_run"]["n_hints"],
+                "real_source_type": (
+                    report["real_data_run"]["source"]["type"]
+                    if report.get("real_data_run") is not None
+                    else None
+                ),
+                "real_hints": (
+                    report["real_data_run"]["n_hints"]
+                    if report.get("real_data_run") is not None
+                    else 0
+                ),
                 "output_json": str(output_json),
             },
             ensure_ascii=False,

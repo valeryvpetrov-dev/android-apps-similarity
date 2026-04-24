@@ -27,6 +27,140 @@ def touch_apk(path: Path) -> None:
 
 
 class TestPairwiseRunnerEnhanced(unittest.TestCase):
+    def test_run_pairwise_supports_quick_layers_without_decoded_dirs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            config_path = root / "config.yaml"
+            enriched_path = root / "enriched.json"
+            apk_a = root / "a.apk"
+            apk_b = root / "b.apk"
+            touch_apk(apk_a)
+            touch_apk(apk_b)
+
+            write_text(
+                config_path,
+                """
+stages:
+  pairwise:
+    features: [code, metadata]
+    metric: cosine
+    threshold: 0.10
+""".strip(),
+            )
+            enriched_path.write_text(
+                json.dumps(
+                    {
+                        "enriched_candidates": [
+                            {
+                                "app_a": {"app_id": "A", "apk_path": str(apk_a)},
+                                "app_b": {"app_id": "B", "apk_path": str(apk_b)},
+                            }
+                        ]
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+            feature_bundle = {
+                "mode": "quick",
+                "code": {"dex:classes.dex"},
+                "metadata": {"manifest_present:1", "signing_present:1"},
+                "component": {"manifest_component:com.example.MainActivity"},
+                "resource": {"res_type:layout", "res_ext:xml"},
+                "library": {"meta_inf_ext:RSA"},
+            }
+
+            with mock.patch.object(
+                pairwise_runner,
+                "extract_all_features",
+                side_effect=[feature_bundle, feature_bundle],
+            ):
+                payload = pairwise_runner.run_pairwise(
+                    config_path=config_path,
+                    enriched_path=enriched_path,
+                    ins_block_sim_threshold=0.8,
+                    ged_timeout_sec=30,
+                    processes_count=1,
+                    threads_count=2,
+                )
+
+        result = payload[0]
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(result["views_used"], ["code", "metadata"])
+        self.assertAlmostEqual(result["full_similarity_score"], 1.0)
+        self.assertAlmostEqual(result["library_reduced_score"], 1.0)
+
+    def test_run_pairwise_keeps_backward_compat_with_mocked_calculate_pair_scores(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            config_path = root / "config.yaml"
+            enriched_path = root / "enriched.json"
+            apk_a = root / "a.apk"
+            apk_b = root / "b.apk"
+            touch_apk(apk_a)
+            touch_apk(apk_b)
+
+            write_text(
+                config_path,
+                """
+stages:
+  pairwise:
+    features: [code, metadata]
+    metric: jaccard
+    threshold: 0.0
+""".strip(),
+            )
+            enriched_path.write_text(
+                json.dumps(
+                    {
+                        "enriched_candidates": [
+                            {
+                                "app_a": {"app_id": "A", "apk_path": str(apk_a)},
+                                "app_b": {"app_id": "B", "apk_path": str(apk_b)},
+                            }
+                        ]
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+            def fake_pair_scores(
+                apk_a,
+                apk_b,
+                decoded_a,
+                decoded_b,
+                selected_layers,
+                metric,
+                ins_block_sim_threshold,
+                ged_timeout_sec,
+                processes_count,
+                threads_count,
+                layer_cache,
+                code_cache,
+            ):
+                return 0.85, 0.80, list(selected_layers)
+
+            with mock.patch.object(
+                pairwise_runner,
+                "calculate_pair_scores",
+                side_effect=fake_pair_scores,
+            ):
+                payload = pairwise_runner.run_pairwise(
+                    config_path=config_path,
+                    enriched_path=enriched_path,
+                    ins_block_sim_threshold=0.8,
+                    ged_timeout_sec=30,
+                    processes_count=1,
+                    threads_count=2,
+                )
+
+        result = payload[0]
+        self.assertEqual(result["status"], "success")
+        self.assertAlmostEqual(result["full_similarity_score"], 0.85)
+        self.assertAlmostEqual(result["library_reduced_score"], 0.80)
+
     def test_run_pairwise_uses_decoded_layers_for_non_code_views(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

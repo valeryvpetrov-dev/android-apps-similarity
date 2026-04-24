@@ -896,6 +896,19 @@ def stringify_tokens(tokens: set[Any]) -> set[str]:
     return {str(token) for token in tokens}
 
 
+def normalize_pairwise_layer_tokens(layer_name: str, raw_features: Any) -> set[str]:
+    """Normalize quick/enhanced feature bundles to flat string tokens."""
+    if layer_name == "component" and isinstance(raw_features, dict):
+        return flatten_component_features(raw_features)
+    if layer_name == "resource" and isinstance(raw_features, dict):
+        return flatten_resource_features(raw_features)
+    if layer_name == "library" and isinstance(raw_features, dict):
+        return flatten_library_features(raw_features)
+    if isinstance(raw_features, (set, list, tuple)):
+        return {str(token) for token in raw_features}
+    return set()
+
+
 def flatten_component_features(features: dict[str, Any]) -> set[str]:
     tokens: set[str] = set()
     for component_type in ("activities", "services", "receivers", "providers"):
@@ -970,11 +983,11 @@ def load_layers_for_pairwise(
             feature_cache.set(apk_sha256, feature_bundle)
 
     layers = {
-        "code": stringify_tokens(feature_bundle.get("code", set())),
-        "metadata": stringify_tokens(feature_bundle.get("metadata", set())),
-        "component": flatten_component_features(feature_bundle.get("component", {})),
-        "resource": flatten_resource_features(feature_bundle.get("resource", {})),
-        "library": flatten_library_features(feature_bundle.get("library", {})),
+        "code": normalize_pairwise_layer_tokens("code", feature_bundle.get("code", set())),
+        "metadata": normalize_pairwise_layer_tokens("metadata", feature_bundle.get("metadata", set())),
+        "component": normalize_pairwise_layer_tokens("component", feature_bundle.get("component", {})),
+        "resource": normalize_pairwise_layer_tokens("resource", feature_bundle.get("resource", {})),
+        "library": normalize_pairwise_layer_tokens("library", feature_bundle.get("library", {})),
     }
     layer_cache[cache_key] = layers
     return layers
@@ -1319,21 +1332,24 @@ def _compute_pair_row_with_caches(
         decoded_a = resolve_decoded_dir(candidate, app_a_raw, "a")
         decoded_b = resolve_decoded_dir(candidate, app_b_raw, "b")
 
-        full_score, reduced_score, layers_used = calculate_pair_scores(
-            apk_a=apk_a,
-            apk_b=apk_b,
-            decoded_a=decoded_a,
-            decoded_b=decoded_b,
-            selected_layers=selected_layers,
-            metric=metric,
-            ins_block_sim_threshold=ins_block_sim_threshold,
-            ged_timeout_sec=ged_timeout_sec,
-            processes_count=processes_count,
-            threads_count=threads_count,
-            layer_cache=layer_cache,
-            code_cache=code_cache,
-            feature_cache=feature_cache,
-        )
+        score_kwargs = {
+            "apk_a": apk_a,
+            "apk_b": apk_b,
+            "decoded_a": decoded_a,
+            "decoded_b": decoded_b,
+            "selected_layers": selected_layers,
+            "metric": metric,
+            "ins_block_sim_threshold": ins_block_sim_threshold,
+            "ged_timeout_sec": ged_timeout_sec,
+            "processes_count": processes_count,
+            "threads_count": threads_count,
+            "layer_cache": layer_cache,
+            "code_cache": code_cache,
+        }
+        if feature_cache is not None:
+            score_kwargs["feature_cache"] = feature_cache
+
+        full_score, reduced_score, layers_used = calculate_pair_scores(**score_kwargs)
 
         decision_score = reduced_score
         status = "success" if decision_score >= threshold else "low_similarity"
