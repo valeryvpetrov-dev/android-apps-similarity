@@ -1,0 +1,160 @@
+{
+  "schema_version": "screening-diagnostic-v1",
+  "generated_at_utc": "2026-04-24T09:26:31.025135+00:00",
+  "cascade_config_path": "/private/tmp/wave20-D-submodule/experiments/artifacts/SCREENING-20-LSH-DIAGNOSTIC/mini-corpus-cascade.yaml",
+  "apk_root": "/private/tmp/wave20-D-submodule/apk",
+  "screening": {
+    "features": [
+      "code",
+      "metadata"
+    ],
+    "metric": "jaccard",
+    "threshold": 0.28,
+    "candidate_index": {
+      "type": "minhash_lsh",
+      "num_perm": 128,
+      "bands": 32,
+      "seed": 42,
+      "features": [
+        "code",
+        "metadata"
+      ]
+    }
+  },
+  "summary": {
+    "total_apps": 5,
+    "total_pairs": 10,
+    "shortlist_size": 6,
+    "candidate_list_size": 6,
+    "positive_pairs_above_threshold": 9,
+    "negative_pairs_below_threshold": 1,
+    "shortlist_true_positive_count": 6,
+    "shortlist_false_positive_count": 0,
+    "recall_at_shortlist": 0.6666666666666666,
+    "false_negative_rate": 0.33333333333333337,
+    "false_positive_rate": 0.0,
+    "avg_per_view_score_in_candidates": 0.7840909090909091
+  },
+  "pairs": [
+    {
+      "query_app_id": "simple_app-empty",
+      "candidate_app_id": "simple_app-releaseNonOptimized",
+      "in_shortlist": false,
+      "passed_thresh": true,
+      "full_score": 0.35714285714285715,
+      "selected_similarity_score": 0.0,
+      "per_view_scores": {
+        "code": 0.0,
+        "metadata": 0.4166666666666667
+      }
+    },
+    {
+      "query_app_id": "simple_app-empty",
+      "candidate_app_id": "simple_app-releaseOptimized",
+      "in_shortlist": false,
+      "passed_thresh": true,
+      "full_score": 0.35714285714285715,
+      "selected_similarity_score": 0.0,
+      "per_view_scores": {
+        "code": 0.0,
+        "metadata": 0.4166666666666667
+      }
+    },
+    {
+      "query_app_id": "simple_app-empty",
+      "candidate_app_id": "simple_app-releaseRename",
+      "in_shortlist": false,
+      "passed_thresh": true,
+      "full_score": 0.35714285714285715,
+      "selected_similarity_score": 0.0,
+      "per_view_scores": {
+        "code": 0.0,
+        "metadata": 0.4166666666666667
+      }
+    },
+    {
+      "query_app_id": "simple_app-empty",
+      "candidate_app_id": "snake",
+      "in_shortlist": false,
+      "passed_thresh": false,
+      "full_score": 0.26666666666666666,
+      "selected_similarity_score": 0.0,
+      "per_view_scores": {
+        "code": 0.0,
+        "metadata": 0.3076923076923077
+      }
+    },
+    {
+      "query_app_id": "simple_app-releaseNonOptimized",
+      "candidate_app_id": "simple_app-releaseOptimized",
+      "in_shortlist": true,
+      "passed_thresh": true,
+      "full_score": 0.6666666666666666,
+      "selected_similarity_score": 0.6666666666666666,
+      "per_view_scores": {
+        "code": 1.0,
+        "metadata": 0.6363636363636364
+      }
+    },
+    {
+      "query_app_id": "simple_app-releaseNonOptimized",
+      "candidate_app_id": "simple_app-releaseRename",
+      "in_shortlist": true,
+      "passed_thresh": true,
+      "full_score": 0.6666666666666666,
+      "selected_similarity_score": 0.6666666666666666,
+      "per_view_scores": {
+        "code": 1.0,
+        "metadata": 0.6363636363636364
+      }
+    },
+    {
+      "query_app_id": "simple_app-releaseNonOptimized",
+      "candidate_app_id": "snake",
+      "in_shortlist": true,
+      "passed_thresh": true,
+      "full_score": 0.5384615384615384,
+      "selected_similarity_score": 0.5384615384615384,
+      "per_view_scores": {
+        "code": 1.0,
+        "metadata": 0.5
+      }
+    },
+    {
+      "query_app_id": "simple_app-releaseOptimized",
+      "candidate_app_id": "simple_app-releaseRename",
+      "in_shortlist": true,
+      "passed_thresh": true,
+      "full_score": 0.6666666666666666,
+      "selected_similarity_score": 0.6666666666666666,
+      "per_view_scores": {
+        "code": 1.0,
+        "metadata": 0.6363636363636364
+      }
+    },
+    {
+      "query_app_id": "simple_app-releaseOptimized",
+      "candidate_app_id": "snake",
+      "in_shortlist": true,
+      "passed_thresh": true,
+      "full_score": 0.5384615384615384,
+      "selected_similarity_score": 0.5384615384615384,
+      "per_view_scores": {
+        "code": 1.0,
+        "metadata": 0.5
+      }
+    },
+    {
+      "query_app_id": "simple_app-releaseRename",
+      "candidate_app_id": "snake",
+      "in_shortlist": true,
+      "passed_thresh": true,
+      "full_score": 0.5384615384615384,
+      "selected_similarity_score": 0.5384615384615384,
+      "per_view_scores": {
+        "code": 1.0,
+        "metadata": 0.5
+      }
+    }
+  ]
+}
