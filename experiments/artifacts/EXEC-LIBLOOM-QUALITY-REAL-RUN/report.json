@@ -1,0 +1,29 @@
+{
+  "aggregate": {
+    "coverage": 0.0,
+    "precision": 0.0,
+    "recall": 0.0
+  },
+  "corpus_size": 5,
+  "generated_at": "2026-04-24T09:25:54.865342+00:00",
+  "labeled_tpls": [
+    "okhttp3",
+    "gson",
+    "retrofit",
+    "glide",
+    "kotlinx-coroutines"
+  ],
+  "per_apk_results": [],
+  "run_id": "EXEC-LIBLOOM-QUALITY-REAL-RUN",
+  "source": {
+    "apk_dir": "/private/tmp/wave20-B-submodule/apk",
+    "jar_path": null,
+    "labels": "inline-mini-labels",
+    "libs_profile_dir": null,
+    "script": "script/run_libloom_quality_smoke.py"
+  },
+  "status": "libloom_unavailable",
+  "warnings": [
+    "LIBLOOM_HOME is not set"
+  ]
+}
