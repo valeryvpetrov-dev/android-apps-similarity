@@ -1,0 +1,48 @@
+{
+  "layer": {
+    "component": {
+      "document_frequency": {
+        "activity:com.example.android.snake.Snake": 1,
+        "activity:com.example.simpleapplication.MainActivity": 4
+      },
+      "n_tokens": 2
+    },
+    "library": {
+      "document_frequency": {},
+      "n_tokens": 0
+    },
+    "resource": {
+      "document_frequency": {
+        "drawable:$ic_launcher_foreground__0": 4,
+        "drawable:greenstar": 1,
+        "drawable:ic_launcher": 4,
+        "drawable:ic_launcher_background": 4,
+        "drawable:ic_launcher_foreground": 4,
+        "drawable:ic_launcher_round": 4,
+        "drawable:redstar": 1,
+        "drawable:yellowstar": 1,
+        "layout:activity_main": 4,
+        "layout:snake_layout": 1,
+        "string:app_name": 5,
+        "string:mode_lose_prefix": 1,
+        "string:mode_lose_suffix": 1,
+        "string:mode_pause": 1,
+        "string:mode_ready": 1,
+        "string:snake_layout_text_text": 1
+      },
+      "n_tokens": 16
+    }
+  },
+  "n_documents": 5,
+  "snapshot_version": "v1",
+  "source": {
+    "apks": [
+      "apk/simple_app/simple_app-empty.apk",
+      "apk/simple_app/simple_app-releaseNonOptimized.apk",
+      "apk/simple_app/simple_app-releaseOptimized.apk",
+      "apk/simple_app/simple_app-releaseRename.apk",
+      "apk/snake/snake.apk"
+    ],
+    "kind": "mini_apk_snapshot"
+  }
+}

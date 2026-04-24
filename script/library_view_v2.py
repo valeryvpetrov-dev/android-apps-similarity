@@ -16,11 +16,146 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from tversky_overlap import szymkiewicz_simpson_overlap, tversky_index
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_IDF_SNAPSHOT_PATH = PROJECT_ROOT / "experiments" / "datasets" / "idf-snapshot-v1.json"
+
+_IDF_SNAPSHOT_CACHE: Optional[Dict] = None
+_IDF_SNAPSHOT_PATH_CACHE: Optional[str] = None
+_IDF_WEIGHTS_CACHE: Optional[Dict[str, Dict[str, float]]] = None
+
+
+def _get_idf_snapshot_path() -> Path:
+    configured_path = os.environ.get("SIMILARITY_IDF_SNAPSHOT_PATH", "").strip()
+    if configured_path:
+        return Path(configured_path)
+    return DEFAULT_IDF_SNAPSHOT_PATH
+
+
+def _load_idf_snapshot() -> Optional[Dict]:
+    """Load and cache the optional IDF snapshot."""
+    global _IDF_SNAPSHOT_CACHE, _IDF_SNAPSHOT_PATH_CACHE, _IDF_WEIGHTS_CACHE
+
+    snapshot_path = _get_idf_snapshot_path()
+    snapshot_key = str(snapshot_path)
+    if _IDF_SNAPSHOT_PATH_CACHE == snapshot_key:
+        return _IDF_SNAPSHOT_CACHE
+
+    _IDF_SNAPSHOT_PATH_CACHE = snapshot_key
+    _IDF_WEIGHTS_CACHE = {}
+
+    if not snapshot_path.exists():
+        _IDF_SNAPSHOT_CACHE = None
+        return None
+
+    try:
+        payload = json.loads(snapshot_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        _IDF_SNAPSHOT_CACHE = None
+        return None
+
+    if not isinstance(payload, dict):
+        _IDF_SNAPSHOT_CACHE = None
+        return None
+
+    _IDF_SNAPSHOT_CACHE = payload
+    return payload
+
+
+def _get_layer_document_frequency(snapshot: Dict, layer_name: str) -> Dict[str, int]:
+    layer_payload = snapshot.get("layer", {}).get(layer_name, {})
+    if not isinstance(layer_payload, dict):
+        return {}
+    document_frequency = layer_payload.get("document_frequency", layer_payload)
+    if not isinstance(document_frequency, dict):
+        return {}
+    normalized: Dict[str, int] = {}
+    for token, doc_freq in document_frequency.items():
+        if not isinstance(token, str):
+            continue
+        try:
+            normalized[token] = int(doc_freq)
+        except (TypeError, ValueError):
+            continue
+    return normalized
+
+
+def _load_idf_weights_for_layer(layer_name: str) -> Optional[Dict[str, float]]:
+    snapshot = _load_idf_snapshot()
+    if snapshot is None:
+        return None
+
+    global _IDF_WEIGHTS_CACHE
+    if _IDF_WEIGHTS_CACHE is None:
+        _IDF_WEIGHTS_CACHE = {}
+    if layer_name in _IDF_WEIGHTS_CACHE:
+        return _IDF_WEIGHTS_CACHE[layer_name]
+
+    try:
+        n_documents = int(snapshot.get("n_documents", 0))
+    except (TypeError, ValueError):
+        n_documents = 0
+    if n_documents <= 0:
+        _IDF_WEIGHTS_CACHE[layer_name] = {}
+        return _IDF_WEIGHTS_CACHE[layer_name]
+
+    document_frequency = _get_layer_document_frequency(snapshot, layer_name)
+    weights: Dict[str, float] = {}
+    for token, doc_freq in document_frequency.items():
+        if doc_freq <= 0:
+            continue
+        bounded_doc_freq = min(doc_freq, n_documents)
+        weights[token] = math.log(n_documents / float(bounded_doc_freq))
+
+    _IDF_WEIGHTS_CACHE[layer_name] = weights
+    return weights
+
+
+def _sum_token_weights(tokens: set[str], idf_weights: Dict[str, float]) -> float:
+    total = 0.0
+    for token in tokens:
+        try:
+            weight = float(idf_weights.get(token, 1.0))
+        except (TypeError, ValueError):
+            weight = 1.0
+        total += max(weight, 0.0)
+    return total
+
+
+def compute_idf_weighted_jaccard(
+    tokens_a: set[str],
+    tokens_b: set[str],
+    idf_weights: Dict[str, float],
+) -> float:
+    """Compute weighted Jaccard where token weights come from IDF."""
+    union = set(tokens_a) | set(tokens_b)
+    if not union:
+        return 0.0
+    union_weight = _sum_token_weights(union, idf_weights)
+    if union_weight <= 0.0:
+        return 0.0
+    shared_weight = _sum_token_weights(set(tokens_a) & set(tokens_b), idf_weights)
+    return shared_weight / union_weight
+
+
+def _compute_idf_weighted_tversky(
+    tokens_a: set[str],
+    tokens_b: set[str],
+    idf_weights: Dict[str, float],
+) -> Tuple[float, float]:
+    shared_weight = _sum_token_weights(set(tokens_a) & set(tokens_b), idf_weights)
+    weight_a = _sum_token_weights(set(tokens_a), idf_weights)
+    weight_b = _sum_token_weights(set(tokens_b), idf_weights)
+    score_a = shared_weight / weight_a if weight_a > 0.0 else 0.0
+    score_b = shared_weight / weight_b if weight_b > 0.0 else 0.0
+    return score_a, score_b
 
 # Re-use CATEGORY_LIBRARY and extract_package_path from noise_normalizer.
 # Avoid circular imports by importing lazily inside functions where needed;
@@ -815,7 +950,8 @@ def extract_library_features_v2(apk_path: str, cache_dir: Optional[str] = None) 
 def compare_libraries_v2(features_a: Dict, features_b: Dict) -> Dict:
     """Compat wrapper: compare two v2 feature dicts.
 
-    Returns Jaccard on detected TPL sets + shared/only_a/only_b.
+    Returns plain Jaccard plus optional IDF-weighted channels when an
+    IDF snapshot is available.
     """
     libs_a = set(features_a.get("libraries", {}).keys())
     libs_b = set(features_b.get("libraries", {}).keys())
@@ -825,7 +961,7 @@ def compare_libraries_v2(features_a: Dict, features_b: Dict) -> Dict:
     score_tversky_asym_ab = tversky_index(libs_a, libs_b, alpha=0.9, beta=0.1)
     score_tversky_asym_ba = tversky_index(libs_a, libs_b, alpha=0.1, beta=0.9)
     score_overlap = szymkiewicz_simpson_overlap(libs_a, libs_b)
-    return {
+    result = {
         "jaccard": jaccard,
         "score_jaccard": jaccard,
         "score_tversky_asym_ab": score_tversky_asym_ab,
@@ -838,6 +974,21 @@ def compare_libraries_v2(features_a: Dict, features_b: Dict) -> Dict:
         "library_count_b": len(libs_b),
         "v2": True,
     }
+    idf_weights = _load_idf_weights_for_layer("library")
+    if idf_weights:
+        tversky_a_idf, tversky_b_idf = _compute_idf_weighted_tversky(
+            libs_a,
+            libs_b,
+            idf_weights,
+        )
+        result["jaccard_idf"] = compute_idf_weighted_jaccard(
+            libs_a,
+            libs_b,
+            idf_weights,
+        )
+        result["tversky_a_idf"] = float(tversky_a_idf)
+        result["tversky_b_idf"] = float(tversky_b_idf)
+    return result
 
 
 def library_explanation_hints_v2(comparison: Dict) -> List[Dict]:

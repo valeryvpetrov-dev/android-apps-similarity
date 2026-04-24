@@ -394,6 +394,10 @@ def compare_components(features_a: dict, features_b: dict) -> dict:
     dict with per-type Jaccard scores, diffs, and aggregate
     ``component_jaccard_score``.
     """
+    # TODO(REPR-20-IDF-WEIGHTED-JACCARD): add optional IDF-weighted
+    # per-type channels once we have a stable component-token snapshot
+    # contract for unpacked corpora. Kept out of this wave to avoid
+    # refactoring the aggregate component score shape.
     type_keys = ("activities", "services", "receivers", "providers")
     per_type: dict[str, Any] = {}
 
