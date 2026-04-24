@@ -26,6 +26,7 @@ from m_static_views import (
     ABLATION_CONFIGS,
     ALL_LAYERS,
     LAYER_WEIGHTS,
+    compare_all,
     compare_m_static_layer,
 )
 
@@ -131,6 +132,102 @@ class TestCompareMStaticLayerLegacySet(unittest.TestCase):
         # Jaccard = |{A}| / |{A, B, C}| = 1/3.
         self.assertAlmostEqual(result["score"], 1.0 / 3.0, places=6)
         self.assertEqual(result["status"], "quick")
+
+
+def _make_quick_features(
+    code: set[str],
+    component: set[str],
+    resource: set[str],
+    library: set[str],
+) -> dict:
+    return {
+        "mode": "quick",
+        "code": set(code),
+        "component": set(component),
+        "resource": set(resource),
+        "library": set(library),
+        "metadata": set(),
+    }
+
+
+class TestCompareAllApiAggregation(unittest.TestCase):
+    def test_all_present_keeps_existing_weighted_aggregation(self) -> None:
+        features_a = _make_quick_features(
+            code={"same"},
+            component={"left-only"},
+            resource={"same"},
+            library={"left-only"},
+        )
+        features_b = _make_quick_features(
+            code={"same"},
+            component={"right-only"},
+            resource={"same"},
+            library={"right-only"},
+        )
+
+        result = compare_all(
+            features_a=features_a,
+            features_b=features_b,
+            layers=["code", "component", "resource", "library", "api"],
+            api_chain_a={"A->B": 1.0},
+            api_chain_b={"A->B": 1.0},
+        )
+
+        self.assertEqual(result["per_layer"]["api"]["status"], "markov_cosine")
+        self.assertAlmostEqual(result["full_similarity_score"], 0.8 / 1.15, places=6)
+        self.assertAlmostEqual(result["library_reduced_score"], 0.8 / 1.05, places=6)
+
+    def test_api_both_empty_is_excluded_and_other_weights_are_renormalized(self) -> None:
+        features_a = _make_quick_features(
+            code={"same"},
+            component={"left-only"},
+            resource={"same"},
+            library={"left-only"},
+        )
+        features_b = _make_quick_features(
+            code={"same"},
+            component={"right-only"},
+            resource={"same"},
+            library={"right-only"},
+        )
+
+        result = compare_all(
+            features_a=features_a,
+            features_b=features_b,
+            layers=["code", "component", "resource", "library", "api"],
+            api_chain_a=None,
+            api_chain_b=None,
+        )
+
+        self.assertEqual(result["per_layer"]["api"]["status"], "both_empty")
+        self.assertAlmostEqual(result["full_similarity_score"], 0.65, places=6)
+        self.assertAlmostEqual(result["library_reduced_score"], 0.65 / 0.9, places=6)
+
+    def test_api_one_empty_stays_in_aggregation_with_zero_score(self) -> None:
+        features_a = _make_quick_features(
+            code={"same"},
+            component={"left-only"},
+            resource={"same"},
+            library={"left-only"},
+        )
+        features_b = _make_quick_features(
+            code={"same"},
+            component={"right-only"},
+            resource={"same"},
+            library={"right-only"},
+        )
+
+        result = compare_all(
+            features_a=features_a,
+            features_b=features_b,
+            layers=["code", "component", "resource", "library", "api"],
+            api_chain_a={"A->B": 1.0},
+            api_chain_b=None,
+        )
+
+        self.assertEqual(result["per_layer"]["api"]["status"], "one_empty")
+        self.assertAlmostEqual(result["full_similarity_score"], 0.65 / 1.15, places=6)
+        self.assertAlmostEqual(result["library_reduced_score"], 0.65 / 1.05, places=6)
 
 
 if __name__ == "__main__":
