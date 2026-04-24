@@ -24,7 +24,12 @@ import argparse
 import json
 import sys
 import tempfile
-from concurrent.futures import ProcessPoolExecutor, TimeoutError as FuturesTimeoutError, as_completed
+from concurrent.futures import (
+    ProcessPoolExecutor,
+    ThreadPoolExecutor,
+    TimeoutError as FuturesTimeoutError,
+    as_completed,
+)
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +47,14 @@ for _mod in ("androguard", "androguard.core", "androguard.analysis"):
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
+
+def _make_parallel_executor(max_workers: int):
+    """Create a process pool when available, else fall back to threads."""
+    try:
+        return ProcessPoolExecutor(max_workers=max_workers)
+    except (OSError, PermissionError, NotImplementedError):
+        return ThreadPoolExecutor(max_workers=max_workers)
 
 try:
     from script.pairwise_runner import (
@@ -291,6 +304,18 @@ def run_parallel_batch(
 
     pairs = load_pairs(pairs_path)
     total = len(pairs)
+    if total == 0:
+        return {
+            "config_ref": str(config_path),
+            "pairs_ref": str(pairs_path),
+            "pairwise_config": {
+                "features": list(selected_layers),
+                "metric": metric,
+                "threshold": threshold,
+            },
+            "total": 0,
+            "results": [],
+        }
 
     config_path_str = str(config_path)
 
@@ -298,7 +323,7 @@ def run_parallel_batch(
     future_to_meta: dict[Any, tuple[int, dict[str, Any]]] = {}
     results: list[dict[str, Any] | None] = [None] * total
 
-    with ProcessPoolExecutor(max_workers=workers) as executor:
+    with _make_parallel_executor(max_workers=workers) as executor:
         for idx, pair in enumerate(pairs):
             pair_json = json.dumps(pair)
             future = executor.submit(

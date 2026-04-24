@@ -8,7 +8,11 @@ import re
 import sys
 import tempfile
 import time
-from concurrent.futures import ProcessPoolExecutor, TimeoutError as FuturesTimeoutError
+from concurrent.futures import (
+    ProcessPoolExecutor,
+    ThreadPoolExecutor,
+    TimeoutError as FuturesTimeoutError,
+)
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -33,6 +37,20 @@ SHORTCUT_VERDICT_LIKELY_CLONE = "likely_clone_by_signature"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
+
+def _make_parallel_executor(max_workers: int):
+    """Create a process pool when allowed, else fall back to threads.
+
+    In restricted sandboxes `ProcessPoolExecutor` can fail during startup with
+    `PermissionError`/`NotImplementedError` on semaphore limits. For the test
+    harness this is not a functional difference: workers stay isolated enough
+    for contract verification, and timeout/order semantics remain the same.
+    """
+    try:
+        return ProcessPoolExecutor(max_workers=max_workers)
+    except (OSError, PermissionError, NotImplementedError):
+        return ThreadPoolExecutor(max_workers=max_workers)
 
 try:
     from script.system_requirements import verify_required_dependencies
@@ -1506,7 +1524,7 @@ def run_pairwise(
 
     if heavy_indices:
         config_path_str = str(config_path)
-        with ProcessPoolExecutor(max_workers=workers) as executor:
+        with _make_parallel_executor(max_workers=workers) as executor:
             future_to_index: dict[Any, int] = {}
             for index in heavy_indices:
                 candidate = candidates[index]

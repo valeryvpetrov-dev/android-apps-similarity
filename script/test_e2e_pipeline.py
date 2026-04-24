@@ -38,7 +38,19 @@ if str(SCRIPT_DIR) not in sys.path:
 
 # The orchestrator lives outside the submodule; we import it via an explicit
 # sys.path injection so the test can run from any cwd.
-PHD_ROOT = SCRIPT_DIR.parent.parent.parent.parent
+_PHD_ROOT_CANDIDATES = [
+    SCRIPT_DIR.parent.parent / "wave17-B-phd",
+    SCRIPT_DIR.parent.parent / "phd",
+    SCRIPT_DIR.parent.parent.parent.parent,
+]
+PHD_ROOT = next(
+    (
+        candidate
+        for candidate in _PHD_ROOT_CANDIDATES
+        if (candidate / "experiments" / "scripts" / "run_e2e_smoke.py").is_file()
+    ),
+    _PHD_ROOT_CANDIDATES[-1],
+)
 SMOKE_DIR = PHD_ROOT / "experiments" / "scripts"
 if str(SMOKE_DIR) not in sys.path:
     sys.path.insert(0, str(SMOKE_DIR))

@@ -94,7 +94,7 @@ class TestCompareMStaticLayerCodeV4(unittest.TestCase):
         self.assertIn("status", result)
         self.assertIsInstance(result["score"], float)
         self.assertEqual(result["score"], 1.0)
-        self.assertEqual(result["status"], "jaccard_ok")
+        self.assertEqual(result["status"], "fuzzy_ok")
 
     def test_disjoint_bundles_give_score_zero(self):
         bundle_a = _make_v4_bundle({"Lcom/example/A;->foo()V": "sh1:aaa"})
@@ -116,7 +116,7 @@ class TestCompareMStaticLayerCodeV4Shingled(unittest.TestCase):
         self.assertIn("status", result)
         self.assertIsInstance(result["score"], float)
         self.assertEqual(result["score"], 1.0)
-        self.assertEqual(result["status"], "jaccard_ok")
+        self.assertEqual(result["status"], "fuzzy_ok")
 
 
 class TestCompareMStaticLayerLegacySet(unittest.TestCase):

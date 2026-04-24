@@ -562,9 +562,13 @@ def _fingerprint_similarity(fp_a: str, fp_b: str) -> float:
 def _simhash_similarity(hex_a: str, hex_b: str) -> float:
     """Return normalized 64-bit Hamming similarity for simhash hex strings."""
     try:
-        distance = (int(hex_a, 16) ^ int(hex_b, 16)).bit_count()
+        xor_value = int(hex_a, 16) ^ int(hex_b, 16)
     except ValueError:
         return 0.0
+    try:
+        distance = xor_value.bit_count()
+    except AttributeError:
+        distance = bin(xor_value).count("1")
     return 1.0 - min(distance, SIMHASH_BITS) / SIMHASH_BITS
 
 
