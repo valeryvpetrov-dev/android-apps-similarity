@@ -8,9 +8,10 @@ through the similarity pipeline:
   Step 3 — propagate_noise_to_pairwise(result, envelope)
   Step 4 — add_noise_context_to_explanation(explanation, envelope)
 
-And, for NOISE-GATE-WIRING (wave 16):
+And, for NOISE-GATE-WIRING (wave 16 / runtime-truth fix):
 
   Entry gate — should_reject_by_noise_gate(app_record, reject_triggers)
+  Trigger collector — collect_noise_gate_triggers(app_record)
 
 All functions are pure (non-destructive): they return a new dict
 rather than mutating the input.
@@ -50,6 +51,80 @@ except ImportError:
 # Entry gate (NOISE-GATE-WIRING, wave 16): reject by envelope_triggers
 # ---------------------------------------------------------------------------
 
+_ADWARE_LIBRARY_PREFIXES = (
+    "admob",
+    "facebook_ads",
+    "com.google.android.gms.ads",
+    "com.google.ads",
+    "com.facebook.ads",
+    "com.unity3d.ads",
+    "com.applovin",
+    "com.mopub",
+    "com.ironsource",
+    "com.vungle",
+    "com.chartboost",
+    "com.inmobi",
+    "com.adcolony",
+    "com.tapjoy",
+    "com.startapp",
+    "com.bytedance.sdk.openadsdk",
+    "com.smaato",
+    "net.pubnative",
+)
+
+
+def _looks_like_adware_library(raw_name: Any) -> bool:
+    """Return True when a LIBLOOM library name matches known ad SDKs."""
+    if not raw_name:
+        return False
+
+    name = str(raw_name).strip().lower()
+    if not name:
+        return False
+
+    return any(
+        name == prefix or name.startswith(prefix + ".")
+        for prefix in _ADWARE_LIBRARY_PREFIXES
+    )
+
+
+def _collect_runtime_noise_gate_triggers(app_record: Dict[str, Any]) -> List[str]:
+    """Derive noise-gate triggers from runtime APKiD/LIBLOOM fields."""
+    envelope = app_record.get("noise_profile_envelope")
+    if not isinstance(envelope, dict):
+        return []
+
+    triggers: List[str] = []
+
+    gate_status = str(envelope.get("apkid_gate_status") or "").strip().lower()
+    apkid_signals = envelope.get("apkid_signals")
+    detector_blocked = bool(envelope.get("detector_blocked"))
+
+    packers: List[str] = []
+    if isinstance(apkid_signals, dict):
+        raw_packers = apkid_signals.get("packers")
+        if isinstance(raw_packers, (list, tuple)):
+            packers = [str(p) for p in raw_packers if p]
+
+    if gate_status == "blocked" or detector_blocked or packers:
+        triggers.append("fake")
+
+    libraries = envelope.get("libloom_libraries")
+    if isinstance(libraries, (list, tuple)):
+        for library in libraries:
+            raw_name = library
+            if isinstance(library, dict):
+                raw_name = (
+                    library.get("name")
+                    or library.get("library")
+                    or library.get("package")
+                )
+            if _looks_like_adware_library(raw_name):
+                triggers.append("adware")
+                break
+
+    return triggers
+
 def _collect_envelope_triggers(app_record: Dict[str, Any]) -> List[str]:
     """Собрать список envelope-triggers из app_record.
 
@@ -62,6 +137,9 @@ def _collect_envelope_triggers(app_record: Dict[str, Any]) -> List[str]:
          fallback: downstream_warnings из envelope, когда отдельного
          поля envelope_triggers ещё не выставили (пересечение с
          reject_triggers даёт тот же семантический эффект).
+      4. Runtime-derived triggers из ``noise_profile_envelope``:
+         - ``fake``  — когда APKiD gate пометил APK как blocked/packer;
+         - ``adware`` — когда LIBLOOM нашёл известный advertising SDK.
 
     Возвращает нормализованный список строк (пустой, если источников
     нет или они невалидны). Дубликаты сохраняются — порядок триггеров
@@ -82,7 +160,13 @@ def _collect_envelope_triggers(app_record: Dict[str, Any]) -> List[str]:
         if isinstance(warnings, (list, tuple)):
             triggers.extend(str(t) for t in warnings if t)
 
+    triggers.extend(_collect_runtime_noise_gate_triggers(app_record))
     return triggers
+
+
+def collect_noise_gate_triggers(app_record: Dict[str, Any]) -> List[str]:
+    """Public wrapper for the trigger sources used by noise-gate."""
+    return _collect_envelope_triggers(app_record)
 
 
 def should_reject_by_noise_gate(
@@ -114,7 +198,7 @@ def should_reject_by_noise_gate(
     if not reject_triggers:
         return (False, "")
 
-    triggers = _collect_envelope_triggers(app_record)
+    triggers = collect_noise_gate_triggers(app_record)
     if not triggers:
         return (False, "")
 

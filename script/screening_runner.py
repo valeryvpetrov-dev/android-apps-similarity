@@ -16,11 +16,17 @@ from tempfile import TemporaryDirectory
 try:
     from script.system_requirements import verify_required_dependencies
     from script.evidence_formatter import collect_evidence_from_screening_layers
-    from script.noise_integration import should_reject_by_noise_gate
+    from script.noise_integration import (
+        collect_noise_gate_triggers,
+        should_reject_by_noise_gate,
+    )
 except Exception:
     from system_requirements import verify_required_dependencies  # type: ignore[no-redef]
     from evidence_formatter import collect_evidence_from_screening_layers  # type: ignore[no-redef]
-    from noise_integration import should_reject_by_noise_gate  # type: ignore[no-redef]
+    from noise_integration import (  # type: ignore[no-redef]
+        collect_noise_gate_triggers,
+        should_reject_by_noise_gate,
+    )
 
 
 logger = logging.getLogger(__name__)
@@ -1681,7 +1687,7 @@ def apply_noise_gate(
                 {
                     "app_id": record.get("app_id"),
                     "reason": reason,
-                    "envelope_triggers": list(record.get("envelope_triggers") or []),
+                    "envelope_triggers": collect_noise_gate_triggers(record),
                     "app_record": record,
                 }
             )
