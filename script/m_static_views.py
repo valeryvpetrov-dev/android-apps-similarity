@@ -658,30 +658,80 @@ def _include_layer_in_weighted_score(layer: str, layer_result: dict[str, Any]) -
 
 
 def _compare_library_enhanced(feat_a: dict, feat_b: dict) -> dict:
-    """Enhanced library comparison via library_view module."""
+    """Enhanced library comparison via library_view module.
+
+    REPR-19-TVERSKY-WIRE: помимо симметричного Жаккара ``score`` возвращает
+    явные каналы ``jaccard``, ``tversky_a`` (|A ∩ B| / |A|),
+    ``tversky_b`` (|A ∩ B| / |B|), ``overlap_min`` (|A ∩ B| / min(|A|,|B|)).
+    Эти поля — простой проброс из `compare_libraries_v2` в main flow, чтобы
+    downstream (`screening_runner`, `pairwise_runner`, evidence-слой) могли
+    использовать асимметричные сигналы, добавленные волной 17
+    (`EXEC-TVERSKY-OVERLAP`). Старый ключ ``score`` = Jaccard сохранён для
+    обратной совместимости с `compare_all.full_similarity_score` до
+    калибровки весов EXEC-086.
+    """
     if compare_libraries is None:
         return {"score": 0.0, "status": "not_available"}
     comparison = compare_libraries(feat_a, feat_b)
     if _LIBRARY_V2:
-        # v2 compat: keys from compare_libraries_v2
+        # v2 compat: keys from compare_libraries_v2.
+        # score_tversky_asym_ab (alpha=0.9, beta=0.1) ≈ |A ∩ B| / |A| при
+        # больших множествах, но формально = shared / (shared + 0.9·only_a +
+        # 0.1·only_b). Для прямых «a-pure» / «b-pure» пересчитываем из
+        # shared/only_a/only_b — тогда семантика `tversky_a = |A ∩ B| / |A|`
+        # выполняется точно и безусловно.
+        shared = len(comparison.get("shared_libraries", []))
+        only_a = len(comparison.get("only_in_a", []))
+        only_b = len(comparison.get("only_in_b", []))
+        size_a = shared + only_a
+        size_b = shared + only_b
+        jaccard_value = float(comparison.get("jaccard", 0.0))
+        tversky_a = (shared / size_a) if size_a > 0 else 0.0
+        tversky_b = (shared / size_b) if size_b > 0 else 0.0
+        min_size = min(size_a, size_b) if (size_a and size_b) else 0
+        overlap_min = (shared / min_size) if min_size > 0 else 0.0
         return {
-            "score": float(comparison.get("jaccard", 0.0)),
+            "score": jaccard_value,
             "status": "enhanced_v2",
+            "jaccard": jaccard_value,
+            "tversky_a": float(tversky_a),
+            "tversky_b": float(tversky_b),
+            "overlap_min": float(overlap_min),
+            # Пробрасываем и исходные score_* из compare_libraries_v2,
+            # чтобы downstream-потребителям не пришлось их заново считать.
+            "score_jaccard": float(comparison.get("score_jaccard", jaccard_value)),
+            "score_tversky_asym_ab": float(comparison.get("score_tversky_asym_ab", 0.0)),
+            "score_tversky_asym_ba": float(comparison.get("score_tversky_asym_ba", 0.0)),
+            "score_overlap": float(comparison.get("score_overlap", 0.0)),
             "details": {
-                "weighted_library_score": comparison.get("jaccard", 0.0),
-                "shared_count": len(comparison.get("shared_libraries", [])),
-                "a_only_count": len(comparison.get("only_in_a", [])),
-                "b_only_count": len(comparison.get("only_in_b", [])),
+                "weighted_library_score": jaccard_value,
+                "shared_count": shared,
+                "a_only_count": only_a,
+                "b_only_count": only_b,
             },
         }
+    jaccard_value = float(comparison.get("library_jaccard_score", 0.0))
+    shared = len(comparison.get("shared", []))
+    only_a = len(comparison.get("a_only", []))
+    only_b = len(comparison.get("b_only", []))
+    size_a = shared + only_a
+    size_b = shared + only_b
+    tversky_a = (shared / size_a) if size_a > 0 else 0.0
+    tversky_b = (shared / size_b) if size_b > 0 else 0.0
+    min_size = min(size_a, size_b) if (size_a and size_b) else 0
+    overlap_min = (shared / min_size) if min_size > 0 else 0.0
     return {
-        "score": float(comparison.get("library_jaccard_score", 0.0)),
+        "score": jaccard_value,
         "status": "enhanced",
+        "jaccard": jaccard_value,
+        "tversky_a": float(tversky_a),
+        "tversky_b": float(tversky_b),
+        "overlap_min": float(overlap_min),
         "details": {
             "weighted_library_score": comparison.get("weighted_library_score", 0.0),
-            "shared_count": len(comparison.get("shared", [])),
-            "a_only_count": len(comparison.get("a_only", [])),
-            "b_only_count": len(comparison.get("b_only", [])),
+            "shared_count": shared,
+            "a_only_count": only_a,
+            "b_only_count": only_b,
         },
     }
 
@@ -749,6 +799,14 @@ def compare_m_static_layer(
         result["score"] = combined
         result.setdefault("status", "ok")
         return result
+    if layer_name == "library":
+        # REPR-19-TVERSKY-WIRE: единый диспетчер для `library` должен
+        # отдавать расширенный контракт с Tversky/overlap, когда на вход
+        # приходит dict (v2 формат с ключом `libraries`). Для плоского
+        # set — fallback на старый Жаккар через `_compare_layer_quick`.
+        if isinstance(features_a, dict) and isinstance(features_b, dict):
+            return _compare_library_enhanced(features_a, features_b)
+        return _compare_layer_quick(layer_name, features_a, features_b)
     # Fallback for the legacy set-valued layers.
     return _compare_layer_quick(layer_name, features_a, features_b)
 
