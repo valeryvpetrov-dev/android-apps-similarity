@@ -1,0 +1,11 @@
+pair_id,full_similarity_score,hint,useful,accurate
+simple_app-empty__simple_app-releaseNonOptimized,0.357143,layer_score:code=0.3571; layer_score:metadata=0.3571; signature_match:apk_signature=0.0000,,
+simple_app-empty__simple_app-releaseOptimized,0.357143,layer_score:code=0.3571; layer_score:metadata=0.3571; signature_match:apk_signature=0.0000,,
+simple_app-empty__simple_app-releaseRename,0.357143,layer_score:code=0.3571; layer_score:metadata=0.3571; signature_match:apk_signature=0.0000,,
+simple_app-empty__snake,0.266667,layer_score:code=0.2667; layer_score:metadata=0.2667; signature_match:apk_signature=0.0000,,
+simple_app-releaseNonOptimized__simple_app-releaseOptimized,0.666667,layer_score:code=0.6667; layer_score:metadata=0.6667; signature_match:apk_signature=0.0000,,
+simple_app-releaseNonOptimized__simple_app-releaseRename,0.666667,layer_score:code=0.6667; layer_score:metadata=0.6667; signature_match:apk_signature=0.0000,,
+simple_app-releaseNonOptimized__snake,0.538462,layer_score:code=0.5385; layer_score:metadata=0.5385; signature_match:apk_signature=0.0000,,
+simple_app-releaseOptimized__simple_app-releaseRename,0.666667,layer_score:code=0.6667; layer_score:metadata=0.6667; signature_match:apk_signature=0.0000,,
+simple_app-releaseOptimized__snake,0.538462,layer_score:code=0.5385; layer_score:metadata=0.5385; signature_match:apk_signature=0.0000,,
+simple_app-releaseRename__snake,0.538462,layer_score:code=0.5385; layer_score:metadata=0.5385; signature_match:apk_signature=0.0000,,
