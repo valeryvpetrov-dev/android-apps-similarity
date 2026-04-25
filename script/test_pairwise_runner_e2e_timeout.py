@@ -203,10 +203,15 @@ class TestPairwiseTimeoutE2E(unittest.TestCase):
             self.assertEqual(len(results), 2)
             incidents = timeout_incident_registry.read_timeout_incidents(log_path)
             self.assertGreaterEqual(len(incidents), 1)
-            self.assertEqual(incidents[0]["status"], "timeout")
-            self.assertEqual(incidents[0]["pair_id"], "PAIR-E2E-000")
-            self.assertIsInstance(incidents[0]["duration_ms"], int)
-            self.assertGreaterEqual(incidents[0]["duration_ms"], 1000)
+            matching_incidents = [
+                incident
+                for incident in incidents
+                if incident.get("status") == "timeout"
+                and incident.get("pair_id") in {"PAIR-E2E-000", "PAIR-E2E-001"}
+            ]
+            self.assertGreaterEqual(len(matching_incidents), 1)
+            self.assertIsInstance(matching_incidents[0]["duration_ms"], int)
+            self.assertGreaterEqual(matching_incidents[0]["duration_ms"], 1000)
 
     def test_timeout_path_calls_shutdown_with_cancel_futures(self) -> None:
         results, elapsed_sec, executor = _run_pairwise_with_sleep_plan(

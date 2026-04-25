@@ -39,8 +39,11 @@ def record_timeout_incident(
         {
             "schema_version": "timeout-incident-v1",
             "recorded_at": ISO-8601 UTC,
+            "status": "timeout",
+            "pair_id": pair_row["pair_id"],
             "app_a": pair_row["app_a"],
             "app_b": pair_row["app_b"],
+            "duration_ms": pair_row["duration_ms"],
             "pair_timeout_sec": pair_row["timeout_info"]["pair_timeout_sec"],
             "stage": pair_row["timeout_info"]["stage"],
             "views_used": pair_row.get("views_used", []),
@@ -59,8 +62,11 @@ def record_timeout_incident(
     record: dict = {
         "schema_version": INCIDENT_LOG_SCHEMA_VERSION,
         "recorded_at": datetime.now(timezone.utc).isoformat(),
+        "status": "timeout",
+        "pair_id": pair_row.get("pair_id"),
         "app_a": pair_row.get("app_a"),
         "app_b": pair_row.get("app_b"),
+        "duration_ms": pair_row.get("duration_ms"),
         "pair_timeout_sec": timeout_info.get("pair_timeout_sec"),
         "stage": timeout_info.get("stage"),
         "views_used": list(pair_row.get("views_used", [])),
