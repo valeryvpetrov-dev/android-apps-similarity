@@ -252,6 +252,8 @@ def extract_code_view_v4_shingled(
 def compare_code_v4_shingled(
     features_a: Optional[dict],
     features_b: Optional[dict],
+    *,
+    tlsh_diff_max: int = TLSH_DIFF_MAX,
 ) -> dict:
     """Fuzzy fingerprint distance per method id — same contract as v4.
 
@@ -309,7 +311,11 @@ def compare_code_v4_shingled(
     common_ids = ids_a & ids_b
     denominator = max(len(ids_a), len(ids_b))
     similarity_sum = sum(
-        _fingerprint_similarity(fp_a[method_id], fp_b[method_id])
+        _fingerprint_similarity(
+            fp_a[method_id],
+            fp_b[method_id],
+            tlsh_diff_max=tlsh_diff_max,
+        )
         for method_id in common_ids
     )
     score = similarity_sum / denominator if denominator else 0.0
@@ -322,13 +328,20 @@ def compare_code_v4_shingled(
     }
 
 
-def _fingerprint_similarity(fp_a: str, fp_b: str) -> float:
+def _fingerprint_similarity(
+    fp_a: str,
+    fp_b: str,
+    *,
+    tlsh_diff_max: int = TLSH_DIFF_MAX,
+) -> float:
     """Return normalized similarity for two fingerprints from the same method id."""
     if fp_a == fp_b:
         return 1.0
     if fp_a.startswith(FP_PREFIX_TLSH) and fp_b.startswith(FP_PREFIX_TLSH):
         if not _TLSH_AVAILABLE or _tlsh_module is None:
             return 0.0
+        if tlsh_diff_max <= 0:
+            raise ValueError("tlsh_diff_max must be a positive integer")
         try:
             diff = _tlsh_module.diff(
                 fp_a[len(FP_PREFIX_TLSH):],
@@ -337,7 +350,7 @@ def _fingerprint_similarity(fp_a: str, fp_b: str) -> float:
         except Exception as exc:  # pragma: no cover — defensive
             logger.warning("TLSH comparison failed in shingled view: %s", exc)
             return 0.0
-        return 1.0 - min(diff, TLSH_DIFF_MAX) / TLSH_DIFF_MAX
+        return 1.0 - min(diff, tlsh_diff_max) / tlsh_diff_max
     if fp_a.startswith(FP_PREFIX_SIMHASH) and fp_b.startswith(FP_PREFIX_SIMHASH):
         return _simhash_similarity(
             fp_a[len(FP_PREFIX_SIMHASH):],
@@ -396,6 +409,37 @@ def _cli() -> None:
     result["tlsh_available"] = _TLSH_AVAILABLE
     result["shingle_size"] = args.shingle_size
     print(json.dumps(result, indent=2))
+
+
+def compute_code_v4_shingled(
+    apk_a: str | Path,
+    apk_b: str | Path,
+    *,
+    shingle_size: int = DEFAULT_SHINGLE_SIZE,
+    tlsh_diff_max: int = TLSH_DIFF_MAX,
+    features_a: Optional[dict] = None,
+    features_b: Optional[dict] = None,
+) -> dict:
+    """Extract and compare two APKs with explicit calibration parameters."""
+    if features_a is None:
+        features_a = extract_code_view_v4_shingled(
+            Path(apk_a), shingle_size=shingle_size,
+        )
+    if features_b is None:
+        features_b = extract_code_view_v4_shingled(
+            Path(apk_b), shingle_size=shingle_size,
+        )
+    result = compare_code_v4_shingled(
+        features_a,
+        features_b,
+        tlsh_diff_max=tlsh_diff_max,
+    )
+    result["total_methods_a"] = features_a["total_methods"] if features_a else 0
+    result["total_methods_b"] = features_b["total_methods"] if features_b else 0
+    result["tlsh_available"] = _TLSH_AVAILABLE
+    result["shingle_size"] = shingle_size
+    result["tlsh_diff_max"] = tlsh_diff_max
+    return result
 
 
 if __name__ == "__main__":
