@@ -19,7 +19,10 @@ from screening_runner import (
 )
 
 
-CONTRACT_PATH = Path("/Users/valeryvpetrov/phd/system/screening-contract-v1.md")
+CONTRACT_PATHS = (
+    Path("/Users/valeryvpetrov/phd/system/screening-contract-v1.md"),
+    Path(__file__).resolve().parent.parent / "docs/phd-drafts/screening-contract-v1.md",
+)
 FALLBACK_WARNING = (
     "screening_signature missing in app_record; built on-the-fly from M_static layers"
 )
@@ -139,10 +142,20 @@ class TestScreeningIndexSemantics(unittest.TestCase):
         self.assertIn(FALLBACK_WARNING, rows[0]["screening_warnings"])
 
     def test_contract_references_build_screening_signature_as_index_source(self) -> None:
-        contract_text = CONTRACT_PATH.read_text(encoding="utf-8")
+        contract_texts = [
+            contract_path.read_text(encoding="utf-8")
+            for contract_path in CONTRACT_PATHS
+            if contract_path.exists()
+        ]
 
-        self.assertIn("build_screening_signature", contract_text)
-        self.assertIn("screening_signature", contract_text)
+        self.assertTrue(contract_texts)
+        self.assertTrue(
+            any(
+                "build_screening_signature" in contract_text
+                and "screening_signature" in contract_text
+                for contract_text in contract_texts
+            )
+        )
 
 
 if __name__ == "__main__":

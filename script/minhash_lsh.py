@@ -28,6 +28,11 @@ from typing import Iterable
 _UINT64_MAX = (1 << 64) - 1
 
 
+def _normalize_features(features: Iterable[str]) -> tuple[str, ...]:
+    """Return a deterministic unique feature sequence for signature building."""
+    return tuple(sorted({str(feature) for feature in features}))
+
+
 def _feature_hash(feature: str, slot: int, seed: int) -> int:
     """Deterministic per-slot hash over ``feature``.
 
@@ -84,7 +89,7 @@ class MinHashSignature:
     ) -> "MinHashSignature":
         """Build a signature from an iterable of features."""
         signature = cls(num_perm=num_perm, seed=seed)
-        for feature in features:
+        for feature in _normalize_features(features):
             signature.update(feature)
         return signature
 

@@ -50,6 +50,9 @@ SHORTCUT_STATUS = "success_shortcut"
 SHORTCUT_REASON_HIGH_CONFIDENCE = "high_confidence_signature_match"
 
 M_STATIC_LAYERS = ("code", "component", "resource", "metadata", "library")
+SCREENING_SIGNATURE_FALLBACK_WARNING = (
+    "screening_signature missing in app_record; built on-the-fly from M_static layers"
+)
 LAYER_ALIASES = {
     "code": ("code", "code_features", "graph_names", "code_graph_names"),
     "component": ("component", "component_features"),
@@ -856,6 +859,47 @@ def aggregate_features(app_record: dict, selected_layers: list[str]) -> set[str]
     return aggregated
 
 
+def _append_unique_warning(app_record: dict, warning: str) -> None:
+    warnings = app_record.get("screening_warnings")
+    if not isinstance(warnings, list):
+        warnings = []
+        app_record["screening_warnings"] = warnings
+    if warning not in warnings:
+        warnings.append(warning)
+
+
+def _normalize_signature_tokens(raw_signature) -> list[str]:
+    if raw_signature is None:
+        return []
+    if isinstance(raw_signature, str):
+        tokens = [raw_signature]
+    elif isinstance(raw_signature, (list, tuple, set)):
+        tokens = [str(token).strip() for token in raw_signature if str(token).strip()]
+    else:
+        raise ValueError("screening_signature must be a string or a sequence of strings")
+    return sorted(set(tokens))
+
+
+def build_screening_signature(app_record: dict) -> list[str]:
+    """Return the canonical token list used as the LSH index source.
+
+    Source of truth:
+    1. Reuse persisted ``app_record['screening_signature']`` when present.
+    2. Otherwise build it deterministically from all ``M_STATIC_LAYERS``,
+       persist back into ``app_record`` and raise an explicit warning.
+    """
+    persisted_signature = app_record.get("screening_signature")
+    if persisted_signature is not None:
+        signature = _normalize_signature_tokens(persisted_signature)
+        app_record["screening_signature"] = signature
+        return signature
+
+    signature = sorted(aggregate_features(app_record, list(M_STATIC_LAYERS)))
+    app_record["screening_signature"] = signature
+    _append_unique_warning(app_record, SCREENING_SIGNATURE_FALLBACK_WARNING)
+    return signature
+
+
 def calculate_cfg_ged_similarity(
     apk_a: str,
     apk_b: str,
@@ -1199,13 +1243,22 @@ def _extract_noise_profile_fields(app_record: dict) -> tuple[list[str], str | No
         - downstream_warnings: list of warning strings to merge into screening_warnings
         - noise_profile_ref: compact string reference to the envelope (path or id), or None
     """
+    merged_warnings: list[str] = []
+    app_warnings = app_record.get("screening_warnings", [])
+    if isinstance(app_warnings, list):
+        for warning in app_warnings:
+            if warning not in merged_warnings:
+                merged_warnings.append(warning)
+
     envelope: dict | None = app_record.get("noise_profile_envelope")
     if not isinstance(envelope, dict):
-        return [], None
+        return merged_warnings, None
 
     warnings = envelope.get("downstream_warnings", [])
-    if not isinstance(warnings, list):
-        warnings = []
+    if isinstance(warnings, list):
+        for warning in warnings:
+            if warning not in merged_warnings:
+                merged_warnings.append(warning)
 
     # Build a compact ref: detector_source + status + schema_version
     detector = envelope.get("detector_source", "")
@@ -1213,7 +1266,7 @@ def _extract_noise_profile_fields(app_record: dict) -> tuple[list[str], str | No
     schema = envelope.get("schema_version", "")
     noise_profile_ref = "noise_profile:{}:{}:{}".format(schema, detector, status) if detector else None
 
-    return list(warnings), noise_profile_ref
+    return merged_warnings, noise_profile_ref
 
 
 def _pair_key(app_a_id: str, app_b_id: str) -> tuple[str, str]:
@@ -1245,7 +1298,7 @@ def _build_candidate_pairs_via_lsh(
     signatures: dict[str, "MinHashSignature"] = {}
     index = LSHIndex(num_perm=num_perm, bands=bands)
     for record in records:
-        feature_set = aggregate_features(record, index_features)
+        feature_set = set(build_screening_signature(record))
         signature = MinHashSignature.from_features(
             feature_set, num_perm=num_perm, seed=seed
         )
@@ -1535,7 +1588,7 @@ def build_candidate_list_batch(
         if app_id in corpus_by_id:
             raise ValueError("Duplicate corpus app_id detected: {!r}".format(app_id))
         corpus_by_id[app_id] = record
-        feature_set = aggregate_features(record, index_features)
+        feature_set = set(build_screening_signature(record))
         signature = MinHashSignature.from_features(
             feature_set, num_perm=num_perm, seed=seed
         )
@@ -1544,7 +1597,7 @@ def build_candidate_list_batch(
     results_batch: list[list[dict]] = []
     for query_app in query_apps:
         query_id = query_app["app_id"]
-        query_feature_set = aggregate_features(query_app, index_features)
+        query_feature_set = set(build_screening_signature(query_app))
         query_signature = MinHashSignature.from_features(
             query_feature_set, num_perm=num_perm, seed=seed
         )
