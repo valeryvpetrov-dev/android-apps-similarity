@@ -70,7 +70,9 @@ def _load_idf_snapshot() -> Optional[Dict]:
 
 
 def _get_layer_document_frequency(snapshot: Dict, layer_name: str) -> Dict[str, int]:
-    layer_payload = snapshot.get("layer", {}).get(layer_name, {})
+    layer_payload = snapshot.get(layer_name)
+    if not isinstance(layer_payload, dict):
+        layer_payload = snapshot.get("layer", {}).get(layer_name, {})
     if not isinstance(layer_payload, dict):
         return {}
     document_frequency = layer_payload.get("document_frequency", layer_payload)

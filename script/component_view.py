@@ -14,6 +14,19 @@ from typing import Any
 
 ANDROID_NS = "http://schemas.android.com/apk/res/android"
 
+try:
+    from library_view_v2 import (
+        _compute_idf_weighted_tversky,
+        _load_idf_weights_for_layer,
+        compute_idf_weighted_jaccard,
+    )
+except ImportError:  # pragma: no cover - package import fallback
+    from script.library_view_v2 import (
+        _compute_idf_weighted_tversky,
+        _load_idf_weights_for_layer,
+        compute_idf_weighted_jaccard,
+    )
+
 # Weight vector for aggregate component Jaccard score.
 WEIGHTS = {
     "activities": 0.4,
@@ -386,6 +399,33 @@ def _diff_sets(set_a: set[str], set_b: set[str]) -> dict:
     }
 
 
+def _jaccard_zero_empty(set_a: set[str], set_b: set[str]) -> float:
+    union = set_a | set_b
+    if not union:
+        return 0.0
+    return len(set_a & set_b) / len(union)
+
+
+def _component_tokens(features: dict) -> set[str]:
+    tokens: set[str] = set()
+    for key, prefix in (
+        ("activities", "activity"),
+        ("services", "service"),
+        ("receivers", "receiver"),
+        ("providers", "provider"),
+    ):
+        for name in _component_names(features.get(key, [])):
+            if name:
+                tokens.add(f"{prefix}:{name}")
+    for permission in set(features.get("permissions", set()) or set()):
+        if permission:
+            tokens.add(f"permission:{permission}")
+    for feature in set(features.get("features", set()) or set()):
+        if feature:
+            tokens.add(f"feature:{feature}")
+    return tokens
+
+
 def compare_components(features_a: dict, features_b: dict) -> dict:
     """Compute Jaccard similarity across component types.
 
@@ -401,12 +441,11 @@ def compare_components(features_a: dict, features_b: dict) -> dict:
     ``component_jaccard_score=1.0`` без флага — «оба пустых манифеста
     равны клонам». Канонический контракт: `D-2026-04-DEEP-20-BOTH-EMPTY`.
     """
-    # TODO(REPR-20-IDF-WEIGHTED-JACCARD): add optional IDF-weighted
-    # per-type channels once we have a stable component-token snapshot
-    # contract for unpacked corpora. Kept out of this wave to avoid
-    # refactoring the aggregate component score shape.
     type_keys = ("activities", "services", "receivers", "providers")
     per_type: dict[str, Any] = {}
+    tokens_a = _component_tokens(features_a)
+    tokens_b = _component_tokens(features_b)
+    flat_jaccard = _jaccard_zero_empty(tokens_a, tokens_b)
 
     # DEEP-20-BOTH-EMPTY-AUDIT: единая семантика both_empty.
     # Все пять компонентных множеств + permissions + features пусты
@@ -445,6 +484,7 @@ def compare_components(features_a: dict, features_b: dict) -> dict:
                 "jaccard": 0.0, "diff": _diff_sets(set(), set()),
             }
             return {
+                "jaccard": 0.0,
                 "component_jaccard_score": 0.0,
                 "icc_jaccard_score": 0.0,
                 "combined_component_icc_score": 0.0,
@@ -492,7 +532,8 @@ def compare_components(features_a: dict, features_b: dict) -> dict:
     icc_score = icc_cmp["icc_jaccard_score"]
     combined = (aggregate + icc_score) / 2
 
-    return {
+    result = {
+        "jaccard": flat_jaccard,
         "component_jaccard_score": aggregate,
         "icc_jaccard_score": icc_score,
         "combined_component_icc_score": combined,
@@ -504,6 +545,21 @@ def compare_components(features_a: dict, features_b: dict) -> dict:
         "package_a": features_a.get("package", ""),
         "package_b": features_b.get("package", ""),
     }
+    idf_weights = _load_idf_weights_for_layer("component")
+    if idf_weights:
+        tversky_a_idf, tversky_b_idf = _compute_idf_weighted_tversky(
+            tokens_a,
+            tokens_b,
+            idf_weights,
+        )
+        result["jaccard_idf"] = compute_idf_weighted_jaccard(
+            tokens_a,
+            tokens_b,
+            idf_weights,
+        )
+        result["tversky_a_idf"] = float(tversky_a_idf)
+        result["tversky_b_idf"] = float(tversky_b_idf)
+    return result
 
 
 # ---------------------------------------------------------------------------

@@ -74,6 +74,19 @@ from typing import Dict, Optional, Set
 logger = logging.getLogger(__name__)
 
 try:
+    from library_view_v2 import (
+        _compute_idf_weighted_tversky,
+        _load_idf_weights_for_layer,
+        compute_idf_weighted_jaccard,
+    )
+except ImportError:  # pragma: no cover - package import fallback
+    from script.library_view_v2 import (
+        _compute_idf_weighted_tversky,
+        _load_idf_weights_for_layer,
+        compute_idf_weighted_jaccard,
+    )
+
+try:
     from PIL import Image  # type: ignore
     _PIL_AVAILABLE = True
 except ImportError:  # pragma: no cover - зависит от окружения
@@ -477,6 +490,13 @@ def _jaccard(set_a: Set[str], set_b: Set[str]) -> float:
     return len(set_a & set_b) / len(union)
 
 
+def _resource_tokens(features: Dict) -> Set[str]:
+    tokens: Set[str] = set()
+    for key, _score_key in _JACCARD_SUBSETS:
+        tokens.update(set(features.get(key, set()) or set()))
+    return tokens
+
+
 def _parse_icon_token(token: Optional[str]) -> Optional[tuple]:
     """Разбирает токен иконки в пару ``(method, int_hash)``.
 
@@ -563,13 +583,13 @@ def compare_resource_view_v2(features_a: Dict, features_b: Dict) -> Dict:
             если абсолютно все подмножества пустые с обеих сторон и
             иконки отсутствуют.
     """
-    # TODO(REPR-20-IDF-WEIGHTED-JACCARD): add optional IDF-weighted
-    # resource channels once there is a stable snapshot contract for
-    # strings/drawables/layouts/assets across unpacked APK corpora.
     result: Dict[str, float] = {}
     contributing_scores = []
     present_subsets = 0
     empty_subsets = 0
+    tokens_a = _resource_tokens(features_a)
+    tokens_b = _resource_tokens(features_b)
+    result["jaccard"] = _jaccard(tokens_a, tokens_b)
 
     for key, score_key in _JACCARD_SUBSETS:
         set_a: Set[str] = set(features_a.get(key, set()) or set())
@@ -598,6 +618,21 @@ def compare_resource_view_v2(features_a: Dict, features_b: Dict) -> Dict:
         result["combined_score"] = sum(contributing_scores) / len(contributing_scores)
     else:
         result["combined_score"] = 0.0
+
+    idf_weights = _load_idf_weights_for_layer("resource")
+    if idf_weights and (tokens_a or tokens_b):
+        tversky_a_idf, tversky_b_idf = _compute_idf_weighted_tversky(
+            tokens_a,
+            tokens_b,
+            idf_weights,
+        )
+        result["jaccard_idf"] = compute_idf_weighted_jaccard(
+            tokens_a,
+            tokens_b,
+            idf_weights,
+        )
+        result["tversky_a_idf"] = float(tversky_a_idf)
+        result["tversky_b_idf"] = float(tversky_b_idf)
 
     total_signals = len(_JACCARD_SUBSETS) + 1  # +1 за иконку
     if not contributing_scores:
