@@ -95,6 +95,19 @@ def _collect_runtime_noise_gate_triggers(app_record: Dict[str, Any]) -> List[str
         return []
 
     triggers: List[str] = []
+    libloom_status = str(envelope.get("libloom_status") or "").strip().lower()
+
+    if libloom_status in {"libloom_unavailable", "libloom_misconfigured"}:
+        triggers.append(libloom_status)
+    elif not libloom_status:
+        try:
+            from script import libloom_adapter  # noqa: WPS433
+        except ImportError:
+            import libloom_adapter  # type: ignore[no-redef]
+
+        verification = libloom_adapter.verify_libloom_setup()
+        if verification["status"] != "available":
+            triggers.append("libloom_{}".format(verification["status"]))
 
     gate_status = str(envelope.get("apkid_gate_status") or "").strip().lower()
     apkid_signals = envelope.get("apkid_signals")

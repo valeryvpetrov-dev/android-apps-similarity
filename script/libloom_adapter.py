@@ -22,6 +22,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +30,8 @@ DEFAULT_TIMEOUT_SEC = 600  # 315 сек по публикации + buffer
 DEFAULT_JAVA_HEAP_MB = 2048
 LIBLOOM_HOME_ENV_VAR = "LIBLOOM_HOME"
 LIBLOOM_JAR_NAME = "LIBLOOM.jar"
+LIBLOOM_PROFILE_DIR_NAME = "libs_profile"
+LIBLOOM_DEPENDENCY_POLICY_DOC = "README.md#libloom-dependency-policy"
 
 _STDOUT_TAIL_BYTES = 4096
 
@@ -61,6 +64,140 @@ def libloom_available(jar_path: str | None = None) -> bool:
     if not Path(resolved_jar_path).is_file():
         return False
     return shutil.which("java") is not None
+
+
+def _verification_result(
+    status: str,
+    reason: str,
+    *,
+    version: str | None = None,
+    jar_path: str | None = None,
+    libs_profile_dir: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "status": status,
+        "available": status == "available",
+        "version": version,
+        "reason": reason,
+        "jar_path": jar_path,
+        "libs_profile_dir": libs_profile_dir,
+    }
+
+
+def _read_libloom_version(jar_path: Path) -> str | None:
+    """Best-effort version extraction from JAR manifest."""
+    try:
+        with zipfile.ZipFile(jar_path) as jar_file:
+            with jar_file.open("META-INF/MANIFEST.MF") as manifest_file:
+                manifest = manifest_file.read().decode("utf-8", errors="ignore")
+    except (OSError, KeyError, zipfile.BadZipFile):
+        return None
+
+    for raw_line in manifest.splitlines():
+        line = raw_line.strip()
+        if not line or ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        if key.strip().lower() in {
+            "implementation-version",
+            "bundle-version",
+            "specification-version",
+        }:
+            version = value.strip()
+            if version:
+                return version
+    return None
+
+
+def verify_libloom_setup(
+    *,
+    libloom_home: str | None = None,
+    jar_path: str | None = None,
+    libs_profile_dir: str | None = None,
+) -> dict[str, Any]:
+    """Verify LIBLOOM runtime policy without raising exceptions.
+
+    Returns a dict with a strict tri-state policy:
+    - available
+    - unavailable
+    - misconfigured
+    """
+    # TODO(NOISE-21-DEPENDENCY-POLICY): see README.md#libloom-dependency-policy
+    resolved_home = (
+        str(libloom_home).strip()
+        if libloom_home is not None
+        else os.environ.get(LIBLOOM_HOME_ENV_VAR, "").strip()
+    )
+
+    if jar_path is None:
+        if not resolved_home:
+            return _verification_result(
+                "unavailable",
+                "LIBLOOM_HOME is not set",
+            )
+        resolved_jar_path = Path(resolved_home) / LIBLOOM_JAR_NAME
+    else:
+        resolved_jar_path = Path(jar_path)
+
+    if libs_profile_dir is None:
+        if resolved_home:
+            resolved_profile_dir = Path(resolved_home) / LIBLOOM_PROFILE_DIR_NAME
+        else:
+            return _verification_result(
+                "misconfigured",
+                "libs_profile path is not configured",
+                jar_path=str(resolved_jar_path),
+            )
+    else:
+        resolved_profile_dir = Path(libs_profile_dir)
+
+    if not resolved_jar_path.is_file():
+        return _verification_result(
+            "misconfigured",
+            f"LIBLOOM.jar not found at {resolved_jar_path}",
+            jar_path=str(resolved_jar_path),
+            libs_profile_dir=str(resolved_profile_dir),
+        )
+
+    if not resolved_profile_dir.is_dir():
+        return _verification_result(
+            "misconfigured",
+            f"libs_profile not found at {resolved_profile_dir}",
+            jar_path=str(resolved_jar_path),
+            libs_profile_dir=str(resolved_profile_dir),
+        )
+
+    try:
+        if not any(resolved_profile_dir.iterdir()):
+            return _verification_result(
+                "misconfigured",
+                f"libs_profile is empty at {resolved_profile_dir}",
+                jar_path=str(resolved_jar_path),
+                libs_profile_dir=str(resolved_profile_dir),
+            )
+    except OSError:
+        return _verification_result(
+            "misconfigured",
+            f"libs_profile is unreadable at {resolved_profile_dir}",
+            jar_path=str(resolved_jar_path),
+            libs_profile_dir=str(resolved_profile_dir),
+        )
+
+    if shutil.which("java") is None:
+        return _verification_result(
+            "misconfigured",
+            "java is not available on PATH",
+            jar_path=str(resolved_jar_path),
+            libs_profile_dir=str(resolved_profile_dir),
+        )
+
+    return _verification_result(
+        "available",
+        "available",
+        version=_read_libloom_version(resolved_jar_path),
+        jar_path=str(resolved_jar_path),
+        libs_profile_dir=str(resolved_profile_dir),
+    )
 
 
 def _empty_result() -> dict[str, Any]:

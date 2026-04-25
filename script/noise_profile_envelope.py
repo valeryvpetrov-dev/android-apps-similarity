@@ -354,8 +354,9 @@ def apply_libloom_detection(
       - Если apkid_result["gate_status"] == "blocked" → LIBLOOM НЕ вызывается,
         envelope возвращается как есть (detector_blocked уже выставлен
         функцией apply_apkid_gate).
-      - Если libloom_jar_path is None или libs_profile_dir is None → LIBLOOM
-        не вызывается, envelope получает libloom_status="not_configured".
+      - Если среда LIBLOOM недоступна или сломана → LIBLOOM не вызывается,
+        envelope получает libloom_status="libloom_unavailable" либо
+        "libloom_misconfigured" с явной причиной.
       - Иначе вызывается libloom_adapter.detect_libraries, результат пишется
         в envelope:
           * envelope["libloom_status"]         = result["status"]
@@ -377,8 +378,8 @@ def apply_libloom_detection(
 
     Returns:
         Новый dict — копия envelope, расширенная libloom_*-полями
-        (если LIBLOOM был вызван), либо без них (при blocked/not_configured
-        случай not_configured добавляет libloom_status="not_configured").
+        (если LIBLOOM был вызван), либо без них (при blocked). Для
+        unavailable/misconfigured добавляются явные libloom_* поля.
     """
     if not isinstance(envelope, dict):
         raise TypeError("apply_libloom_detection expects envelope as dict")
@@ -390,20 +391,29 @@ def apply_libloom_detection(
     if gate_status == "blocked":
         return merged
 
-    # 2. Не сконфигурировано — LIBLOOM не вызывается.
-    if libloom_jar_path is None or libs_profile_dir is None:
-        merged["libloom_status"] = "not_configured"
-        return merged
-
+    # 2. Явная проверка политики зависимости.
+    # TODO(NOISE-21-DEPENDENCY-POLICY): keep status mapping in sync with
+    # README.md#libloom-dependency-policy.
     # 3. Вызов LIBLOOM. Импорт внутри — чтобы не создавать циклическую
     #    зависимость на уровне модуля и чтобы тесты, мокающие
     #    libloom_adapter.detect_libraries, работали через патч модуля.
     from script import libloom_adapter  # noqa: WPS433
 
-    result = libloom_adapter.detect_libraries(
-        apk_path=apk_path,
+    verification = libloom_adapter.verify_libloom_setup(
         jar_path=libloom_jar_path,
         libs_profile_dir=libs_profile_dir,
+    )
+    if verification["status"] != "available":
+        merged["libloom_status"] = "libloom_{}".format(verification["status"])
+        merged["libloom_libraries"] = []
+        merged["libloom_elapsed_sec"] = 0.0
+        merged["libloom_error_reason"] = verification["reason"]
+        return merged
+
+    result = libloom_adapter.detect_libraries(
+        apk_path=apk_path,
+        jar_path=str(verification["jar_path"]),
+        libs_profile_dir=str(verification["libs_profile_dir"]),
         timeout_sec=timeout_sec,
     )
 
