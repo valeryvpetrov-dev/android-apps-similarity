@@ -15,7 +15,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 os.environ.setdefault("SIMILARITY_SKIP_REQ_CHECK", "1")
 
-from noise_integration import should_reject_by_noise_gate
+from noise_integration import collect_noise_gate_triggers, should_reject_by_noise_gate
 from screening_runner import run_screening
 
 
@@ -187,3 +187,20 @@ def test_noise_gate_passes_known_clean_apk() -> None:
 
         assert "APP-CLEAN" in app_ids_seen
         assert "APP-PEER" in app_ids_seen
+
+
+def test_collect_noise_gate_triggers_surfaces_libloom_unavailable_status() -> None:
+    record = _make_app(
+        "APP-LIBLOOM-OFF",
+        {"f1"},
+        envelope={
+            "schema_version": "nc-v1",
+            "apkid_gate_status": "clean",
+            "libloom_status": "libloom_unavailable",
+            "libloom_error_reason": "LIBLOOM_HOME is not set",
+        },
+    )
+
+    triggers = collect_noise_gate_triggers(record)
+
+    assert "libloom_unavailable" in triggers

@@ -598,8 +598,8 @@ class ApplyLibloomDetectionTests(unittest.TestCase):
         self.assertTrue(merged["detector_blocked"])
         self.assertEqual(merged["detector_block_reason"], "packer_detected")
 
-    def test_jar_none_marks_not_configured(self) -> None:
-        """libloom_jar_path=None → libloom_status='not_configured',
+    def test_jar_none_marks_libloom_unavailable(self) -> None:
+        """Без LIBLOOM_HOME и jar_path → libloom_status='libloom_unavailable',
         detect_libraries НЕ вызывается."""
         from script import libloom_adapter
         from script import noise_profile_envelope
@@ -609,7 +609,9 @@ class ApplyLibloomDetectionTests(unittest.TestCase):
                         "apkid_signals": {}}
         envelope = {"schema_version": SCHEMA_VERSION, "status": STATUS_SUCCESS}
 
-        with mock.patch.object(libloom_adapter, "detect_libraries") as detect:
+        with mock.patch.dict(os.environ, {}, clear=False), \
+                mock.patch.object(libloom_adapter, "detect_libraries") as detect:
+            os.environ.pop("LIBLOOM_HOME", None)
             merged = noise_profile_envelope.apply_libloom_detection(
                 apk_path="/tmp/app.apk",
                 apkid_result=apkid_result,
@@ -619,11 +621,12 @@ class ApplyLibloomDetectionTests(unittest.TestCase):
             )
 
         detect.assert_not_called()
-        self.assertEqual(merged["libloom_status"], "not_configured")
-        self.assertNotIn("libloom_libraries", merged)
+        self.assertEqual(merged["libloom_status"], "libloom_unavailable")
+        self.assertEqual(merged["libloom_libraries"], [])
 
-    def test_profile_dir_none_marks_not_configured(self) -> None:
-        """libs_profile_dir=None → libloom_status='not_configured',
+    def test_profile_dir_none_marks_libloom_misconfigured(self) -> None:
+        """jar_path задан, но libs_profile_dir=None без полной среды →
+        libloom_status='libloom_misconfigured',
         detect_libraries НЕ вызывается."""
         from script import libloom_adapter
         from script import noise_profile_envelope
@@ -633,7 +636,9 @@ class ApplyLibloomDetectionTests(unittest.TestCase):
                         "apkid_signals": {}}
         envelope = {"schema_version": SCHEMA_VERSION, "status": STATUS_SUCCESS}
 
-        with mock.patch.object(libloom_adapter, "detect_libraries") as detect:
+        with mock.patch.dict(os.environ, {}, clear=False), \
+                mock.patch.object(libloom_adapter, "detect_libraries") as detect:
+            os.environ.pop("LIBLOOM_HOME", None)
             merged = noise_profile_envelope.apply_libloom_detection(
                 apk_path="/tmp/app.apk",
                 apkid_result=apkid_result,
@@ -643,8 +648,8 @@ class ApplyLibloomDetectionTests(unittest.TestCase):
             )
 
         detect.assert_not_called()
-        self.assertEqual(merged["libloom_status"], "not_configured")
-        self.assertNotIn("libloom_libraries", merged)
+        self.assertEqual(merged["libloom_status"], "libloom_misconfigured")
+        self.assertEqual(merged["libloom_libraries"], [])
 
     def test_clean_gate_invokes_libloom_ok(self) -> None:
         """gate_status='clean' + нормальные параметры → detect_libraries
@@ -660,6 +665,17 @@ class ApplyLibloomDetectionTests(unittest.TestCase):
 
         expected = self._ok_result()
         with mock.patch.object(
+            libloom_adapter,
+            "verify_libloom_setup",
+            return_value={
+                "status": "available",
+                "available": True,
+                "version": None,
+                "reason": "available",
+                "jar_path": "/opt/LIBLOOM.jar",
+                "libs_profile_dir": "/opt/libs_profile",
+            },
+        ), mock.patch.object(
             libloom_adapter, "detect_libraries", return_value=expected,
         ) as detect:
             merged = noise_profile_envelope.apply_libloom_detection(
@@ -694,6 +710,17 @@ class ApplyLibloomDetectionTests(unittest.TestCase):
         envelope = {"schema_version": SCHEMA_VERSION, "status": STATUS_SUCCESS}
 
         with mock.patch.object(
+            libloom_adapter,
+            "verify_libloom_setup",
+            return_value={
+                "status": "available",
+                "available": True,
+                "version": None,
+                "reason": "available",
+                "jar_path": "/opt/LIBLOOM.jar",
+                "libs_profile_dir": "/opt/libs_profile",
+            },
+        ), mock.patch.object(
             libloom_adapter, "detect_libraries", return_value=self._ok_result(),
         ) as detect:
             merged = noise_profile_envelope.apply_libloom_detection(
@@ -719,6 +746,17 @@ class ApplyLibloomDetectionTests(unittest.TestCase):
                     "manipulator_warning": ["Resources Confusion"]}
 
         with mock.patch.object(
+            libloom_adapter,
+            "verify_libloom_setup",
+            return_value={
+                "status": "available",
+                "available": True,
+                "version": None,
+                "reason": "available",
+                "jar_path": "/opt/LIBLOOM.jar",
+                "libs_profile_dir": "/opt/libs_profile",
+            },
+        ), mock.patch.object(
             libloom_adapter, "detect_libraries", return_value=self._ok_result(),
         ) as detect:
             merged = noise_profile_envelope.apply_libloom_detection(
@@ -756,6 +794,17 @@ class ApplyLibloomDetectionTests(unittest.TestCase):
             "error_reason": "jvm_nonzero_exit:1",
         }
         with mock.patch.object(
+            libloom_adapter,
+            "verify_libloom_setup",
+            return_value={
+                "status": "available",
+                "available": True,
+                "version": None,
+                "reason": "available",
+                "jar_path": "/opt/LIBLOOM.jar",
+                "libs_profile_dir": "/opt/libs_profile",
+            },
+        ), mock.patch.object(
             libloom_adapter, "detect_libraries", return_value=failed,
         ):
             merged = noise_profile_envelope.apply_libloom_detection(
