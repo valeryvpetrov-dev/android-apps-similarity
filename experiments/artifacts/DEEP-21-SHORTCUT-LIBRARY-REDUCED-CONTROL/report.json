@@ -1,0 +1,376 @@
+{
+  "task_id": "DEEP-21-SHORTCUT-LIBRARY-REDUCED-CONTROL",
+  "wave": 21,
+  "team": "E",
+  "context": "Контрольный пересчёт library_reduced_score на shortcut-парах. Реальных shortcut-данных в артефактах волн 16–19 не было найдено, поэтому замер на синтетике из 50 пар (10 multi-app developer FP, 30 настоящих клонов, 10 пограничных).",
+  "synthetic_corpus": {
+    "total_pairs": 50,
+    "kinds": {
+      "multi_app_developer_fp": 10,
+      "real_clone": 30,
+      "borderline_partial": 10
+    },
+    "scorer_rules": {
+      "multi_app_developer_fp": 0.3,
+      "real_clone": 0.85,
+      "borderline_partial": 0.55
+    }
+  },
+  "control_ratio_10_percent": {
+    "shortcut_pairs_total": 50,
+    "control_size": 5,
+    "false_positive_count": 2,
+    "false_positive_rate": 0.4,
+    "threshold": 0.5,
+    "control_ratio": 0.1,
+    "examples": [
+      {
+        "app_a": "borderline_a_0",
+        "app_b": "borderline_b_0",
+        "library_reduced_score": 0.55,
+        "false_positive": false
+      },
+      {
+        "app_a": "vk_app_7",
+        "app_b": "vk_app_8",
+        "library_reduced_score": 0.3,
+        "false_positive": true
+      },
+      {
+        "app_a": "vk_app_1",
+        "app_b": "vk_app_2",
+        "library_reduced_score": 0.3,
+        "false_positive": true
+      },
+      {
+        "app_a": "borderline_a_7",
+        "app_b": "borderline_b_7",
+        "library_reduced_score": 0.55,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_7",
+        "app_b": "clone_b_7",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      }
+    ],
+    "warnings": []
+  },
+  "control_ratio_100_percent": {
+    "shortcut_pairs_total": 50,
+    "control_size": 50,
+    "false_positive_count": 10,
+    "false_positive_rate": 0.2,
+    "threshold": 0.5,
+    "control_ratio": 1.0,
+    "examples": [
+      {
+        "app_a": "borderline_a_0",
+        "app_b": "borderline_b_0",
+        "library_reduced_score": 0.55,
+        "false_positive": false
+      },
+      {
+        "app_a": "vk_app_7",
+        "app_b": "vk_app_8",
+        "library_reduced_score": 0.3,
+        "false_positive": true
+      },
+      {
+        "app_a": "vk_app_1",
+        "app_b": "vk_app_2",
+        "library_reduced_score": 0.3,
+        "false_positive": true
+      },
+      {
+        "app_a": "clone_a_7",
+        "app_b": "clone_b_7",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_5",
+        "app_b": "clone_b_5",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_4",
+        "app_b": "clone_b_4",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "vk_app_8",
+        "app_b": "vk_app_9",
+        "library_reduced_score": 0.3,
+        "false_positive": true
+      },
+      {
+        "app_a": "vk_app_6",
+        "app_b": "vk_app_7",
+        "library_reduced_score": 0.3,
+        "false_positive": true
+      },
+      {
+        "app_a": "clone_a_24",
+        "app_b": "clone_b_24",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "vk_app_5",
+        "app_b": "vk_app_6",
+        "library_reduced_score": 0.3,
+        "false_positive": true
+      },
+      {
+        "app_a": "clone_a_27",
+        "app_b": "clone_b_27",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_17",
+        "app_b": "clone_b_17",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "vk_app_2",
+        "app_b": "vk_app_3",
+        "library_reduced_score": 0.3,
+        "false_positive": true
+      },
+      {
+        "app_a": "borderline_a_7",
+        "app_b": "borderline_b_7",
+        "library_reduced_score": 0.55,
+        "false_positive": false
+      },
+      {
+        "app_a": "borderline_a_9",
+        "app_b": "borderline_b_9",
+        "library_reduced_score": 0.55,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_3",
+        "app_b": "clone_b_3",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "borderline_a_4",
+        "app_b": "borderline_b_4",
+        "library_reduced_score": 0.55,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_22",
+        "app_b": "clone_b_22",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_26",
+        "app_b": "clone_b_26",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "borderline_a_6",
+        "app_b": "borderline_b_6",
+        "library_reduced_score": 0.55,
+        "false_positive": false
+      },
+      {
+        "app_a": "borderline_a_2",
+        "app_b": "borderline_b_2",
+        "library_reduced_score": 0.55,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_12",
+        "app_b": "clone_b_12",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_10",
+        "app_b": "clone_b_10",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_18",
+        "app_b": "clone_b_18",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_20",
+        "app_b": "clone_b_20",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "borderline_a_1",
+        "app_b": "borderline_b_1",
+        "library_reduced_score": 0.55,
+        "false_positive": false
+      },
+      {
+        "app_a": "borderline_a_8",
+        "app_b": "borderline_b_8",
+        "library_reduced_score": 0.55,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_23",
+        "app_b": "clone_b_23",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_8",
+        "app_b": "clone_b_8",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "borderline_a_3",
+        "app_b": "borderline_b_3",
+        "library_reduced_score": 0.55,
+        "false_positive": false
+      },
+      {
+        "app_a": "vk_app_0",
+        "app_b": "vk_app_1",
+        "library_reduced_score": 0.3,
+        "false_positive": true
+      },
+      {
+        "app_a": "clone_a_25",
+        "app_b": "clone_b_25",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_14",
+        "app_b": "clone_b_14",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_0",
+        "app_b": "clone_b_0",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_28",
+        "app_b": "clone_b_28",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_29",
+        "app_b": "clone_b_29",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "vk_app_3",
+        "app_b": "vk_app_4",
+        "library_reduced_score": 0.3,
+        "false_positive": true
+      },
+      {
+        "app_a": "clone_a_2",
+        "app_b": "clone_b_2",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_11",
+        "app_b": "clone_b_11",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_21",
+        "app_b": "clone_b_21",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_6",
+        "app_b": "clone_b_6",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_19",
+        "app_b": "clone_b_19",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "vk_app_9",
+        "app_b": "vk_app_10",
+        "library_reduced_score": 0.3,
+        "false_positive": true
+      },
+      {
+        "app_a": "clone_a_16",
+        "app_b": "clone_b_16",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "borderline_a_5",
+        "app_b": "borderline_b_5",
+        "library_reduced_score": 0.55,
+        "false_positive": false
+      },
+      {
+        "app_a": "vk_app_4",
+        "app_b": "vk_app_5",
+        "library_reduced_score": 0.3,
+        "false_positive": true
+      },
+      {
+        "app_a": "clone_a_1",
+        "app_b": "clone_b_1",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_9",
+        "app_b": "clone_b_9",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_13",
+        "app_b": "clone_b_13",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      },
+      {
+        "app_a": "clone_a_15",
+        "app_b": "clone_b_15",
+        "library_reduced_score": 0.85,
+        "false_positive": false
+      }
+    ],
+    "warnings": []
+  },
+  "interpretation": {
+    "expected_fpr_on_full_corpus": 0.2,
+    "actual_fpr_on_full_corpus": 0.2,
+    "comment": "На синтетике с 20% multi-app developer пар FPR=0.2 при threshold=0.5. На реальном корпусе F-Droid v2 (202 пары DEEP-003-SHORTLIST) ожидаемый FPR неизвестен — нужен прогон с реальным scorer'ом из pairwise_runner."
+  }
+}
