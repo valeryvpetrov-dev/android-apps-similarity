@@ -241,37 +241,15 @@ def discover_apks(apk_dir: str) -> list[str]:
 
 def probe_libloom_runtime() -> dict[str, Any]:
     """Проверить доступность LIBLOOM без выброса исключений."""
-    warnings: list[str] = []
-    libloom_home = os.environ.get(system_requirements.LIBLOOM_HOME_ENV_VAR, "").strip()
-    if not libloom_home:
-        return {
-            "available": False,
-            "jar_path": None,
-            "libs_profile_dir": None,
-            "warnings": ["LIBLOOM_HOME is not set"],
-        }
-
-    jar_path = Path(libloom_home) / system_requirements.LIBLOOM_JAR_NAME
-    if not jar_path.is_file():
-        warnings.append(f"LIBLOOM.jar not found at {jar_path}")
-
-    libs_profile_dir = Path(libloom_home) / system_requirements.LIBLOOM_PROFILE_DIR_NAME
-    if not libs_profile_dir.is_dir():
-        warnings.append(f"libs_profile not found at {libs_profile_dir}")
-    else:
-        try:
-            if not any(libs_profile_dir.iterdir()):
-                warnings.append(f"libs_profile is empty at {libs_profile_dir}")
-        except OSError:
-            warnings.append(f"libs_profile is unreadable at {libs_profile_dir}")
-
-    if shutil.which("java") is None:
-        warnings.append("java is not available on PATH")
-
+    verification = libloom_adapter.verify_libloom_setup()
+    warnings = [] if verification["status"] == "available" else [verification["reason"]]
     return {
-        "available": not warnings,
-        "jar_path": str(jar_path),
-        "libs_profile_dir": str(libs_profile_dir),
+        "available": verification["available"],
+        "status": verification["status"],
+        "reason": verification["reason"],
+        "version": verification["version"],
+        "jar_path": verification.get("jar_path"),
+        "libs_profile_dir": verification.get("libs_profile_dir"),
         "warnings": warnings,
     }
 
@@ -322,17 +300,41 @@ def _build_quality_entries(
 
 def _empty_real_run_report(
     apk_dir: str,
-    corpus_size: int,
+    entries: list[dict[str, Any]],
     labeled_tpls: list[str],
     labels_source: str,
     runtime: dict[str, Any],
+    status: str,
+    reason: str,
 ) -> dict[str, Any]:
+    per_apk_results = []
+    for entry in entries:
+        per_apk_results.append(
+            {
+                "apk_path": entry["apk_path"],
+                "ground_truth": list(entry["ground_truth"]),
+                "detected_tpls": [],
+                "libloom_status": status,
+                "libloom_error_reason": reason,
+                "libloom_elapsed_sec": 0.0,
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0,
+                "tp_names": [],
+                "fp_names": [],
+                "fn_names": [],
+            }
+        )
     return {
         "run_id": REAL_RUN_ID,
-        "status": "libloom_unavailable",
-        "corpus_size": corpus_size,
+        "status": status,
+        "reason": reason,
+        "corpus_size": len(entries),
         "labeled_tpls": labeled_tpls,
-        "per_apk_results": [],
+        "per_apk_results": per_apk_results,
         "aggregate": {
             "precision": 0.0,
             "recall": 0.0,
@@ -346,6 +348,7 @@ def _empty_real_run_report(
             "labels": labels_source,
             "jar_path": runtime.get("jar_path"),
             "libs_profile_dir": runtime.get("libs_profile_dir"),
+            "version": runtime.get("version"),
         },
     }
 
@@ -361,12 +364,15 @@ def run_real_quality_smoke(
     entries, labeled_tpls, labels_source = _build_quality_entries(apk_paths, labels_path)
     runtime = probe_libloom_runtime()
     if not runtime["available"]:
+        runtime_status = "libloom_{}".format(runtime.get("status") or "unavailable")
         report = _empty_real_run_report(
             apk_dir=apk_dir,
-            corpus_size=len(apk_paths),
+            entries=entries,
             labeled_tpls=labeled_tpls,
             labels_source=labels_source,
             runtime=runtime,
+            status=runtime_status,
+            reason=str(runtime.get("reason") or "LIBLOOM is unavailable"),
         )
         if output_path:
             write_report(report, output_path)
@@ -434,6 +440,7 @@ def run_real_quality_smoke(
             "labels": labels_source,
             "jar_path": runtime.get("jar_path"),
             "libs_profile_dir": runtime.get("libs_profile_dir"),
+            "version": runtime.get("version"),
         },
     }
     if output_path:
