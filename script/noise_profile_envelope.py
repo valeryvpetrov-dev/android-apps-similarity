@@ -14,8 +14,12 @@ Canonical reference: NC-003-REPO
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from script.noise_cache import NoiseCache
 
 
 # ---------------------------------------------------------------------------
@@ -347,6 +351,7 @@ def apply_libloom_detection(
     libs_profile_dir: Optional[str],
     envelope: dict,
     timeout_sec: int = 600,
+    cache: Optional["NoiseCache"] = None,
 ) -> dict:
     """Встраивает результат LIBLOOM в профиль шума, если политика APKiD позволяет.
 
@@ -375,6 +380,8 @@ def apply_libloom_detection(
         envelope:          dict-представление NoiseProfileEnvelope (или
                            произвольный dict с metadata).
         timeout_sec:       hard-timeout для каждой фазы LIBLOOM (default 600).
+        cache:             optional persistent cache keyed by APK SHA-256 and
+                           profile_version.
 
     Returns:
         Новый dict — копия envelope, расширенная libloom_*-полями
@@ -385,10 +392,17 @@ def apply_libloom_detection(
         raise TypeError("apply_libloom_detection expects envelope as dict")
 
     merged = dict(envelope)
+    apk_sha256 = _sha256_file_or_none(apk_path) if cache is not None else None
+    if cache is not None and apk_sha256 is not None:
+        cached = cache.get(apk_sha256)
+        if cached is not None:
+            return cached
 
     # 1. Жёсткая политика blocked — LIBLOOM не вызывается.
     gate_status = apkid_result.get("gate_status") if isinstance(apkid_result, dict) else None
     if gate_status == "blocked":
+        if cache is not None and apk_sha256 is not None:
+            cache.put(apk_sha256, merged)
         return merged
 
     # 2. Явная проверка политики зависимости.
@@ -408,6 +422,8 @@ def apply_libloom_detection(
         merged["libloom_libraries"] = []
         merged["libloom_elapsed_sec"] = 0.0
         merged["libloom_error_reason"] = verification["reason"]
+        if cache is not None and apk_sha256 is not None:
+            cache.put(apk_sha256, merged)
         return merged
 
     result = libloom_adapter.detect_libraries(
@@ -421,7 +437,20 @@ def apply_libloom_detection(
     merged["libloom_libraries"] = list(result.get("libraries") or [])
     merged["libloom_elapsed_sec"] = result.get("elapsed_sec", 0.0)
     merged["libloom_error_reason"] = result.get("error_reason")
+    if cache is not None and apk_sha256 is not None:
+        cache.put(apk_sha256, merged)
     return merged
+
+
+def _sha256_file_or_none(apk_path: str) -> Optional[str]:
+    hasher = hashlib.sha256()
+    try:
+        with open(apk_path, "rb") as apk_file:
+            for chunk in iter(lambda: apk_file.read(1024 * 1024), b""):
+                hasher.update(chunk)
+    except OSError:
+        return None
+    return hasher.hexdigest()
 
 
 def _build_envelope_from_summary(
