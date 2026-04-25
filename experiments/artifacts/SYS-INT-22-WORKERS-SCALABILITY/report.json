@@ -1,0 +1,45 @@
+{
+  "workers_grid": [
+    1,
+    2,
+    4,
+    8
+  ],
+  "per_workers": [
+    {
+      "workers": 1,
+      "total_time_s": 0.846373,
+      "throughput": 11.815115,
+      "speedup": 1.0
+    },
+    {
+      "workers": 2,
+      "total_time_s": 0.075605,
+      "throughput": 132.26653,
+      "speedup": 11.194689
+    },
+    {
+      "workers": 4,
+      "total_time_s": 0.077422,
+      "throughput": 129.162879,
+      "speedup": 10.932004
+    },
+    {
+      "workers": 8,
+      "total_time_s": 0.08171,
+      "throughput": 122.384104,
+      "speedup": 10.358266
+    }
+  ],
+  "optimal_workers": 2,
+  "n_pairs": 10,
+  "corpus_dir": "apk/",
+  "apk_count": 5,
+  "apk_paths": [
+    "apk/simple_app/simple_app-empty.apk",
+    "apk/simple_app/simple_app-releaseNonOptimized.apk",
+    "apk/simple_app/simple_app-releaseOptimized.apk",
+    "apk/simple_app/simple_app-releaseRename.apk",
+    "apk/snake/snake.apk"
+  ]
+}
