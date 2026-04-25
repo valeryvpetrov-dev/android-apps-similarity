@@ -79,9 +79,22 @@ screening_explanation: null
 3. `screening_status=preliminary_negative` означает, что score был ниже operating point `THRESH-002`.
 4. Layer E не пересчитывает threshold и не выводит screening verdict заново; он только читает уже сформированный shortlist / diagnostics.
 
-## 6. Миграция legacy
+## 6. Источник токенов LSH-индекса
+
+1. Единственный source of truth для токенов candidate retrieval — поле `app_record.screening_signature`.
+2. Канонический builder этого поля — функция `build_screening_signature(app_record)` в `script/screening_runner.py`.
+3. MinHash/LSH-индекс в screening-слое обязан использовать только список токенов, возвращённый `build_screening_signature(app_record)`.
+4. Если `screening_signature` отсутствует во входном `app_record`, `build_screening_signature(app_record)` строит его детерминированно из фиксированного набора `M_static`-слоёв, записывает обратно в `app_record` и добавляет warning в `screening_warnings`.
+
+## 7. Миграция legacy
 
 1. Reader может читать legacy row с `app_a`/`app_b`.
 2. При такой миграции reader обязан поднять `DeprecationWarning`.
 3. Результат миграции — canonical-only row.
 4. Writer, runner и explainer не должны заново записывать `app_a`/`app_b`.
+
+## 8. Ссылки на код (submodule `android-apps-similarity`)
+
+- `script/screening_runner.py` — canonical output и `build_screening_signature(app_record)` как единый источник токенов LSH-индекса.
+- `script/minhash_lsh.py` — детерминированное построение MinHash/LSH из нормализованного списка токенов.
+- `script/test_screening_index_semantics.py` — TDD-тесты на фиксированную семантику источника токенов индекса.
