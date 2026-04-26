@@ -25,7 +25,7 @@ from tversky_overlap import szymkiewicz_simpson_overlap, tversky_index
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_IDF_SNAPSHOT_PATH = PROJECT_ROOT / "experiments" / "datasets" / "idf-snapshot-v1.json"
+DEFAULT_IDF_SNAPSHOT_PATH = PROJECT_ROOT / "experiments" / "datasets" / "idf-snapshot-v2.json"
 
 _IDF_SNAPSHOT_CACHE: Optional[Dict] = None
 _IDF_SNAPSHOT_PATH_CACHE: Optional[str] = None
