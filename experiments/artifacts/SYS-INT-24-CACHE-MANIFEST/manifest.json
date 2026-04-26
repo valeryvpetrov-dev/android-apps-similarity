@@ -1,0 +1,45 @@
+{
+  "noise": {
+    "cache_class": "script.noise_cache.NoiseCache",
+    "storage": "json_files",
+    "path": "experiments/artifacts/.noise_cache",
+    "key_schema": [
+      "sha256",
+      "profile_version"
+    ],
+    "key_format": "<sha256>__<profile_version>.json",
+    "version_field": "profile_version",
+    "version": "v1",
+    "payload": "NoiseProfileEnvelope with APKiD/LIBLOOM noise metadata",
+    "invalidation_rule": "A record is stale when profile_version differs from v1, sha256 is not a 64-character hex digest, or any key field is missing."
+  },
+  "feature_sqlite": {
+    "cache_class": "script.feature_cache_sqlite.FeatureCacheSqlite",
+    "storage": "sqlite",
+    "path": "experiments/artifacts/.feature_cache.sqlite",
+    "table": "features",
+    "key_schema": [
+      "sha256",
+      "feature_version"
+    ],
+    "key_format": "PRIMARY KEY (sha256, feature_version)",
+    "version_field": "feature_version",
+    "version": "v1",
+    "payload": "Feature bundle consumed by pairwise_runner.load_layers_for_pairwise",
+    "invalidation_rule": "A record is stale when feature_version differs from v1, sha256 is not a 64-character hex digest, any key field is missing, or the SQLite schema lacks feature_version."
+  },
+  "feature_json": {
+    "cache_class": "script.feature_cache.FeatureCache",
+    "storage": "json_files",
+    "path": "experiments/artifacts/.feature_cache_json",
+    "key_schema": [
+      "sha256",
+      "feature_version"
+    ],
+    "key_format": "<sha256>__<feature_version>.json",
+    "version_field": "feature_version",
+    "version": "v1__ihash-whash",
+    "payload": "m_static_views.extract_all_features output stored by feature_cache.get_or_extract",
+    "invalidation_rule": "A record is stale when feature_version differs from v1__ihash-whash, including changes to extraction logic or the resource icon hash method, sha256 is not a 64-character hex digest, or any key field is missing."
+  }
+}
