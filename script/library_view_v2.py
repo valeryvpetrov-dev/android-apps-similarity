@@ -19,9 +19,12 @@ import json
 import math
 import os
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from tversky_overlap import szymkiewicz_simpson_overlap, tversky_index
+try:
+    from tversky_overlap import szymkiewicz_simpson_overlap, tversky_index
+except ImportError:
+    from script.tversky_overlap import szymkiewicz_simpson_overlap, tversky_index
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -814,6 +817,7 @@ def detect_tpl_in_packages(
     apk_packages: frozenset,
     threshold: float = 0.30,
     min_matches: int = 1,
+    config: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Dict]:
     """Detect TPL presence via package-set Jaccard fingerprint.
 
@@ -837,21 +841,25 @@ def detect_tpl_in_packages(
             "detected": bool,
         }
     """
-    results: Dict[str, Dict] = {}
-    for tpl_id, tpl_meta in TPL_CATALOG_V2.items():
-        tpl_pkgs: frozenset = tpl_meta["packages"]
-        matched = apk_packages & tpl_pkgs
-        if not matched:
-            continue
-        coverage = len(matched) / len(tpl_pkgs)
-        detected = len(matched) >= min_matches and coverage >= threshold
-        results[tpl_id] = {
-            "coverage": coverage,
-            "matched_packages": sorted(matched),
-            "category": tpl_meta["category"],
-            "detected": detected,
-        }
-    return results
+    if config is not None:
+        try:
+            threshold = float(config.get("threshold", threshold))
+        except (TypeError, ValueError):
+            pass
+        try:
+            min_matches = int(config.get("min_matches", min_matches))
+        except (TypeError, ValueError):
+            pass
+    try:
+        from script.library_mask import detect_tpl_packages_v2
+    except Exception:
+        from library_mask import detect_tpl_packages_v2  # type: ignore[no-redef]
+
+    return detect_tpl_packages_v2(
+        frozenset(apk_packages),
+        threshold=threshold,
+        min_matches=min_matches,
+    )
 
 
 def detect_library_like_v2(
@@ -860,6 +868,8 @@ def detect_library_like_v2(
     tpl_detections: Optional[Dict] = None,
     threshold: float = 0.30,
     min_matches: int = 1,
+    app_record: Optional[Dict[str, Any]] = None,
+    library_mask: Optional[set[str]] = None,
 ) -> Optional[Tuple[str, str]]:
     """Drop-in replacement for noise_normalizer.detect_library_like().
 
@@ -882,41 +892,78 @@ def detect_library_like_v2(
         pass it to every call. Avoid letting this function call
         detect_tpl_in_packages() on every file.
     """
+    try:
+        from script.library_mask import (
+            ALGORITHM_JACCARD_V2,
+            ALGORITHM_PREFIX_V1,
+            detect_library_path,
+        )
+    except Exception:
+        from library_mask import (  # type: ignore[no-redef]
+            ALGORITHM_JACCARD_V2,
+            ALGORITHM_PREFIX_V1,
+            detect_library_path,
+        )
+
     package_path = extract_package_path(rel_path)
     if package_path is None:
         return None
 
-    # Fallback to v1 when no APK packages available
-    if apk_packages is None:
-        try:
-            from noise_normalizer import detect_library_like as _v1_detect
-            result = _v1_detect(rel_path)
-            if result is not None:
-                return (result[0], result[1] + " [v1_fallback]")
-        except ImportError:
-            pass
+    fallback_to_v1 = app_record is None and apk_packages is None and library_mask is None
+    if library_mask is None and tpl_detections is not None:
+        library_mask = {
+            package
+            for hit in tpl_detections.values()
+            if hit.get("detected")
+            for package in hit.get("matched_packages", [])
+        }
+    if app_record is None:
+        if apk_packages is None:
+            app_record = {
+                "paths": {rel_path},
+                "cascade_config": {"library_mask": {"algorithm": ALGORITHM_PREFIX_V1}},
+            }
+        else:
+            app_record = {
+                "packages": apk_packages,
+                "cascade_config": {
+                    "library_mask": {
+                        "algorithm": ALGORITHM_JACCARD_V2,
+                        "threshold": threshold,
+                        "min_matches": min_matches,
+                    }
+                },
+            }
+
+    result = detect_library_path(
+        rel_path,
+        app_record=app_record,
+        library_mask=library_mask,
+    )
+    if result is None:
         return None
+    if fallback_to_v1:
+        return (result[0], result[1] + " [v1_fallback]")
 
-    # Use pre-computed detections or compute on demand (not recommended per-file)
-    if tpl_detections is None:
-        tpl_detections = detect_tpl_in_packages(apk_packages, threshold, min_matches)
+    # Preserve the historical v2 reason format for callers/tests that surface it.
+    if apk_packages is not None:
+        if tpl_detections is None:
+            tpl_detections = detect_tpl_in_packages(apk_packages, threshold, min_matches)
+        package_dotted = package_path.replace("/", ".")
+        best_tpl: Optional[str] = None
+        best_coverage: float = 0.0
+        for tpl_id, info in tpl_detections.items():
+            if not info["detected"]:
+                continue
+            for pkg in info["matched_packages"]:
+                if package_dotted == pkg or package_dotted.startswith(pkg + "."):
+                    if info["coverage"] > best_coverage:
+                        best_tpl = tpl_id
+                        best_coverage = info["coverage"]
+        if best_tpl is not None:
+            return (CATEGORY_LIBRARY, "v2:{}(coverage={:.2f})".format(best_tpl, best_coverage))
 
-    package_dotted = package_path.replace("/", ".")
-
-    best_tpl: Optional[str] = None
-    best_coverage: float = 0.0
-
-    for tpl_id, info in tpl_detections.items():
-        if not info["detected"]:
-            continue
-        for pkg in info["matched_packages"]:
-            if package_dotted == pkg or package_dotted.startswith(pkg + "."):
-                if info["coverage"] > best_coverage:
-                    best_tpl = tpl_id
-                    best_coverage = info["coverage"]
-
-    if best_tpl is not None:
-        return (CATEGORY_LIBRARY, "v2:{}(coverage={:.2f})".format(best_tpl, best_coverage))
+    return result
 
 
 # ---------------------------------------------------------------------------
