@@ -1,0 +1,418 @@
+{
+  "task_id": "EXEC-HINT-22-FAITHFULNESS-CHANNEL-SPLIT",
+  "wave": 22,
+  "team": "HINT",
+  "source_artifact": "experiments/artifacts/E-HINT-FAITHFULNESS/semi-real-pairwise.json",
+  "n_pairs": 10,
+  "channels_canon": [
+    "code",
+    "component",
+    "library",
+    "resource",
+    "signing"
+  ],
+  "aggregate_by_channel": {
+    "code": {
+      "faithfulness": {
+        "n_pairs_with_data": 10,
+        "mean": 1.0,
+        "median": 1.0,
+        "stddev": 0.0
+      },
+      "sufficiency": {
+        "n_pairs_with_data": 10,
+        "mean": 1.0,
+        "median": 1.0,
+        "stddev": 0.0
+      },
+      "comprehensiveness": {
+        "n_pairs_with_data": 10,
+        "mean": 1.0,
+        "median": 1.0,
+        "stddev": 0.0
+      }
+    },
+    "component": {
+      "faithfulness": {
+        "n_pairs_with_data": 0,
+        "mean": null,
+        "median": null,
+        "stddev": null
+      },
+      "sufficiency": {
+        "n_pairs_with_data": 0,
+        "mean": null,
+        "median": null,
+        "stddev": null
+      },
+      "comprehensiveness": {
+        "n_pairs_with_data": 0,
+        "mean": null,
+        "median": null,
+        "stddev": null
+      }
+    },
+    "library": {
+      "faithfulness": {
+        "n_pairs_with_data": 0,
+        "mean": null,
+        "median": null,
+        "stddev": null
+      },
+      "sufficiency": {
+        "n_pairs_with_data": 0,
+        "mean": null,
+        "median": null,
+        "stddev": null
+      },
+      "comprehensiveness": {
+        "n_pairs_with_data": 0,
+        "mean": null,
+        "median": null,
+        "stddev": null
+      }
+    },
+    "resource": {
+      "faithfulness": {
+        "n_pairs_with_data": 0,
+        "mean": null,
+        "median": null,
+        "stddev": null
+      },
+      "sufficiency": {
+        "n_pairs_with_data": 0,
+        "mean": null,
+        "median": null,
+        "stddev": null
+      },
+      "comprehensiveness": {
+        "n_pairs_with_data": 0,
+        "mean": null,
+        "median": null,
+        "stddev": null
+      }
+    },
+    "signing": {
+      "faithfulness": {
+        "n_pairs_with_data": 10,
+        "mean": 0.0,
+        "median": 0.0,
+        "stddev": 0.0
+      },
+      "sufficiency": {
+        "n_pairs_with_data": 10,
+        "mean": 0.0,
+        "median": 0.0,
+        "stddev": 0.0
+      },
+      "comprehensiveness": {
+        "n_pairs_with_data": 10,
+        "mean": 0.0,
+        "median": 0.0,
+        "stddev": 0.0
+      }
+    }
+  },
+  "per_pair": [
+    {
+      "pair_id": "simple_app-empty__simple_app-releaseNonOptimized",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "library": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "resource": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "simple_app-empty__simple_app-releaseOptimized",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "library": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "resource": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "simple_app-empty__simple_app-releaseRename",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "library": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "resource": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "simple_app-empty__snake",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "library": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "resource": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "simple_app-releaseNonOptimized__simple_app-releaseOptimized",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "library": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "resource": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "simple_app-releaseNonOptimized__simple_app-releaseRename",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "library": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "resource": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "simple_app-releaseNonOptimized__snake",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "library": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "resource": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "simple_app-releaseOptimized__simple_app-releaseRename",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "library": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "resource": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "simple_app-releaseOptimized__snake",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "library": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "resource": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "simple_app-releaseRename__snake",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "library": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "resource": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    }
+  ]
+}

@@ -352,6 +352,126 @@ def _canonical_pair_feature_name(signal_type: str, ref: str) -> str:
     return f"{signal_type}:{ref}"
 
 
+# Канон каналов evidence для per-channel faithfulness-диагностики.
+# Стабильный пятиэлементный набор: code/component/library/resource/signing.
+# Используется compute_channel_faithfulness для ответа на вопрос
+# «какой канал тянет faithfulness вниз».
+EVIDENCE_CHANNELS: tuple[str, ...] = ("code", "component", "library", "resource", "signing")
+
+
+_COMPONENT_KEYWORDS = (
+    "component",
+    "activity",
+    "service",
+    "receiver",
+    "provider",
+)
+_LIBRARY_KEYWORDS = ("library", "lib_", "library_match", "lib")
+_RESOURCE_KEYWORDS = ("resource", "drawable", "layout_xml", "string_res")
+_CODE_KEYWORDS = ("code", "dex", "method", "class_overlap", "tlsh")
+
+
+def classify_evidence_channel(evidence_record: Mapping[str, object]) -> Optional[str]:
+    """Map an evidence record to one of the five canonical channels.
+
+    Маппинг:
+    - ``signal_type=signature_match`` или ``source_stage=signing`` -> ``signing``;
+    - ref/signal с ключевыми словами `component/activity/service/...` -> ``component``;
+    - ref/signal с ключевыми словами `library/lib_match/...` -> ``library``;
+    - ref/signal с ключевыми словами `resource/drawable/...` -> ``resource``;
+    - ref/signal с ключевыми словами `code/dex/method/...` -> ``code``.
+
+    Возвращает ``None``, если запись не относится ни к одному канону —
+    тогда ``compute_channel_faithfulness`` исключит её из выборки.
+    """
+
+    if not isinstance(evidence_record, Mapping):
+        return None
+    signal_type = str(evidence_record.get("signal_type") or "").strip().lower()
+    ref = str(evidence_record.get("ref") or "").strip().lower()
+    source_stage = str(evidence_record.get("source_stage") or "").strip().lower()
+
+    if signal_type == "signature_match" or source_stage == "signing":
+        return "signing"
+
+    haystack = f"{signal_type} {ref}"
+    for keyword in _LIBRARY_KEYWORDS:
+        if keyword in haystack:
+            return "library"
+    for keyword in _COMPONENT_KEYWORDS:
+        if keyword in haystack:
+            return "component"
+    for keyword in _RESOURCE_KEYWORDS:
+        if keyword in haystack:
+            return "resource"
+    for keyword in _CODE_KEYWORDS:
+        if keyword in haystack:
+            return "code"
+    return None
+
+
+def _channel_metrics_from_evidence(
+    pair_row: Mapping[str, object],
+    channel_evidence: list[Mapping[str, object]],
+) -> dict[str, Optional[float]]:
+    """Compute (faithfulness, sufficiency, comprehensiveness) for a single channel.
+
+    Каждый канал переиспользует существующие низкоуровневые метрики
+    ``faithfulness``/``sufficiency``/``comprehensiveness`` из этого же модуля,
+    подавая в score_fn только те evidence-записи, что относятся к данному
+    каналу. score_fn — нормализованная сумма (build_normalized_linear_score)
+    относительно суммы magnitude в канале.
+    """
+
+    if not channel_evidence:
+        return {"faithfulness": None, "sufficiency": None, "comprehensiveness": None}
+
+    channel_features = _feature_map_from_evidence(channel_evidence)
+    if not channel_features:
+        return {"faithfulness": None, "sufficiency": None, "comprehensiveness": None}
+
+    score_fn = build_normalized_linear_score(channel_features)
+    # Hint-only == все evidence-записи канала: per-channel диагностика
+    # измеряет, насколько hint покрывает канал внутри себя.
+    return {
+        "faithfulness": float(faithfulness(score_fn, channel_features, channel_features)),
+        "sufficiency": float(sufficiency(score_fn, channel_features)),
+        "comprehensiveness": float(comprehensiveness(score_fn, channel_features, channel_features)),
+    }
+
+
+def compute_channel_faithfulness(
+    pair_row: Mapping[str, object],
+    evidence: Iterable[Mapping[str, object]],
+) -> dict[str, dict[str, Optional[float]]]:
+    """Compute per-channel faithfulness/sufficiency/comprehensiveness diagnostics.
+
+    Возвращает словарь ``{channel: {faithfulness, sufficiency, comprehensiveness}}``
+    с обязательными ключами по всем пяти каналам ``EVIDENCE_CHANNELS``. Каналы
+    без evidence-записей получают ``None`` во всех трёх метриках — это явное
+    «нет данных», его нельзя путать с 0.0.
+
+    Совместимость со старой ``compute_faithfulness``/``faithfulness``: канон
+    одно-числовой faithfulness остаётся отдельной функцией; этот helper —
+    независимая диагностика, разбирающая faithfulness по источнику сигнала.
+    """
+
+    evidence_list = list(evidence) if evidence is not None else []
+    by_channel: dict[str, list[Mapping[str, object]]] = {channel_name: [] for channel_name in EVIDENCE_CHANNELS}
+    for record in evidence_list:
+        if not isinstance(record, Mapping):
+            continue
+        channel_name = classify_evidence_channel(record)
+        if channel_name is None:
+            continue
+        by_channel[channel_name].append(record)
+
+    return {
+        channel_name: _channel_metrics_from_evidence(pair_row, channel_records)
+        for channel_name, channel_records in by_channel.items()
+    }
+
+
 def _to_float_or_none(value: object) -> float | None:
     if value in (None, ""):
         return None
