@@ -1083,12 +1083,68 @@ def _normalize_features_for_canonical(
     return out
 
 
+def _apply_mask_token_level(token_set: set[str], library_mask: set[str]) -> set[str]:
+    """Вычесть из token_set элементы, в точности совпадающие с library_mask.
+
+    DEEP-25-MASK-PREFIX-MATCHING: token-level семантика — старая (default).
+    """
+    return token_set - library_mask
+
+
+def _apply_mask_package_prefix(token_set: set[str], library_mask: set[str]) -> set[str]:
+    """Вычесть из token_set все токены, чьё имя начинается с одного из prefix.
+
+    DEEP-25-MASK-PREFIX-MATCHING: package-prefix семантика — для интеграции
+    с ``library_mask.get_library_mask()`` (возвращает packages вида
+    ``{"okhttp3", "androidx_core"}``). Удаляются:
+    - токены из любого слоя ``<layer>:<value>``, где ``<value>`` или его
+      первая часть до точки начинается с любого prefix из mask;
+    - токены без префикса ``<layer>:`` тоже сравниваются на startswith.
+
+    Пример: mask = ``{"okhttp3"}``, токен ``code:okhttp3.Client`` — удалён,
+    токен ``code:com.example.Right`` — остался.
+    """
+    if not library_mask:
+        return token_set
+    result: set[str] = set()
+    for token in token_set:
+        # Часть после `<layer>:` (или весь токен, если двоеточия нет).
+        if ":" in token:
+            value = token.split(":", 1)[1]
+        else:
+            value = token
+        # Совпадение с любым prefix.
+        is_library = any(
+            value == prefix
+            or value.startswith(prefix + ".")
+            or value.startswith(prefix + "/")
+            for prefix in library_mask
+        )
+        if not is_library:
+            result.add(token)
+    return result
+
+
+def _detect_mask_format_auto(library_mask: set[str]) -> str:
+    """Эвристика выбора формата маски: token_level vs package_prefix.
+
+    DEEP-25-MASK-PREFIX-MATCHING. Если хотя бы один элемент содержит ":"
+    (например, ``library:okhttp3``) — token_level. Иначе — package_prefix.
+    """
+    if not library_mask:
+        return "token_level"
+    if any(":" in elem for elem in library_mask):
+        return "token_level"
+    return "package_prefix"
+
+
 def library_reduced_score_canonical(
     features_a: dict,
     features_b: dict,
     selected_layers: list[str],
     library_mask: set[str] | None = None,
     return_detail: bool = False,
+    mask_format: str = "token_level",
 ):
     """Каноническая формула ``library_reduced_score`` (контракт v1, раздел 4.4).
 
@@ -1124,17 +1180,46 @@ def library_reduced_score_canonical(
     dict-форму ``{score: 0.0, status: 'both_empty', both_empty: True}``
     при ``return_detail=True``).
     """
-    f_a = _aggregate_layer_features_for_canonical(features_a, selected_layers)
-    f_b = _aggregate_layer_features_for_canonical(features_b, selected_layers)
+    # DEEP-25-MASK-PREFIX-MATCHING: явная валидация mask_format — неизвестное
+    # значение даёт ValueError, не молчаливый fallback на token_level.
+    if mask_format not in {"token_level", "package_prefix", "auto"}:
+        raise ValueError(
+            f"unknown mask_format={mask_format!r} (expected one of: "
+            "'token_level', 'package_prefix', 'auto')"
+        )
+    # DEEP-25-MASK-PREFIX-MATCHING: при package_prefix mask библиотечный слой
+    # исключается полностью (NOISE дал mask явно — library-слой как источник
+    # mask не нужен; см. system/library-mask-contract-v1.md раздел 4).
+    effective_layers = selected_layers
+    if library_mask is not None and mask_format == "package_prefix":
+        effective_layers = [layer for layer in selected_layers if layer != "library"]
+    elif library_mask is not None and mask_format == "auto":
+        if not any(":" in elem for elem in library_mask):
+            effective_layers = [layer for layer in selected_layers if layer != "library"]
+    f_a = _aggregate_layer_features_for_canonical(features_a, effective_layers)
+    f_b = _aggregate_layer_features_for_canonical(features_b, effective_layers)
     if library_mask is None:
         library_a = features_a.get("library", set())
         library_b = features_b.get("library", set())
         if isinstance(library_a, set) and isinstance(library_b, set):
             library_mask = {"library:{}".format(tok) for tok in (library_a | library_b)}
+            # Default путь — token_level (с префиксом "library:").
+            mask_format_resolved = "token_level"
         else:
             library_mask = set()
-    intersection = (f_a & f_b) - library_mask
-    union = (f_a | f_b) - library_mask
+            mask_format_resolved = "token_level"
+    else:
+        # DEEP-25-MASK-PREFIX-MATCHING: разрешаем выбор формата.
+        if mask_format == "auto":
+            mask_format_resolved = _detect_mask_format_auto(library_mask)
+        else:
+            mask_format_resolved = mask_format
+    if mask_format_resolved == "package_prefix":
+        intersection = _apply_mask_package_prefix(f_a & f_b, library_mask)
+        union = _apply_mask_package_prefix(f_a | f_b, library_mask)
+    else:
+        intersection = _apply_mask_token_level(f_a & f_b, library_mask)
+        union = _apply_mask_token_level(f_a | f_b, library_mask)
     if not union:
         if return_detail:
             return {"score": 0.0, "status": "both_empty", "both_empty": True}
@@ -1271,14 +1356,22 @@ def compare_all(
     # из самих features), чтобы DEEP-24-LIBRARY-REDUCED-UNIFY canonical
     # совпадал с прямым вызовом library_reduced_score_canonical(features...).
     unified_mask = None
+    mask_format_for_canonical = "token_level"
     if get_library_mask is not None:
         unified_mask_a = get_library_mask(features_a)
         unified_mask_b = get_library_mask(features_b)
         if unified_mask_a or unified_mask_b:
-            unified_mask = {"library:{}".format(tok) for tok in (unified_mask_a | unified_mask_b)}
+            # DEEP-25-MASK-PREFIX-MATCHING: get_library_mask возвращает
+            # package-prefix формат (NOISE-24-MASK-CONTRACT). canonical при
+            # mask_format="package_prefix" сам удаляет library-слой и
+            # применяет prefix-matching к остальным слоям (см. system/
+            # library-mask-contract-v1.md раздел 4).
+            unified_mask = unified_mask_a | unified_mask_b
+            mask_format_for_canonical = "package_prefix"
     library_reduced_score = library_reduced_score_canonical(
         canonical_features_a, canonical_features_b, selected,
         library_mask=unified_mask,
+        mask_format=mask_format_for_canonical,
     )
 
     # Explanation hints.
