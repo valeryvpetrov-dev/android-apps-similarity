@@ -24,8 +24,20 @@ from screening_runner import (
 )
 
 
+BASE_CHANNELS = ("jaccard", "tversky_a", "tversky_b", "overlap_min")
+
+
 def _make_app(app_id: str, layers: dict[str, set[str]]) -> dict:
     return {"app_id": app_id, "layers": layers}
+
+
+def _assert_layer_channels(testcase: unittest.TestCase, value: dict) -> None:
+    testcase.assertIsInstance(value, dict)
+    for channel in BASE_CHANNELS:
+        testcase.assertIn(channel, value)
+        testcase.assertIsInstance(value[channel], float)
+        testcase.assertGreaterEqual(value[channel], 0.0)
+        testcase.assertLessEqual(value[channel], 1.0)
 
 
 class TestComputePerViewScores(unittest.TestCase):
@@ -63,9 +75,7 @@ class TestComputePerViewScores(unittest.TestCase):
             {"code", "component", "resource", "metadata", "library"},
         )
         for layer, value in scores.items():
-            self.assertIsInstance(value, float, msg="{} score must be float".format(layer))
-            self.assertGreaterEqual(value, 0.0)
-            self.assertLessEqual(value, 1.0)
+            _assert_layer_channels(self, value)
 
     def test_identical_features_yield_score_one_per_layer(self) -> None:
         app = _make_app(
@@ -87,15 +97,13 @@ class TestComputePerViewScores(unittest.TestCase):
         )
 
         self.assertEqual(
-            scores,
-            {
-                "code": 1.0,
-                "component": 1.0,
-                "resource": 1.0,
-                "metadata": 1.0,
-                "library": 1.0,
-            },
+            set(scores),
+            {"code", "component", "resource", "metadata", "library"},
         )
+        for value in scores.values():
+            _assert_layer_channels(self, value)
+            for channel in BASE_CHANNELS:
+                self.assertEqual(value[channel], 1.0)
 
     def test_empty_features_yield_score_zero_per_layer(self) -> None:
         empty_a = _make_app(
@@ -127,15 +135,13 @@ class TestComputePerViewScores(unittest.TestCase):
         )
 
         self.assertEqual(
-            scores,
-            {
-                "code": 0.0,
-                "component": 0.0,
-                "resource": 0.0,
-                "metadata": 0.0,
-                "library": 0.0,
-            },
+            set(scores),
+            {"code", "component", "resource", "metadata", "library"},
         )
+        for value in scores.values():
+            _assert_layer_channels(self, value)
+            for channel in BASE_CHANNELS:
+                self.assertEqual(value[channel], 0.0)
 
 
 class TestBuildCandidateListPerViewScores(unittest.TestCase):
@@ -179,11 +185,9 @@ class TestBuildCandidateListPerViewScores(unittest.TestCase):
         per_view = row["per_view_scores"]
         self.assertEqual(set(per_view.keys()), set(selected_layers))
         for layer, value in per_view.items():
-            self.assertIsInstance(value, float)
-            self.assertGreaterEqual(value, 0.0)
-            self.assertLessEqual(value, 1.0)
+            _assert_layer_channels(self, value)
         # Sanity: code jaccard on {m1,m2,m3} vs {m2,m3,m4} = 2/4 = 0.5
-        self.assertAlmostEqual(per_view["code"], 0.5, places=6)
+        self.assertAlmostEqual(per_view["code"]["jaccard"], 0.5, places=6)
 
     def test_build_candidate_list_writes_per_view_scores_for_ged_metric(self) -> None:
         app_records = [
@@ -210,7 +214,9 @@ class TestBuildCandidateListPerViewScores(unittest.TestCase):
         self.assertEqual(len(candidate_list), 1)
         row = candidate_list[0]
         self.assertIn("per_view_scores", row)
-        self.assertAlmostEqual(row["per_view_scores"]["code"], 1.0 / 3.0, places=6)
+        self.assertAlmostEqual(
+            row["per_view_scores"]["code"]["jaccard"], 1.0 / 3.0, places=6
+        )
         self.assertEqual(row["retrieval_rank"], 1)
         self.assertEqual(row["retrieval_features_used"], ["code"])
 

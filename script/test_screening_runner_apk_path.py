@@ -191,7 +191,17 @@ class TestBuildCandidateListWritesApkPathGed(unittest.TestCase):
         self.assertEqual(row["app_a_apk_path"], "/ged/app_a.apk")
         self.assertEqual(row["app_b_apk_path"], "/ged/app_b.apk")
         self.assertIn("per_view_scores", row)
-        self.assertEqual(row["per_view_scores"], {"code": 0.0})
+        self.assertEqual(
+            row["per_view_scores"],
+            {
+                "code": {
+                    "jaccard": 0.0,
+                    "tversky_a": 0.0,
+                    "tversky_b": 0.0,
+                    "overlap_min": 0.0,
+                }
+            },
+        )
 
 
 if __name__ == "__main__":

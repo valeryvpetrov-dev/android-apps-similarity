@@ -121,7 +121,7 @@ class TestScreeningRunnerEvidenceWriter(unittest.TestCase):
             # Согласованность с per_view_scores.
             self.assertAlmostEqual(
                 item["magnitude"],
-                candidate_list[0]["per_view_scores"][item["ref"]],
+                candidate_list[0]["per_view_scores"][item["ref"]]["jaccard"],
                 places=9,
             )
 
@@ -149,7 +149,17 @@ class TestScreeningRunnerEvidenceWriter(unittest.TestCase):
 
         self.assertEqual(len(candidate_list), 1)
         row = candidate_list[0]
-        self.assertEqual(row["per_view_scores"], {"code": 0.0})
+        self.assertEqual(
+            row["per_view_scores"],
+            {
+                "code": {
+                    "jaccard": 0.0,
+                    "tversky_a": 0.0,
+                    "tversky_b": 0.0,
+                    "overlap_min": 0.0,
+                }
+            },
+        )
         self.assertEqual(len(row["evidence"]), 1)
         self.assertEqual(row["evidence"][0]["source_stage"], "screening")
         self.assertEqual(row["evidence"][0]["signal_type"], "layer_score")

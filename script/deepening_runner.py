@@ -446,13 +446,13 @@ def first_present(mapping: dict[str, Any], keys: tuple[str, ...]) -> Any:
     return None
 
 
-def extract_per_view_scores(candidate: dict[str, Any]) -> dict[str, float] | None:
+def extract_per_view_scores(candidate: dict[str, Any]) -> dict[str, Any] | None:
     """Read ``per_view_scores`` from an enriched_candidate (EXEC-087.1).
 
     The field can live either at the top level of the candidate row (as emitted
     by ``screening_runner.build_candidate_list``) or under the legacy ``apps``
     wrapper. Missing / malformed values yield ``None`` so downstream logic can
-    omit the field entirely.
+    omit the field entirely. REPR-25 nested channel dicts are preserved.
     """
     for container in (candidate, candidate.get("apps") if isinstance(candidate.get("apps"), dict) else None):
         if not isinstance(container, dict):
@@ -460,10 +460,26 @@ def extract_per_view_scores(candidate: dict[str, Any]) -> dict[str, float] | Non
         raw = container.get("per_view_scores")
         if not isinstance(raw, dict) or not raw:
             continue
-        coerced: dict[str, float] = {}
+        coerced: dict[str, Any] = {}
         for key, value in raw.items():
+            layer = str(key).strip()
+            if not layer:
+                continue
+            if isinstance(value, dict):
+                channel_scores: dict[str, float] = {}
+                for channel, channel_value in value.items():
+                    channel_name = str(channel).strip()
+                    if not channel_name:
+                        continue
+                    try:
+                        channel_scores[channel_name] = float(channel_value)
+                    except (TypeError, ValueError):
+                        continue
+                if channel_scores:
+                    coerced[layer] = channel_scores
+                continue
             try:
-                coerced[str(key)] = float(value)
+                coerced[layer] = float(value)
             except (TypeError, ValueError):
                 continue
         if coerced:

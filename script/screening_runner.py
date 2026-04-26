@@ -16,6 +16,12 @@ from tempfile import TemporaryDirectory
 try:
     from script.system_requirements import verify_required_dependencies
     from script.evidence_formatter import collect_evidence_from_screening_layers
+    from script.library_view_v2 import (
+        _load_idf_weights_for_layer,
+        compute_idf_weighted_jaccard,
+        szymkiewicz_simpson_overlap,
+        tversky_index,
+    )
     from script.noise_integration import (
         collect_noise_gate_triggers,
         should_reject_by_noise_gate,
@@ -27,6 +33,12 @@ try:
 except Exception:
     from system_requirements import verify_required_dependencies  # type: ignore[no-redef]
     from evidence_formatter import collect_evidence_from_screening_layers  # type: ignore[no-redef]
+    from library_view_v2 import (  # type: ignore[no-redef]
+        _load_idf_weights_for_layer,
+        compute_idf_weighted_jaccard,
+        szymkiewicz_simpson_overlap,
+        tversky_index,
+    )
     from noise_integration import (  # type: ignore[no-redef]
         collect_noise_gate_triggers,
         should_reject_by_noise_gate,
@@ -946,18 +958,18 @@ def compute_per_view_scores(
     app_b: dict,
     layers: list[str],
     metric: str,
-) -> dict[str, float]:
-    """Compute per-layer similarity scores for a pair of apps.
+) -> dict[str, dict[str, float]]:
+    """Compute per-layer similarity channels for a pair of apps.
 
-    Uses the same set-based metric selected for screening, but applied
-    layer-by-layer instead of the union of all selected layers. For GED, the
-    runtime score is not set-based, so per-layer evidence is computed post-hoc
-    as Jaccard over the selected layer features. The result is a mapping
-    {layer: score} suitable for downstream deepening/pairwise calibration
-    (per EXEC-086 logistic regression).
+    The screening row keeps the selected retrieval metric in
+    ``retrieval_score``. Per-view evidence is richer and always exposes the
+    set-based channels that REPR-19/20/22 added to deep views:
+    ``jaccard``, ``tversky_a`` (|A∩B|/|A|), ``tversky_b`` (|A∩B|/|B|),
+    ``overlap_min`` and optional ``jaccard_idf`` when an IDF snapshot has
+    weights for the layer.
 
     Empty features on both sides yield 0.0 by convention of the underlying
-    metric functions (``jaccard_similarity`` returns 0.0 on empty union, etc.).
+    screening metrics; this avoids treating "no signal" as perfect overlap.
     """
     normalized_metric = normalize_metric_name(metric)
     if normalized_metric == "ged":
@@ -978,12 +990,92 @@ def compute_per_view_scores(
             "Unsupported metric for per-view scores: {!r}".format(metric)
         )
 
-    scores: dict[str, float] = {}
+    scores: dict[str, dict[str, float]] = {}
     for layer in layers:
-        features_a = aggregate_features(app_a, [layer])
-        features_b = aggregate_features(app_b, [layer])
-        scores[layer] = float(metric_fn(features_a, features_b))
+        features_a = _layer_feature_set(app_a, layer)
+        features_b = _layer_feature_set(app_b, layer)
+        layer_scores = _compute_screening_layer_channels(
+            layer=layer,
+            features_a=features_a,
+            features_b=features_b,
+        )
+        if normalized_metric not in {"ged", "jaccard"}:
+            prefixed_a = aggregate_features(app_a, [layer])
+            prefixed_b = aggregate_features(app_b, [layer])
+            layer_scores[normalized_metric] = float(metric_fn(prefixed_a, prefixed_b))
+        scores[layer] = layer_scores
     return scores
+
+
+def _layer_feature_set(app_record: dict, layer: str) -> set[str]:
+    layers = app_record.get("layers", {})
+    if not isinstance(layers, dict):
+        return set()
+    raw_values = layers.get(layer, set())
+    if raw_values is None:
+        return set()
+    if isinstance(raw_values, str):
+        values = {raw_values}
+    elif isinstance(raw_values, dict):
+        values = set(raw_values.keys())
+    else:
+        try:
+            values = set(raw_values)
+        except TypeError:
+            values = {raw_values}
+    return {str(value) for value in values if str(value)}
+
+
+def _compute_screening_layer_channels(
+    layer: str,
+    features_a: set[str],
+    features_b: set[str],
+) -> dict[str, float]:
+    jaccard = float(jaccard_similarity(features_a, features_b))
+    if not features_a and not features_b:
+        result = {
+            "jaccard": jaccard,
+            "tversky_a": 0.0,
+            "tversky_b": 0.0,
+            "overlap_min": 0.0,
+        }
+    else:
+        result = {
+            "jaccard": jaccard,
+            "tversky_a": float(
+                tversky_index(features_a, features_b, alpha=1.0, beta=0.0)
+            ),
+            "tversky_b": float(
+                tversky_index(features_a, features_b, alpha=0.0, beta=1.0)
+            ),
+            "overlap_min": float(
+                szymkiewicz_simpson_overlap(features_a, features_b)
+            ),
+        }
+
+    idf_weights = _load_idf_weights_for_layer(layer)
+    if idf_weights and (features_a or features_b):
+        result["jaccard_idf"] = float(
+            compute_idf_weighted_jaccard(features_a, features_b, idf_weights)
+        )
+    return result
+
+
+def _primary_per_view_scores(
+    per_view_scores: dict[str, object],
+) -> dict[str, float]:
+    primary: dict[str, float] = {}
+    for layer, score in per_view_scores.items():
+        if not isinstance(layer, str) or not layer.strip():
+            continue
+        value = score
+        if isinstance(score, dict):
+            value = score.get("jaccard")
+        try:
+            primary[layer.strip()] = float(value)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            continue
+    return primary
 
 
 def calculate_pair_score(
@@ -1361,7 +1453,7 @@ def build_candidate_list(
 
         # EXEC-087.1: compute per-layer scores so downstream stages can reuse
         # screening evidence (e.g. for EXEC-086 per-view weight calibration).
-        per_view_scores: dict[str, float] | None
+        per_view_scores: dict[str, dict[str, float]] | None
         try:
             per_view_scores = compute_per_view_scores(
                 app_a=app_a,
@@ -1415,7 +1507,7 @@ def build_candidate_list(
             # Записывается параллельно с per_view_scores; для ged эти scores
             # считаются post-hoc через Jaccard по выбранным слоям.
             row["evidence"] = collect_evidence_from_screening_layers(
-                per_view_scores, stage_name="screening"
+                _primary_per_view_scores(per_view_scores), stage_name="screening"
             )
         candidate_list.append(row)
     candidate_list.sort(
@@ -1446,7 +1538,7 @@ def _compose_candidate_row(
     if noise_profile_ref is not None:
         screening_explanation = {"noise_profile_ref": noise_profile_ref}
 
-    per_view_scores: dict[str, float] | None
+    per_view_scores: dict[str, dict[str, float]] | None
     try:
         per_view_scores = compute_per_view_scores(
             app_a=query_app,
@@ -1490,7 +1582,7 @@ def _compose_candidate_row(
     if per_view_scores is not None:
         row["per_view_scores"] = per_view_scores
         row["evidence"] = collect_evidence_from_screening_layers(
-            per_view_scores, stage_name="screening"
+            _primary_per_view_scores(per_view_scores), stage_name="screening"
         )
     return row
 
