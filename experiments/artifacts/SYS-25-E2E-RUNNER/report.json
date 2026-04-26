@@ -1,0 +1,246 @@
+{
+  "corpus_size": 12,
+  "n_pairs": 6,
+  "workers": 4,
+  "pair_timeout_sec": 10,
+  "total_time_s": 10.145495,
+  "per_pair_status": [
+    {
+      "pair_id": "SYS25-NORMAL-001",
+      "app_a": "normal_1_a",
+      "app_b": "normal_1_b",
+      "status": "success",
+      "analysis_failed_reason": null,
+      "full_similarity_score": 1.0,
+      "library_reduced_score": 1.0
+    },
+    {
+      "pair_id": "SYS25-NORMAL-002",
+      "app_a": "normal_2_a",
+      "app_b": "normal_2_b",
+      "status": "success",
+      "analysis_failed_reason": null,
+      "full_similarity_score": 1.0,
+      "library_reduced_score": 1.0
+    },
+    {
+      "pair_id": "SYS25-NORMAL-003",
+      "app_a": "normal_3_a",
+      "app_b": "normal_3_b",
+      "status": "success",
+      "analysis_failed_reason": null,
+      "full_similarity_score": 1.0,
+      "library_reduced_score": 1.0
+    },
+    {
+      "pair_id": "SYS25-SHORTCUT-001",
+      "app_a": "shortcut_1_a",
+      "app_b": "shortcut_1_b",
+      "status": "success_shortcut",
+      "analysis_failed_reason": null,
+      "full_similarity_score": null,
+      "library_reduced_score": null,
+      "shortcut_status": "success_shortcut",
+      "deep_verification_status": "skipped_shortcut",
+      "verdict": "likely_clone_by_signature"
+    },
+    {
+      "pair_id": "SYS25-SHORTCUT-002",
+      "app_a": "shortcut_2_a",
+      "app_b": "shortcut_2_b",
+      "status": "success_shortcut",
+      "analysis_failed_reason": null,
+      "full_similarity_score": null,
+      "library_reduced_score": null,
+      "shortcut_status": "success_shortcut",
+      "deep_verification_status": "skipped_shortcut",
+      "verdict": "likely_clone_by_signature"
+    },
+    {
+      "pair_id": "SYS25-TIMEOUT-001",
+      "app_a": "hang_a",
+      "app_b": "hang_b",
+      "status": "analysis_failed",
+      "analysis_failed_reason": "budget_exceeded",
+      "full_similarity_score": null,
+      "library_reduced_score": null,
+      "timeout_info": {
+        "pair_timeout_sec": 10,
+        "duration_ms": 10113,
+        "stage": "pairwise"
+      }
+    }
+  ],
+  "cache_hit_rate": 1.0,
+  "timeout_count": 1,
+  "configs_compared": [
+    {
+      "config_name": "baseline",
+      "total_time_s": 10.121221,
+      "status_counts": {
+        "success": 3,
+        "success_shortcut": 2,
+        "analysis_failed": 1
+      },
+      "timeout_count": 1,
+      "per_pair_status": [
+        {
+          "pair_id": "SYS25-NORMAL-001",
+          "app_a": "normal_1_a",
+          "app_b": "normal_1_b",
+          "status": "success",
+          "analysis_failed_reason": null,
+          "full_similarity_score": 1.0,
+          "library_reduced_score": 1.0
+        },
+        {
+          "pair_id": "SYS25-NORMAL-002",
+          "app_a": "normal_2_a",
+          "app_b": "normal_2_b",
+          "status": "success",
+          "analysis_failed_reason": null,
+          "full_similarity_score": 1.0,
+          "library_reduced_score": 1.0
+        },
+        {
+          "pair_id": "SYS25-NORMAL-003",
+          "app_a": "normal_3_a",
+          "app_b": "normal_3_b",
+          "status": "success",
+          "analysis_failed_reason": null,
+          "full_similarity_score": 1.0,
+          "library_reduced_score": 1.0
+        },
+        {
+          "pair_id": "SYS25-SHORTCUT-001",
+          "app_a": "shortcut_1_a",
+          "app_b": "shortcut_1_b",
+          "status": "success_shortcut",
+          "analysis_failed_reason": null,
+          "full_similarity_score": null,
+          "library_reduced_score": null,
+          "shortcut_status": "success_shortcut",
+          "deep_verification_status": "skipped_shortcut",
+          "verdict": "likely_clone_by_signature"
+        },
+        {
+          "pair_id": "SYS25-SHORTCUT-002",
+          "app_a": "shortcut_2_a",
+          "app_b": "shortcut_2_b",
+          "status": "success_shortcut",
+          "analysis_failed_reason": null,
+          "full_similarity_score": null,
+          "library_reduced_score": null,
+          "shortcut_status": "success_shortcut",
+          "deep_verification_status": "skipped_shortcut",
+          "verdict": "likely_clone_by_signature"
+        },
+        {
+          "pair_id": "SYS25-TIMEOUT-001",
+          "app_a": "hang_a",
+          "app_b": "hang_b",
+          "status": "analysis_failed",
+          "analysis_failed_reason": "budget_exceeded",
+          "full_similarity_score": null,
+          "library_reduced_score": null,
+          "timeout_info": {
+            "pair_timeout_sec": 10,
+            "duration_ms": 10113,
+            "stage": "pairwise"
+          }
+        }
+      ]
+    },
+    {
+      "config_name": "multi_view",
+      "total_time_s": 0.008537,
+      "status_counts": {
+        "success": 3,
+        "low_similarity": 1,
+        "success_shortcut": 2
+      },
+      "timeout_count": 0,
+      "per_pair_status": [
+        {
+          "pair_id": "SYS25-NORMAL-001",
+          "app_a": "normal_1_a",
+          "app_b": "normal_1_b",
+          "status": "success",
+          "analysis_failed_reason": null,
+          "full_similarity_score": 1.0,
+          "library_reduced_score": 1.0
+        },
+        {
+          "pair_id": "SYS25-NORMAL-002",
+          "app_a": "normal_2_a",
+          "app_b": "normal_2_b",
+          "status": "low_similarity",
+          "analysis_failed_reason": null,
+          "full_similarity_score": 0.3333333333333333,
+          "library_reduced_score": 0.3333333333333333
+        },
+        {
+          "pair_id": "SYS25-NORMAL-003",
+          "app_a": "normal_3_a",
+          "app_b": "normal_3_b",
+          "status": "success",
+          "analysis_failed_reason": null,
+          "full_similarity_score": 1.0,
+          "library_reduced_score": 1.0
+        },
+        {
+          "pair_id": "SYS25-SHORTCUT-001",
+          "app_a": "shortcut_1_a",
+          "app_b": "shortcut_1_b",
+          "status": "success_shortcut",
+          "analysis_failed_reason": null,
+          "full_similarity_score": null,
+          "library_reduced_score": null,
+          "shortcut_status": "success_shortcut",
+          "deep_verification_status": "skipped_shortcut",
+          "verdict": "likely_clone_by_signature"
+        },
+        {
+          "pair_id": "SYS25-SHORTCUT-002",
+          "app_a": "shortcut_2_a",
+          "app_b": "shortcut_2_b",
+          "status": "success_shortcut",
+          "analysis_failed_reason": null,
+          "full_similarity_score": null,
+          "library_reduced_score": null,
+          "shortcut_status": "success_shortcut",
+          "deep_verification_status": "skipped_shortcut",
+          "verdict": "likely_clone_by_signature"
+        },
+        {
+          "pair_id": "SYS25-TIMEOUT-001",
+          "app_a": "hang_a",
+          "app_b": "hang_b",
+          "status": "success",
+          "analysis_failed_reason": null,
+          "full_similarity_score": 1.0,
+          "library_reduced_score": 1.0
+        }
+      ]
+    }
+  ],
+  "cache_trace": {
+    "feature_cache_path": "experiments/artifacts/SYS-25-E2E-RUNNER/feature-cache.sqlite",
+    "cold_extract_calls": 6,
+    "warm_extract_calls": 0,
+    "calls_by_phase": {
+      "cold": 6,
+      "multi_view": 2
+    },
+    "calls_by_apk": {
+      "normal_1_a": 1,
+      "normal_1_b": 1,
+      "normal_3_a": 1,
+      "normal_3_b": 1,
+      "normal_2_a": 1,
+      "normal_2_b": 1,
+      "hang_a": 1,
+      "hang_b": 1
+    }
+  }
+}
