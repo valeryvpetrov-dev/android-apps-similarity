@@ -82,11 +82,14 @@ except Exception:
 
 try:
     from script.m_static_views import extract_all_features
+    from script import m_static_views
 except Exception:
     try:
         from m_static_views import extract_all_features
+        import m_static_views  # type: ignore[no-redef]
     except Exception:
         extract_all_features = None
+        m_static_views = None  # type: ignore[assignment]
 
 try:
     from script.signing_view import compare_signatures
@@ -1106,13 +1109,15 @@ def calculate_set_scores(
     full_right = aggregate_features(layers_b, selected_layers)
     full_similarity_score = calculate_set_metric(metric, full_left, full_right)
 
-    reduced_layers = [layer for layer in selected_layers if layer != "library"]
-    if reduced_layers:
-        reduced_left = aggregate_features(layers_a, reduced_layers)
-        reduced_right = aggregate_features(layers_b, reduced_layers)
-        library_reduced_score = calculate_set_metric(metric, reduced_left, reduced_right)
-    else:
-        library_reduced_score = 0.0
+    # DEEP-24-LIBRARY-REDUCED-UNIFY: единая каноническая формула из контракта v1
+    # раздел 4.4. Ранее здесь была set-метрика на agg_features без library-слоя
+    # (вторая из трёх несовместимых формул: см. critic deep-23 пункт 1, discovery
+    # `inbox/library-reduced-discovery.md`). Каноническая формула не зависит от
+    # `metric` (контракт пункт 1) — поэтому переменная `metric` теперь
+    # используется только для `full_similarity_score`.
+    library_reduced_score = m_static_views.library_reduced_score_canonical(
+        layers_a, layers_b, list(selected_layers),
+    )
     return float(full_similarity_score), float(library_reduced_score)
 
 

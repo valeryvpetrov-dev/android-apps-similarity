@@ -205,7 +205,7 @@ class TestThreeCallsitesAgree(unittest.TestCase):
         }
 
         def fake_load(apk_path, decoded_dir, selected_layers, layer_cache, feature_cache=None):
-            return layers_a if "a" in apk_path else layers_b
+            return layers_a if apk_path.endswith("a.apk") else layers_b
 
         scores_per_metric = []
         with mock.patch.object(

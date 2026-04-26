@@ -940,6 +940,163 @@ def _collect_hints(
 
 
 # ---------------------------------------------------------------------------
+# Canonical library_reduced_score
+# ---------------------------------------------------------------------------
+
+def _aggregate_layer_features_for_canonical(
+    features: dict, selected_layers: list[str],
+) -> set[str]:
+    """Собрать множество строковых токенов вида ``{layer}:{token}``.
+
+    Single source-of-truth конвенции namespacing для канонической формулы.
+    Используется и в ``library_reduced_score_canonical``, и в адаптерах из
+    ``pairwise_runner.calculate_set_scores`` / GED-пути, чтобы
+    представление пары было идентичным во всех трёх точках вызова.
+    """
+    aggregated: set[str] = set()
+    for layer in selected_layers:
+        raw = features.get(layer, set())
+        if isinstance(raw, set):
+            tokens = raw
+        elif isinstance(raw, (list, tuple)):
+            tokens = set(raw)
+        elif isinstance(raw, dict):
+            # quick-bundle обычно отдаёт set, но defensive: на enhanced
+            # bundle library — dict с ключом 'libraries'. Здесь же canonical
+            # принимает только нормализованный quick-формат; enhanced
+            # вызывающие сайты обязаны приплюснуть структуру до set
+            # перед вызовом canonical (см. примеры в pairwise_runner).
+            return aggregated
+        else:
+            continue
+        for token in tokens:
+            aggregated.add("{}:{}".format(layer, token))
+    return aggregated
+
+
+def _normalize_features_for_canonical(
+    features: dict, selected_layers: list[str],
+) -> dict:
+    """Преобразовать quick/enhanced bundle в плоский ``{layer: set[str]}``.
+
+    Используется ``compare_all`` для подготовки входа канонической формуле,
+    когда исходный bundle содержит enhanced-структуры (dict) для library /
+    component / resource слоёв.
+    """
+    out: dict[str, set[str]] = {}
+    for layer in selected_layers:
+        raw = features.get(layer, set())
+        if isinstance(raw, set):
+            out[layer] = raw
+        elif isinstance(raw, (list, tuple)):
+            out[layer] = set(raw)
+        elif isinstance(raw, dict):
+            if layer == "library":
+                libraries = raw.get("libraries", {})
+                if isinstance(libraries, dict):
+                    out[layer] = set(libraries.keys())
+                else:
+                    out[layer] = set()
+            elif layer == "component":
+                tokens: set[str] = set()
+                for component_type in ("activities", "services", "receivers", "providers"):
+                    for component in raw.get(component_type, []):
+                        if isinstance(component, dict):
+                            name = component.get("name")
+                            if isinstance(name, str) and name:
+                                tokens.add("{}:{}".format(component_type, name))
+                for permission in raw.get("permissions", set()):
+                    tokens.add("permission:{}".format(permission))
+                for feature_name in raw.get("features", set()):
+                    tokens.add("feature:{}".format(feature_name))
+                out[layer] = tokens
+            elif layer == "resource":
+                tokens = set()
+                for item in raw.get("resource_digests", set()):
+                    if isinstance(item, tuple) and len(item) == 2:
+                        rel_path, digest = item
+                        tokens.add("{}:{}".format(rel_path, digest))
+                out[layer] = tokens
+            else:
+                out[layer] = set()
+        else:
+            out[layer] = set()
+    # library-слой нужен canonical для построения mask, даже если не в selected.
+    if "library" not in out:
+        raw_lib = features.get("library", set())
+        if isinstance(raw_lib, set):
+            out["library"] = raw_lib
+        elif isinstance(raw_lib, dict):
+            libs = raw_lib.get("libraries", {})
+            out["library"] = set(libs.keys()) if isinstance(libs, dict) else set()
+        else:
+            out["library"] = set()
+    return out
+
+
+def library_reduced_score_canonical(
+    features_a: dict,
+    features_b: dict,
+    selected_layers: list[str],
+    library_mask: set[str] | None = None,
+    return_detail: bool = False,
+):
+    """Каноническая формула ``library_reduced_score`` (контракт v1, раздел 4.4).
+
+    ``library_reduced_score(A, B) = |(F_A ∩ F_B) \\ L| / |(F_A ∪ F_B) \\ L|``,
+    где ``F_A``, ``F_B`` — множества признаков по всем выбранным слоям
+    статической модели в namespacing ``{layer}:{token}``; ``L`` — единый
+    library-mask (объединение TPL-меток с обеих сторон).
+
+    Параметры
+    ----------
+    features_a, features_b:
+        quick-feature bundle по слоям (``{layer: set[str]}``).
+    selected_layers:
+        Список активных слоёв; обычно — ``stages.pairwise.features``.
+    library_mask:
+        Опциональный заранее собранный mask (``set[str]`` в namespacing
+        ``{layer}:{token}``). Если не задан — собирается из ``library``-слоя
+        обеих сторон (``L = {"library:" + tok for tok in L_A ∪ L_B}``).
+        Параметр оставлен для адаптера NOISE-24-MASK-CONTRACT — когда mask
+        будет приходить как отдельный артефакт.
+    return_detail:
+        Если ``True``, возвращает dict ``{score, status, both_empty}``
+        в духе DEEP-20-BOTH-EMPTY-AUDIT. Иначе — float (для обратной
+        совместимости с существующими callsite-ами).
+
+    Контракт v1 раздел 4.4 пункт 1: оператор инвариантен к
+    ``stages.pairwise.metric`` — поэтому функция намеренно не принимает
+    аргумент ``metric``.
+
+    Контракт v1 раздел 4.4 пункт 3: при пустом ``(F_A ∪ F_B) \\ L``
+    считаем ``analysis_status = analysis_failed`` ответственностью
+    верхнеуровневого pipeline. Здесь возвращаем ``0.0`` (или
+    dict-форму ``{score: 0.0, status: 'both_empty', both_empty: True}``
+    при ``return_detail=True``).
+    """
+    f_a = _aggregate_layer_features_for_canonical(features_a, selected_layers)
+    f_b = _aggregate_layer_features_for_canonical(features_b, selected_layers)
+    if library_mask is None:
+        library_a = features_a.get("library", set())
+        library_b = features_b.get("library", set())
+        if isinstance(library_a, set) and isinstance(library_b, set):
+            library_mask = {"library:{}".format(tok) for tok in (library_a | library_b)}
+        else:
+            library_mask = set()
+    intersection = (f_a & f_b) - library_mask
+    union = (f_a | f_b) - library_mask
+    if not union:
+        if return_detail:
+            return {"score": 0.0, "status": "both_empty", "both_empty": True}
+        return 0.0
+    score = len(intersection) / len(union)
+    if return_detail:
+        return {"score": float(score), "status": "canonical", "both_empty": False}
+    return float(score)
+
+
+# ---------------------------------------------------------------------------
 # Main comparison
 # ---------------------------------------------------------------------------
 
@@ -1044,23 +1201,18 @@ def compare_all(
 
     full_similarity_score = weighted_sum / weight_total if weight_total > 0.0 else 0.0
 
-    # Library-reduced score.
-    reduced_sum = 0.0
-    reduced_total = 0.0
-    for layer in selected:
-        if layer == "library":
-            continue
-        weight = LAYER_WEIGHTS.get(layer)
-        if weight is None:
-            continue
-        layer_result = per_layer.get(layer, {})
-        if not _include_layer_in_weighted_score(layer, layer_result):
-            continue
-        layer_score = layer_result.get("score", 0.0)
-        reduced_sum += weight * layer_score
-        reduced_total += weight
-
-    library_reduced_score = reduced_sum / reduced_total if reduced_total > 0.0 else 0.0
+    # Library-reduced score — единая каноническая формула (контракт v1 раздел 4.4).
+    # DEEP-24-LIBRARY-REDUCED-UNIFY: ранее compare_all считал
+    # weighted-average per-layer score-ов по non-library слоям. Это была
+    # первая из трёх несовместимых формул (см. critic deep-23 пункт 1,
+    # discovery `inbox/library-reduced-discovery.md`). Теперь здесь — тот же
+    # оператор `library_reduced_score_canonical`, что и в
+    # `pairwise_runner.calculate_set_scores` и в адаптере GED-пути.
+    canonical_features_a = _normalize_features_for_canonical(features_a, selected)
+    canonical_features_b = _normalize_features_for_canonical(features_b, selected)
+    library_reduced_score = library_reduced_score_canonical(
+        canonical_features_a, canonical_features_b, selected,
+    )
 
     # Explanation hints.
     if is_enhanced:
