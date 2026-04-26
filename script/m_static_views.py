@@ -12,9 +12,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -201,7 +204,14 @@ ALL_LAYERS = (
 # Обучение весов по корпусу (EXEC-086, логистическая регрессия / learn-
 # to-rank по per-view scores) остаётся в бэклоге: задача заблокирована
 # EXEC-080 (train/test split с AndroZoo key).
-LAYER_WEIGHTS = {
+#
+# DEEP-22-LAYER-WEIGHTS-PROPAGATE (2026-04-25): веса вынесены в JSON-артефакт
+# experiments/artifacts/DEEP-22-LAYER-WEIGHTS-EXTERNALIZED/calibrated_weights.json.
+# Hard-coded словарь ниже остаётся как FALLBACK на случай отсутствия файла.
+# Когда EXEC-086 реально откалибрует веса по корпусу — изменится только JSON,
+# без правки кода. Это {refactor}, не {feat}: численно агрегированный score
+# не меняется (JSON содержит те же значения, что и hard-coded fallback).
+_LAYER_WEIGHTS_FALLBACK = {
     "code": 0.45 / 1.15,
     "component": 0.25 / 1.15,
     "resource": 0.20 / 1.15,
@@ -212,6 +222,51 @@ LAYER_WEIGHTS = {
     # resource_v2: подключено, не активировано до калибровки EXEC-086.
     "resource_v2": 0.0,
 }
+
+CALIBRATED_WEIGHTS_PATH = (
+    Path(__file__).resolve().parent.parent
+    / "experiments"
+    / "artifacts"
+    / "DEEP-22-LAYER-WEIGHTS-EXTERNALIZED"
+    / "calibrated_weights.json"
+)
+
+
+def _load_layer_weights(path: Path = CALIBRATED_WEIGHTS_PATH) -> dict:
+    """Загрузить веса из JSON-артефакта; при отсутствии — fallback с warning.
+
+    Возвращает dict {layer: weight}. Сумма non-zero весов должна быть ≈ 1.0
+    (валидация на чтении). При FileNotFoundError или невалидной структуре —
+    откат на _LAYER_WEIGHTS_FALLBACK с явным logging warning, не падает.
+    """
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        weights = payload.get("weights")
+        if not isinstance(weights, dict) or not weights:
+            raise ValueError("calibrated_weights.json missing 'weights' dict")
+        # Sanity-check: сумма по непустым (non-zero) весам ≈ 1.0.
+        active_sum = sum(v for v in weights.values() if v > 0)
+        if not (0.99 <= active_sum <= 1.01):
+            logger.warning(
+                "calibrated_weights.json active sum %.4f != 1.0; using fallback",
+                active_sum,
+            )
+            return dict(_LAYER_WEIGHTS_FALLBACK)
+        return {key: float(value) for key, value in weights.items()}
+    except FileNotFoundError:
+        logger.warning(
+            "calibrated_weights.json not found at %s; using hard-coded fallback",
+            path,
+        )
+        return dict(_LAYER_WEIGHTS_FALLBACK)
+    except (json.JSONDecodeError, ValueError, OSError) as exc:
+        logger.warning(
+            "calibrated_weights.json invalid (%s); using hard-coded fallback", exc
+        )
+        return dict(_LAYER_WEIGHTS_FALLBACK)
+
+
+LAYER_WEIGHTS = _load_layer_weights()
 
 # Predefined ablation configurations.
 ABLATION_CONFIGS = {
