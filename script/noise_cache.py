@@ -6,6 +6,8 @@ import json
 import logging
 from pathlib import Path
 
+from script import cache_manifest
+
 
 logger = logging.getLogger(__name__)
 
@@ -13,10 +15,16 @@ logger = logging.getLogger(__name__)
 class NoiseCache:
     """Disk-backed cache keyed by (APK SHA-256, profile_version)."""
 
-    def __init__(self, cache_dir: Path, profile_version: str = "v1") -> None:
+    def __init__(self, cache_dir: Path, profile_version: str | None = None) -> None:
         self.cache_dir = Path(cache_dir).expanduser()
-        self.profile_version = self._validate_profile_version(profile_version)
+        self._uses_manifest_profile_version = profile_version is None
+        if self._uses_manifest_profile_version:
+            self.profile_version = self._current_profile_version()
+        else:
+            self.profile_version = self._validate_profile_version(profile_version)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+        if self._uses_manifest_profile_version:
+            self.invalidate_all_outdated()
 
     @staticmethod
     def _validate_sha256(apk_sha256: str) -> str:
@@ -33,12 +41,27 @@ class NoiseCache:
             raise ValueError("profile_version must not contain path separators")
         return profile_version
 
+    @classmethod
+    def _current_profile_version(cls) -> str:
+        manifest = cache_manifest.load()
+        return cls._validate_profile_version(manifest["noise"]["version"])
+
+    def _active_profile_version(self, profile_version: str | None = None) -> str:
+        if profile_version is not None:
+            return self._validate_profile_version(profile_version)
+        if self._uses_manifest_profile_version:
+            self.profile_version = self._current_profile_version()
+        return self.profile_version
+
     def _path(self, apk_sha256: str, profile_version: str | None = None) -> Path:
         digest = self._validate_sha256(apk_sha256)
-        version = self._validate_profile_version(profile_version or self.profile_version)
+        version = self._active_profile_version(profile_version)
         return self.cache_dir / "{}__{}.json".format(digest, version)
 
     def get(self, apk_sha256: str, profile_version: str | None = None) -> dict | None:
+        digest = self._validate_sha256(apk_sha256)
+        if self._uses_manifest_profile_version and profile_version is None:
+            self._delete_outdated_for_sha256(digest)
         path = self._path(apk_sha256, profile_version)
         if not path.exists():
             return None
@@ -60,6 +83,38 @@ class NoiseCache:
             )
             return None
         return payload
+
+    def invalidate_all_outdated(self) -> list[str]:
+        result = cache_manifest.invalidate_outdated("noise")
+        return list(result["deleted"])
+
+    def _delete_outdated_for_sha256(self, apk_sha256: str) -> list[Path]:
+        deleted: list[Path] = []
+        for path in sorted(self.cache_dir.glob("{}__*.json".format(apk_sha256))):
+            profile_version = self._profile_version_from_path(path)
+            if profile_version is None:
+                continue
+            record = {"sha256": apk_sha256, "profile_version": profile_version}
+            try:
+                cache_manifest.validate_cache_record("noise", record)
+            except cache_manifest.CacheManifestMismatch:
+                path.unlink()
+                deleted.append(path)
+                logger.warning(
+                    "noise_cache_outdated: sha256=%s profile_version=%s path=%s",
+                    apk_sha256,
+                    profile_version,
+                    path,
+                )
+        return deleted
+
+    @staticmethod
+    def _profile_version_from_path(path: Path) -> str | None:
+        stem = path.stem
+        if "__" not in stem:
+            return None
+        _, profile_version = stem.split("__", 1)
+        return profile_version
 
     def put(
         self,
