@@ -151,6 +151,33 @@ def _make_quick_features(
 
 
 class TestCompareAllApiAggregation(unittest.TestCase):
+    """Поведение `api`-слоя в weighted aggregation `full_similarity_score`.
+
+    DEEP-24-LIBRARY-REDUCED-UNIFY (2026-04-26): assert-ы по
+    ``library_reduced_score`` обновлены под единую каноническую формулу
+    из контракта v1 раздела 4.4 (``|(F_A ∩ F_B) \\ L| / |(F_A ∪ F_B) \\ L|``).
+    Ранее эти assert-ы проверяли локальную для ``compare_all`` weighted-avg
+    реализацию, которая с волны 24 заменена на вызов
+    ``library_reduced_score_canonical`` (одна формула во всех трёх точках
+    вызова: ``compare_all``, ``pairwise_runner.calculate_set_scores``,
+    GED-путь). Ассерты на ``full_similarity_score`` не меняются — он
+    по-прежнему считается weighted-avg per-layer score-ов.
+
+    Каноническая формула на фикстуре всех трёх кейсов:
+      F_A = {code:same, component:left-only, resource:same, library:left-only}
+      F_B = {code:same, component:right-only, resource:same, library:right-only}
+      L = {library:left-only, library:right-only}
+      ∩ \\ L = {code:same, resource:same} → |·| = 2
+      ∪ \\ L = {code:same, component:left-only, component:right-only,
+                resource:same} → |·| = 4
+      library_reduced_score = 2/4 = 0.5
+    Значение одинаковое в трёх кейсах: api-слой не вносит признаков (пуст
+    с обеих сторон / cosine-сходство по chain не попадает в множества
+    ``F_A`` / ``F_B``), поэтому на library_reduced_score не влияет.
+    """
+
+    _CANONICAL_LIBRARY_REDUCED = 2.0 / 4.0
+
     def test_all_present_keeps_existing_weighted_aggregation(self) -> None:
         features_a = _make_quick_features(
             code={"same"},
@@ -175,7 +202,9 @@ class TestCompareAllApiAggregation(unittest.TestCase):
 
         self.assertEqual(result["per_layer"]["api"]["status"], "markov_cosine")
         self.assertAlmostEqual(result["full_similarity_score"], 0.8 / 1.15, places=6)
-        self.assertAlmostEqual(result["library_reduced_score"], 0.8 / 1.05, places=6)
+        self.assertAlmostEqual(
+            result["library_reduced_score"], self._CANONICAL_LIBRARY_REDUCED, places=6,
+        )
 
     def test_api_both_empty_is_excluded_and_other_weights_are_renormalized(self) -> None:
         features_a = _make_quick_features(
@@ -201,7 +230,9 @@ class TestCompareAllApiAggregation(unittest.TestCase):
 
         self.assertEqual(result["per_layer"]["api"]["status"], "both_empty")
         self.assertAlmostEqual(result["full_similarity_score"], 0.65, places=6)
-        self.assertAlmostEqual(result["library_reduced_score"], 0.65 / 0.9, places=6)
+        self.assertAlmostEqual(
+            result["library_reduced_score"], self._CANONICAL_LIBRARY_REDUCED, places=6,
+        )
 
     def test_api_one_empty_stays_in_aggregation_with_zero_score(self) -> None:
         features_a = _make_quick_features(
@@ -227,7 +258,9 @@ class TestCompareAllApiAggregation(unittest.TestCase):
 
         self.assertEqual(result["per_layer"]["api"]["status"], "one_empty")
         self.assertAlmostEqual(result["full_similarity_score"], 0.65 / 1.15, places=6)
-        self.assertAlmostEqual(result["library_reduced_score"], 0.65 / 1.05, places=6)
+        self.assertAlmostEqual(
+            result["library_reduced_score"], self._CANONICAL_LIBRARY_REDUCED, places=6,
+        )
 
 
 if __name__ == "__main__":

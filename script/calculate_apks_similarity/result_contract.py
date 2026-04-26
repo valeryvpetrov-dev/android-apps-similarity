@@ -121,6 +121,45 @@ def build_scores(
 
 
 def calculate_library_reduced_score(pair_records: list, dots_1: list, dots_2: list) -> float:
+    """Каноническая формула ``library_reduced_score`` для GED-пути.
+
+    DEEP-24-LIBRARY-REDUCED-UNIFY: оборачивает каноническую формулу из
+    контракта v1 раздела 4.4 (``|(F_A ∩ F_B) \\ L| / |(F_A ∪ F_B) \\ L|``).
+    Множества признаков ``F_A``, ``F_B`` строятся как имена dot-графов
+    (``dot.name``); library-mask ``L`` — единое объединение dot-имён, для
+    которых ``is_library_like_graph(dot)`` истинно. ``pair_records``
+    игнорируется в самой формуле — он использовался только в отменённой
+    GED-ветке (см. контракт 4.4 «Отменено 1»). Сохранён в сигнатуре для
+    обратной совместимости вызова и для пары unmatched-hint-генераторов
+    дальше по pipeline.
+
+    Старая реализация (``sum(pair_sim) / max(non_lib_count_a, non_lib_count_b)``)
+    выведена в ``calculate_legacy_ged_non_library_mean`` как диагностическое
+    поле под именем ``ged_non_library_mean``; на роль ``library_reduced_score``
+    она больше не претендует (контракт 4.4 «Отменено 1»: «эта величина может
+    храниться рядом как диагностическое поле, но не подписывается именем
+    library_reduced_score»).
+    """
+    del pair_records  # старый параметр оставлен в сигнатуре, см. docstring.
+    f_a = {dot.name for dot in dots_1 if not is_library_like_graph(dot)}
+    f_b = {dot.name for dot in dots_2 if not is_library_like_graph(dot)}
+    union = f_a | f_b
+    if not union:
+        return 0.0
+    intersection = f_a & f_b
+    return len(intersection) / len(union)
+
+
+def calculate_legacy_ged_non_library_mean(
+        pair_records: list, dots_1: list, dots_2: list,
+) -> float:
+    """Диагностическое поле ``ged_non_library_mean`` (старая GED-формула).
+
+    Контракт v1 раздел 4.4 пункт «Отменено 1»: эта формула больше не
+    является валидной реализацией ``library_reduced_score`` (другая шкала),
+    но оставлена как трассировочное поле для отладки регрессов в GED-пути.
+    Не использовать для cross-formula сравнения.
+    """
     non_library_count_1 = sum(1 for dot in dots_1 if not is_library_like_graph(dot))
     non_library_count_2 = sum(1 for dot in dots_2 if not is_library_like_graph(dot))
     denominator = max(non_library_count_1, non_library_count_2)
