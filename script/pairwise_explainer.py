@@ -801,19 +801,23 @@ def _hints_from_evidence(evidence_list: list[dict]) -> list[dict]:
 def generate_hint(pair_row: dict) -> str:
     """Deprecated: формирует hint-строку для пары.
 
-    EXEC-HINT-20-EVIDENCE-CANON: hint — производная из Evidence, а не
-    независимый объект. Эта функция сохраняет прежнюю сигнатуру, но
-    внутри делегирует в канонический путь:
+    EXEC-HINT-20-EVIDENCE-CANON / EXEC-HINT-24-EVIDENCE-CONTRACT-AUDIT:
+    hint — производная из Evidence, а не независимый объект. Эта функция
+    сохраняет прежнюю сигнатуру, но внутри обязательно делегирует в
+    единственный канонический путь:
 
         evidence_formatter.collect_evidence_from_pairwise(pair_row)
           -> evidence_formatter.format_hint_from_evidence(evidence)
 
-    Таким образом pairwise_explainer больше не вычисляет hint независимо
+    Таким образом pairwise_explainer больше **не вычисляет hint независимо**
     от Evidence, и инвариант «факты в hint ⊆ факты в Evidence»
-    сохраняется по построению.
+    сохраняется по построению. Прямого построения hint из pair_row в
+    обход Evidence в коде нет — добавление такого пути нарушит контракт
+    и должно отлавливаться тестом
+    `test_only_canonical_public_hint_function_is_format_hint_from_evidence`.
 
     Новый код должен пользоваться `format_hint_from_evidence` напрямую.
-    Канонический документ: `system/result-interpretation-contract-v1.md`.
+    Канонический документ: `system/result-interpretation-contract-v1.md` раздел 6.
     """
     # Импорт внутри функции — чтобы избежать циклических зависимостей
     # и чтобы legacy-потребители модуля не тянули reader-path.
@@ -839,26 +843,37 @@ def build_output_rows(pair_rows: list[dict]) -> list[dict]:
         # Fallback на legacy build_explanation_hints сохраняется ради обратной
         # совместимости со старыми pair_row без evidence (например, из прежних
         # прогонов screening/deepening до EXEC-088-WRITERS).
+        #
+        # EXEC-HINT-24-EVIDENCE-CONTRACT-AUDIT: режим построения hint явно
+        # помечается в `hint_metadata` (source: 'canonical' | 'legacy') и в
+        # legacy-ветке логируется стабильный маркер `legacy_hint_path` —
+        # по нему легко искать в логах больших прогонов и считать процент
+        # legacy-pair_row, который остался от старых артефактов.
         raw_evidence = pair.get("evidence")
         filtered_evidence: list[dict] = []
         if isinstance(raw_evidence, list):
             filtered_evidence = [item for item in raw_evidence if isinstance(item, dict)]
 
+        hint_metadata: dict[str, str]
         if filtered_evidence:
             explanation_hints = _hints_from_evidence(filtered_evidence)
+            hint_metadata = {"source": "canonical"}
         else:
             pair_id = clean_string(pair.get("pair_id")) or f"{app_a}__{app_b}"
             logger.warning(
-                "evidence empty, falling back to legacy hint construction for pair %s",
+                "legacy_hint_path: evidence empty, falling back to legacy "
+                "hint construction for pair %s",
                 pair_id,
             )
             explanation_hints = build_explanation_hints(pair)
+            hint_metadata = {"source": "legacy", "reason": "evidence_empty"}
 
         row: dict[str, Any] = {
             "app_a": app_a,
             "app_b": app_b,
             "similarity_score": resolve_similarity_score(pair),
             "explanation_hints": explanation_hints,
+            "hint_metadata": hint_metadata,
         }
         # EXEC-088-WRITERS: прокинуть единый формат Evidence, если писатель
         # pairwise_runner уже записал его на pair_row. Добавляется только
