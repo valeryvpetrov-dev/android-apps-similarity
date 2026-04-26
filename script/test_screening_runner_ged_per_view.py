@@ -49,8 +49,8 @@ class TestGedPerViewScores(unittest.TestCase):
         )
 
         self.assertEqual(set(scores), {"code", "metadata"})
-        self.assertAlmostEqual(scores["code"], 0.5, places=6)
-        self.assertAlmostEqual(scores["metadata"], 0.5, places=6)
+        self.assertAlmostEqual(scores["code"]["jaccard"], 0.5, places=6)
+        self.assertAlmostEqual(scores["metadata"]["jaccard"], 0.5, places=6)
 
     def test_ged_scores_match_layer_jaccard_on_same_input(self) -> None:
         app_a = _make_app(
@@ -83,7 +83,7 @@ class TestGedPerViewScores(unittest.TestCase):
                 aggregate_features(app_a, [layer]),
                 aggregate_features(app_b, [layer]),
             )
-            self.assertAlmostEqual(scores[layer], expected, places=6)
+            self.assertAlmostEqual(scores[layer]["jaccard"], expected, places=6)
 
     def test_build_candidate_list_writes_per_view_scores_for_ged_metric(self) -> None:
         app_a = _make_app("APP-A", {"code": {"x", "y", "z"}})
@@ -108,7 +108,7 @@ class TestGedPerViewScores(unittest.TestCase):
         self.assertEqual(len(candidate_list), 1)
         row = candidate_list[0]
         self.assertIn("per_view_scores", row)
-        self.assertAlmostEqual(row["per_view_scores"]["code"], 0.5, places=6)
+        self.assertAlmostEqual(row["per_view_scores"]["code"]["jaccard"], 0.5, places=6)
 
 
 if __name__ == "__main__":

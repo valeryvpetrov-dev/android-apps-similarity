@@ -110,12 +110,13 @@ _PER_VIEW_SCORE_FIELDS: tuple[str, ...] = (
 
 
 def _extract_per_view_scores(pair_row: dict) -> dict[str, float] | None:
-    """Вернуть per-view similarity dict {layer: score} из pair_row.
+    """Вернуть primary per-view similarity dict {layer: score} из pair_row.
 
     Проверяет поля из ``_PER_VIEW_SCORE_FIELDS`` по порядку. Первое найденное
-    непустое значение-словарь приводится к dict[str, float]. Невалидные
-    ключи/значения (не строка / не число) пропускаются. Если итоговый словарь
-    пустой или ни одного поля нет — возвращает None.
+    непустое значение-словарь приводится к dict[str, float]. Для нового
+    REPR-25 формата {layer: {channel: score}} primary score берётся из
+    ``jaccard``. Невалидные ключи/значения пропускаются. Если итоговый
+    словарь пустой или ни одного поля нет — возвращает None.
     """
     for field_name in _PER_VIEW_SCORE_FIELDS:
         raw = pair_row.get(field_name)
@@ -125,6 +126,8 @@ def _extract_per_view_scores(pair_row: dict) -> dict[str, float] | None:
         for key, value in raw.items():
             if not isinstance(key, str) or not key.strip():
                 continue
+            if isinstance(value, dict):
+                value = value.get("jaccard")
             try:
                 coerced[key.strip()] = float(value)
             except (TypeError, ValueError):
@@ -227,12 +230,13 @@ def collect_evidence_from_pairwise(pair_row: dict) -> list[dict]:
 
 
 def collect_evidence_from_screening_layers(
-    layers: dict[str, float], stage_name: str = "screening"
+    layers: dict[str, object], stage_name: str = "screening"
 ) -> list[dict]:
     """Построить Evidence из mapping 'имя слоя' -> per-layer score.
 
     Все score clamp'аются в [0, 1]. Пустые или не-строковые ключи
-    игнорируются. `stage_name` по умолчанию 'screening'.
+    игнорируются. Для REPR-25-вложенного значения берётся канал
+    ``jaccard``. `stage_name` по умолчанию 'screening'.
     """
     if not isinstance(layers, dict):
         return []
@@ -243,6 +247,8 @@ def collect_evidence_from_screening_layers(
     for layer, score in layers.items():
         if not isinstance(layer, str) or not layer.strip():
             continue
+        if isinstance(score, dict):
+            score = score.get("jaccard")
         magnitude = _clamp_unit(score)
         evidence.append(
             make_evidence(
