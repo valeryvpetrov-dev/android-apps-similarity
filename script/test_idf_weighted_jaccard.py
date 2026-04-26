@@ -97,6 +97,10 @@ def test_weighted_jaccard_equals_plain_when_all_idf_weights_are_one() -> None:
     assert weighted == pytest.approx(flat)
 
 
+def test_default_idf_snapshot_path_points_to_v2_artifact() -> None:
+    assert library_view_v2.DEFAULT_IDF_SNAPSHOT_PATH.name == "idf-snapshot-v2.json"
+
+
 def test_library_main_flow_schema_adds_idf_channels_when_snapshot_exists(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
