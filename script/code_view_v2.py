@@ -72,22 +72,24 @@ def _collect_library_packages(apk_path: Path) -> frozenset:
     If detection fails, returns empty frozenset — caller falls back to full opcode extraction.
     """
     try:
-        from library_view_v2 import extract_apk_packages, detect_tpl_in_packages
+        from library_view_v2 import extract_apk_packages
+        from library_mask import get_library_mask
     except ImportError:
-        logger.warning("library_view_v2 not importable; library-subtraction disabled")
+        logger.warning("library mask dependencies not importable; library-subtraction disabled")
         return frozenset()
 
     try:
         apk_packages = extract_apk_packages(str(apk_path))
-        tpl_hits = detect_tpl_in_packages(apk_packages)
     except Exception as exc:
         logger.warning("library detection failed for %s: %s", apk_path, exc)
         return frozenset()
 
-    library_packages: set = set()
-    for tpl_id, hit in tpl_hits.items():
-        if hit.get("detected"):
-            library_packages.update(hit.get("matched_packages", set()))
+    library_packages = get_library_mask(
+        {
+            "packages": apk_packages,
+            "cascade_config": {"library_mask": {"algorithm": "jaccard_v2"}},
+        }
+    )
     return frozenset(library_packages)
 
 

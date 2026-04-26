@@ -166,6 +166,15 @@ except Exception:
     except Exception:
         _feature_cache_get_or_extract = None
 
+try:
+    from script.library_mask import get_library_mask, is_library_token
+except Exception:
+    try:
+        from library_mask import get_library_mask, is_library_token
+    except Exception:
+        get_library_mask = None
+        is_library_token = None
+
 
 ALL_LAYERS = (
     "code",
@@ -728,6 +737,46 @@ def _include_layer_in_weighted_score(layer: str, layer_result: dict[str, Any]) -
     return layer_result.get("status") != "both_empty"
 
 
+def _library_mask_for_features(features: dict) -> set[str]:
+    if get_library_mask is None:
+        return set()
+    try:
+        return set(get_library_mask(features))
+    except Exception:
+        return set()
+
+
+def _mask_static_feature_set(features: Any, library_mask: set[str]) -> Any:
+    if not library_mask or not isinstance(features, set) or is_library_token is None:
+        return features
+    return {
+        feature
+        for feature in features
+        if not is_library_token(feature, library_mask)
+    }
+
+
+def _library_reduced_layer_result(
+    layer: str,
+    raw_result: dict[str, Any],
+    features_a: Any,
+    features_b: Any,
+    library_mask_a: set[str],
+    library_mask_b: set[str],
+) -> dict[str, Any]:
+    if layer not in {"code", "component", "resource"}:
+        return raw_result
+    if not library_mask_a and not library_mask_b:
+        return raw_result
+    masked_a = _mask_static_feature_set(features_a, library_mask_a)
+    masked_b = _mask_static_feature_set(features_b, library_mask_b)
+    if not isinstance(masked_a, set) or not isinstance(masked_b, set):
+        return raw_result
+    if layer == "code":
+        return _compare_code(masked_a, masked_b, None)
+    return _compare_layer_quick(layer, masked_a, masked_b)
+
+
 def _compare_library_enhanced(feat_a: dict, feat_b: dict) -> dict:
     """Enhanced library comparison via library_view module.
 
@@ -1044,7 +1093,11 @@ def compare_all(
 
     full_similarity_score = weighted_sum / weight_total if weight_total > 0.0 else 0.0
 
-    # Library-reduced score.
+    # Library-reduced score: remove only elements selected by the unified
+    # library mask from non-library set layers, then drop the diagnostic
+    # library layer itself.
+    library_mask_a = _library_mask_for_features(features_a)
+    library_mask_b = _library_mask_for_features(features_b)
     reduced_sum = 0.0
     reduced_total = 0.0
     for layer in selected:
@@ -1053,7 +1106,14 @@ def compare_all(
         weight = LAYER_WEIGHTS.get(layer)
         if weight is None:
             continue
-        layer_result = per_layer.get(layer, {})
+        layer_result = _library_reduced_layer_result(
+            layer,
+            per_layer.get(layer, {}),
+            features_a.get(layer, set()),
+            features_b.get(layer, set()),
+            library_mask_a,
+            library_mask_b,
+        )
         if not _include_layer_in_weighted_score(layer, layer_result):
             continue
         layer_score = layer_result.get("score", 0.0)
