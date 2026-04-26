@@ -3,14 +3,25 @@
 
 from __future__ import annotations
 
+import functools
+import json
 import sys
 from pathlib import Path
+
+import pytest
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from calibrate_lsh_recall import run_lsh_recall_grid
+
+FDROID_V2_CORPUS_DIR = Path(
+    "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks"
+)
+FDROID_ARTIFACT_REPORT = Path(
+    "experiments/artifacts/SCREENING-25-LSH-FDROID/report.json"
+)
 
 
 def _make_app(app_id: str, code_features: set[str]) -> dict:
@@ -110,3 +121,66 @@ def test_run_lsh_recall_grid_reports_insufficient_corpus_without_raising() -> No
     assert report["best_by_recall"] is None
     assert report["best_by_balanced"] is None
     assert report["warnings"]
+
+
+def _require_fdroid_v2_corpus() -> Path:
+    if not FDROID_V2_CORPUS_DIR.exists():
+        pytest.fail("F-Droid v2 APK corpus not found: {}".format(FDROID_V2_CORPUS_DIR))
+    apk_count = len(list(FDROID_V2_CORPUS_DIR.glob("*.apk")))
+    assert apk_count >= 200
+    return FDROID_V2_CORPUS_DIR
+
+
+@functools.lru_cache(maxsize=1)
+def _fdroid_v2_grid_report() -> dict:
+    return run_lsh_recall_grid(
+        corpus_dir=_require_fdroid_v2_corpus(),
+        num_perm_grid=[64, 128, 256],
+        bands_grid=[16, 32, 64],
+        thresh=0.28,
+        clone_threshold=0.50,
+    )
+
+
+def test_fdroid_v2_lsh_grid_filters_shortlists_on_real_corpus() -> None:
+    report = _fdroid_v2_grid_report()
+
+    assert report["status"] == "ok"
+    assert report["corpus"]["n_documents"] >= 200
+    assert report["n_pairs_total"] == (
+        report["corpus"]["n_documents"] * (report["corpus"]["n_documents"] - 1)
+    ) // 2
+    assert report["n_pairs_clone"] > 0
+    assert len(report["per_config"]) == 9
+
+    ok_rows = [row for row in report["per_config"] if row["status"] == "ok"]
+    assert ok_rows
+    assert any(row["shortlist_size"] < report["n_pairs_total"] for row in ok_rows)
+    baseline = next(row for row in ok_rows if row["num_perm"] == 128 and row["bands"] == 32)
+    assert baseline["shortlist_size"] < report["n_pairs_total"]
+
+
+def test_fdroid_v2_grid_finds_production_sized_optimal_config() -> None:
+    report = _fdroid_v2_grid_report()
+
+    optimal = report["optimal_config"]
+    assert optimal is not None
+    assert optimal["recall_at_shortlist"] >= 0.85
+    assert optimal["shortlist_size"] <= int(report["n_pairs_total"] * 0.30)
+    assert (optimal["num_perm"], optimal["bands"]) in {
+        (row["num_perm"], row["bands"]) for row in report["per_config"]
+    }
+
+
+def test_screening25_fdroid_artifact_report_schema() -> None:
+    assert FDROID_ARTIFACT_REPORT.exists()
+
+    report = json.loads(FDROID_ARTIFACT_REPORT.read_text(encoding="utf-8"))
+    assert report["corpus"]["name"] == "F-Droid v2"
+    assert report["corpus"]["n_documents"] >= 200
+    assert report["n_pairs_total"] > report["corpus"]["n_documents"]
+    assert report["n_pairs_clone"] > 0
+    assert isinstance(report["per_config"], list)
+    assert report["per_config"]
+    assert report["optimal_config"] is not None
+    assert report["decision"]["production_default_changed"] in {True, False}
