@@ -1,0 +1,641 @@
+{
+  "schema_version": "screening-lsh-recall-calibration-v1",
+  "generated_at_utc": "2026-04-26T05:53:05.119343+00:00",
+  "corpus_dir": "/private/tmp/wave24-scrn-submodule/apk",
+  "summary": {
+    "total_apps": 5,
+    "total_configs": 9,
+    "target_recall": 0.85,
+    "optimal_config": {
+      "num_perm": 64,
+      "bands": 32,
+      "status": "ok",
+      "rows_per_band": 2,
+      "total_pairs": 10,
+      "positive_pairs_above_threshold": 9,
+      "shortlist_size": 10,
+      "shortlist_true_positive_count": 9,
+      "recall_at_shortlist": 1.0,
+      "false_negative_rate": 0.0,
+      "shortlist_positive_pairs": [
+        [
+          "simple_app-empty",
+          "simple_app-releaseNonOptimized"
+        ],
+        [
+          "simple_app-empty",
+          "simple_app-releaseOptimized"
+        ],
+        [
+          "simple_app-empty",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "simple_app-releaseOptimized"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "snake"
+        ],
+        [
+          "simple_app-releaseOptimized",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseOptimized",
+          "snake"
+        ],
+        [
+          "simple_app-releaseRename",
+          "snake"
+        ]
+      ],
+      "false_negative_pairs": []
+    },
+    "target_recall_met": true
+  },
+  "status": "ok",
+  "warnings": [],
+  "config": {
+    "selected_layers": [
+      "code",
+      "metadata"
+    ],
+    "metric": "jaccard",
+    "threshold": 0.28,
+    "seed": 42,
+    "target_recall": 0.85
+  },
+  "per_config": [
+    {
+      "num_perm": 64,
+      "bands": 16,
+      "status": "ok",
+      "rows_per_band": 4,
+      "total_pairs": 10,
+      "positive_pairs_above_threshold": 9,
+      "shortlist_size": 6,
+      "shortlist_true_positive_count": 6,
+      "recall_at_shortlist": 0.6666666666666666,
+      "false_negative_rate": 0.33333333333333337,
+      "shortlist_positive_pairs": [
+        [
+          "simple_app-releaseNonOptimized",
+          "simple_app-releaseOptimized"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "snake"
+        ],
+        [
+          "simple_app-releaseOptimized",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseOptimized",
+          "snake"
+        ],
+        [
+          "simple_app-releaseRename",
+          "snake"
+        ]
+      ],
+      "false_negative_pairs": [
+        [
+          "simple_app-empty",
+          "simple_app-releaseNonOptimized"
+        ],
+        [
+          "simple_app-empty",
+          "simple_app-releaseOptimized"
+        ],
+        [
+          "simple_app-empty",
+          "simple_app-releaseRename"
+        ]
+      ]
+    },
+    {
+      "num_perm": 64,
+      "bands": 32,
+      "status": "ok",
+      "rows_per_band": 2,
+      "total_pairs": 10,
+      "positive_pairs_above_threshold": 9,
+      "shortlist_size": 10,
+      "shortlist_true_positive_count": 9,
+      "recall_at_shortlist": 1.0,
+      "false_negative_rate": 0.0,
+      "shortlist_positive_pairs": [
+        [
+          "simple_app-empty",
+          "simple_app-releaseNonOptimized"
+        ],
+        [
+          "simple_app-empty",
+          "simple_app-releaseOptimized"
+        ],
+        [
+          "simple_app-empty",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "simple_app-releaseOptimized"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "snake"
+        ],
+        [
+          "simple_app-releaseOptimized",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseOptimized",
+          "snake"
+        ],
+        [
+          "simple_app-releaseRename",
+          "snake"
+        ]
+      ],
+      "false_negative_pairs": []
+    },
+    {
+      "num_perm": 64,
+      "bands": 64,
+      "status": "ok",
+      "rows_per_band": 1,
+      "total_pairs": 10,
+      "positive_pairs_above_threshold": 9,
+      "shortlist_size": 10,
+      "shortlist_true_positive_count": 9,
+      "recall_at_shortlist": 1.0,
+      "false_negative_rate": 0.0,
+      "shortlist_positive_pairs": [
+        [
+          "simple_app-empty",
+          "simple_app-releaseNonOptimized"
+        ],
+        [
+          "simple_app-empty",
+          "simple_app-releaseOptimized"
+        ],
+        [
+          "simple_app-empty",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "simple_app-releaseOptimized"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "snake"
+        ],
+        [
+          "simple_app-releaseOptimized",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseOptimized",
+          "snake"
+        ],
+        [
+          "simple_app-releaseRename",
+          "snake"
+        ]
+      ],
+      "false_negative_pairs": []
+    },
+    {
+      "num_perm": 128,
+      "bands": 16,
+      "status": "ok",
+      "rows_per_band": 8,
+      "total_pairs": 10,
+      "positive_pairs_above_threshold": 9,
+      "shortlist_size": 3,
+      "shortlist_true_positive_count": 3,
+      "recall_at_shortlist": 0.3333333333333333,
+      "false_negative_rate": 0.6666666666666667,
+      "shortlist_positive_pairs": [
+        [
+          "simple_app-releaseNonOptimized",
+          "simple_app-releaseOptimized"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseOptimized",
+          "simple_app-releaseRename"
+        ]
+      ],
+      "false_negative_pairs": [
+        [
+          "simple_app-empty",
+          "simple_app-releaseNonOptimized"
+        ],
+        [
+          "simple_app-empty",
+          "simple_app-releaseOptimized"
+        ],
+        [
+          "simple_app-empty",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "snake"
+        ],
+        [
+          "simple_app-releaseOptimized",
+          "snake"
+        ],
+        [
+          "simple_app-releaseRename",
+          "snake"
+        ]
+      ]
+    },
+    {
+      "num_perm": 128,
+      "bands": 32,
+      "status": "ok",
+      "rows_per_band": 4,
+      "total_pairs": 10,
+      "positive_pairs_above_threshold": 9,
+      "shortlist_size": 6,
+      "shortlist_true_positive_count": 6,
+      "recall_at_shortlist": 0.6666666666666666,
+      "false_negative_rate": 0.33333333333333337,
+      "shortlist_positive_pairs": [
+        [
+          "simple_app-releaseNonOptimized",
+          "simple_app-releaseOptimized"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "snake"
+        ],
+        [
+          "simple_app-releaseOptimized",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseOptimized",
+          "snake"
+        ],
+        [
+          "simple_app-releaseRename",
+          "snake"
+        ]
+      ],
+      "false_negative_pairs": [
+        [
+          "simple_app-empty",
+          "simple_app-releaseNonOptimized"
+        ],
+        [
+          "simple_app-empty",
+          "simple_app-releaseOptimized"
+        ],
+        [
+          "simple_app-empty",
+          "simple_app-releaseRename"
+        ]
+      ]
+    },
+    {
+      "num_perm": 128,
+      "bands": 64,
+      "status": "ok",
+      "rows_per_band": 2,
+      "total_pairs": 10,
+      "positive_pairs_above_threshold": 9,
+      "shortlist_size": 10,
+      "shortlist_true_positive_count": 9,
+      "recall_at_shortlist": 1.0,
+      "false_negative_rate": 0.0,
+      "shortlist_positive_pairs": [
+        [
+          "simple_app-empty",
+          "simple_app-releaseNonOptimized"
+        ],
+        [
+          "simple_app-empty",
+          "simple_app-releaseOptimized"
+        ],
+        [
+          "simple_app-empty",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "simple_app-releaseOptimized"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "snake"
+        ],
+        [
+          "simple_app-releaseOptimized",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseOptimized",
+          "snake"
+        ],
+        [
+          "simple_app-releaseRename",
+          "snake"
+        ]
+      ],
+      "false_negative_pairs": []
+    },
+    {
+      "num_perm": 256,
+      "bands": 16,
+      "status": "ok",
+      "rows_per_band": 16,
+      "total_pairs": 10,
+      "positive_pairs_above_threshold": 9,
+      "shortlist_size": 0,
+      "shortlist_true_positive_count": 0,
+      "recall_at_shortlist": 0.0,
+      "false_negative_rate": 1.0,
+      "shortlist_positive_pairs": [],
+      "false_negative_pairs": [
+        [
+          "simple_app-empty",
+          "simple_app-releaseNonOptimized"
+        ],
+        [
+          "simple_app-empty",
+          "simple_app-releaseOptimized"
+        ],
+        [
+          "simple_app-empty",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "simple_app-releaseOptimized"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "snake"
+        ],
+        [
+          "simple_app-releaseOptimized",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseOptimized",
+          "snake"
+        ],
+        [
+          "simple_app-releaseRename",
+          "snake"
+        ]
+      ]
+    },
+    {
+      "num_perm": 256,
+      "bands": 32,
+      "status": "ok",
+      "rows_per_band": 8,
+      "total_pairs": 10,
+      "positive_pairs_above_threshold": 9,
+      "shortlist_size": 3,
+      "shortlist_true_positive_count": 3,
+      "recall_at_shortlist": 0.3333333333333333,
+      "false_negative_rate": 0.6666666666666667,
+      "shortlist_positive_pairs": [
+        [
+          "simple_app-releaseNonOptimized",
+          "simple_app-releaseOptimized"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseOptimized",
+          "simple_app-releaseRename"
+        ]
+      ],
+      "false_negative_pairs": [
+        [
+          "simple_app-empty",
+          "simple_app-releaseNonOptimized"
+        ],
+        [
+          "simple_app-empty",
+          "simple_app-releaseOptimized"
+        ],
+        [
+          "simple_app-empty",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "snake"
+        ],
+        [
+          "simple_app-releaseOptimized",
+          "snake"
+        ],
+        [
+          "simple_app-releaseRename",
+          "snake"
+        ]
+      ]
+    },
+    {
+      "num_perm": 256,
+      "bands": 64,
+      "status": "ok",
+      "rows_per_band": 4,
+      "total_pairs": 10,
+      "positive_pairs_above_threshold": 9,
+      "shortlist_size": 10,
+      "shortlist_true_positive_count": 9,
+      "recall_at_shortlist": 1.0,
+      "false_negative_rate": 0.0,
+      "shortlist_positive_pairs": [
+        [
+          "simple_app-empty",
+          "simple_app-releaseNonOptimized"
+        ],
+        [
+          "simple_app-empty",
+          "simple_app-releaseOptimized"
+        ],
+        [
+          "simple_app-empty",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "simple_app-releaseOptimized"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseNonOptimized",
+          "snake"
+        ],
+        [
+          "simple_app-releaseOptimized",
+          "simple_app-releaseRename"
+        ],
+        [
+          "simple_app-releaseOptimized",
+          "snake"
+        ],
+        [
+          "simple_app-releaseRename",
+          "snake"
+        ]
+      ],
+      "false_negative_pairs": []
+    }
+  ],
+  "best_by_recall": {
+    "num_perm": 256,
+    "bands": 64,
+    "status": "ok",
+    "rows_per_band": 4,
+    "total_pairs": 10,
+    "positive_pairs_above_threshold": 9,
+    "shortlist_size": 10,
+    "shortlist_true_positive_count": 9,
+    "recall_at_shortlist": 1.0,
+    "false_negative_rate": 0.0,
+    "shortlist_positive_pairs": [
+      [
+        "simple_app-empty",
+        "simple_app-releaseNonOptimized"
+      ],
+      [
+        "simple_app-empty",
+        "simple_app-releaseOptimized"
+      ],
+      [
+        "simple_app-empty",
+        "simple_app-releaseRename"
+      ],
+      [
+        "simple_app-releaseNonOptimized",
+        "simple_app-releaseOptimized"
+      ],
+      [
+        "simple_app-releaseNonOptimized",
+        "simple_app-releaseRename"
+      ],
+      [
+        "simple_app-releaseNonOptimized",
+        "snake"
+      ],
+      [
+        "simple_app-releaseOptimized",
+        "simple_app-releaseRename"
+      ],
+      [
+        "simple_app-releaseOptimized",
+        "snake"
+      ],
+      [
+        "simple_app-releaseRename",
+        "snake"
+      ]
+    ],
+    "false_negative_pairs": []
+  },
+  "best_by_balanced": {
+    "num_perm": 64,
+    "bands": 32,
+    "status": "ok",
+    "rows_per_band": 2,
+    "total_pairs": 10,
+    "positive_pairs_above_threshold": 9,
+    "shortlist_size": 10,
+    "shortlist_true_positive_count": 9,
+    "recall_at_shortlist": 1.0,
+    "false_negative_rate": 0.0,
+    "shortlist_positive_pairs": [
+      [
+        "simple_app-empty",
+        "simple_app-releaseNonOptimized"
+      ],
+      [
+        "simple_app-empty",
+        "simple_app-releaseOptimized"
+      ],
+      [
+        "simple_app-empty",
+        "simple_app-releaseRename"
+      ],
+      [
+        "simple_app-releaseNonOptimized",
+        "simple_app-releaseOptimized"
+      ],
+      [
+        "simple_app-releaseNonOptimized",
+        "simple_app-releaseRename"
+      ],
+      [
+        "simple_app-releaseNonOptimized",
+        "snake"
+      ],
+      [
+        "simple_app-releaseOptimized",
+        "simple_app-releaseRename"
+      ],
+      [
+        "simple_app-releaseOptimized",
+        "snake"
+      ],
+      [
+        "simple_app-releaseRename",
+        "snake"
+      ]
+    ],
+    "false_negative_pairs": []
+  }
+}
