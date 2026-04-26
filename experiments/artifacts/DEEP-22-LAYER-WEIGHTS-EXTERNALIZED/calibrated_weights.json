@@ -1,0 +1,21 @@
+{
+  "schema_version": "layer-weights-v1",
+  "snapshot_id": "DEEP-22-LAYER-WEIGHTS-EXTERNALIZED",
+  "source": "extracted from script/m_static_views.py LAYER_WEIGHTS at 2026-04-25",
+  "calibration_method": "arithmetic-normalisation-to-sum-1.0 (DEEP-19, ca605ec)",
+  "real_calibration_status": "blocked",
+  "real_calibration_blocked_by": "EXEC-080 (AndroZoo train/test split)",
+  "real_calibration_task": "EXEC-086 (logistic-regression / learn-to-rank по per-view scores)",
+  "n_documents": 0,
+  "weights": {
+    "code": 0.391304347826087,
+    "component": 0.2173913043478261,
+    "resource": 0.17391304347826086,
+    "library": 0.08695652173913043,
+    "api": 0.13043478260869565,
+    "code_v4": 0.0,
+    "code_v4_shingled": 0.0,
+    "resource_v2": 0.0
+  },
+  "note": "Веса численно идентичны hard-coded LAYER_WEIGHTS в коде (DEEP-19 нормировка). Файл создан в волне 22 (DEEP-22-LAYER-WEIGHTS-PROPAGATE) как архитектурный refactor: веса вынесены в JSON, чтобы будущая реальная калибровка (EXEC-086) меняла только этот файл, без правок кода. До реальной калибровки full_similarity_score численно не меняется."
+}
