@@ -1,0 +1,38 @@
+{
+  "avg_first_pass_s": 0.003120530828571428,
+  "avg_second_pass_s": 0.002971573474285703,
+  "cache_hit_ratio": 1.0,
+  "corpus_dir": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks",
+  "corpus_size": 350,
+  "corpus_source": "fdroid_v2",
+  "generated_at": "2026-04-27T14:46:35.534744+00:00",
+  "n_iterations": 2,
+  "pass_1": {
+    "avg_time_s": 0.003120530828571428,
+    "cache_hits": 0,
+    "total_time_s": 1.0921857899999998
+  },
+  "pass_2": {
+    "avg_time_s": 0.002971573474285703,
+    "cache_hits": 350,
+    "total_time_s": 1.040050715999996
+  },
+  "requested_corpus_dir": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks",
+  "run_id": "NOISE-27-NOISE-CACHE-RECALL",
+  "source": {
+    "libloom_runtime": {
+      "available": false,
+      "jar_path": null,
+      "libs_profile_dir": null,
+      "reason": "LIBLOOM_HOME is not set",
+      "status": "unavailable",
+      "version": null
+    },
+    "script": "script/run_noise_cache_recall.py"
+  },
+  "speedup_factor": 1.050127434362541,
+  "status": "ok",
+  "warnings": [
+    "libloom_unavailable: LIBLOOM_HOME is not set"
+  ]
+}
