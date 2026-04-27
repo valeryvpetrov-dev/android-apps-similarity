@@ -131,3 +131,75 @@ def test_cli_falls_back_to_synthetic_dataset_when_corpus_is_missing(tmp_path: Pa
     assert payload["source"] == "synthetic_fallback"
     assert payload["n_pairs"] == 4
     assert payload["channel_coverage"]["all_channels_ratio"] == 1.0
+
+
+def test_quick_compare_pair_keeps_dex_code_channel(tmp_path: Path):
+    module = _load_module()
+    layers = {
+        "code": {"dex:classes.dex"},
+        "component": {"manifest_component:MainActivity"},
+        "resource": {"res_type:layout"},
+        "metadata": {"manifest_present:1"},
+        "library": {"meta_inf_ext:RSA"},
+    }
+    left = module.ApkRecord(
+        path=tmp_path / "left.apk",
+        app_id="left",
+        sha256="left-sha",
+        package_name="pkg.left",
+        signature_hash="same-signature",
+        library_set=frozenset({"meta_inf_ext:RSA"}),
+        category="pkg",
+        features=module._quick_features_from_layers(layers, "same-signature"),
+    )
+    right = module.ApkRecord(
+        path=tmp_path / "right.apk",
+        app_id="right",
+        sha256="right-sha",
+        package_name="pkg.right",
+        signature_hash="same-signature",
+        library_set=frozenset({"meta_inf_ext:RSA"}),
+        category="pkg",
+        features=module._quick_features_from_layers(layers, "same-signature"),
+    )
+
+    row = module._compare_pair(left, right, "similar")
+
+    assert "code" in row["evidence_channels"]
+
+
+def test_near_duplicate_same_package_pair_enters_clone_pool(tmp_path: Path):
+    module = _load_module()
+    layers = {
+        "code": {"dex:classes.dex"},
+        "component": {"manifest_component:MainActivity"},
+        "resource": {"res_type:layout", "res_ext:xml"},
+        "metadata": {"manifest_present:1"},
+        "library": {"meta_inf_ext:RSA"},
+    }
+    records = [
+        module.ApkRecord(
+            path=tmp_path / "pkg.alpha_1.apk",
+            app_id="pkg.alpha_1",
+            sha256="sha-one",
+            package_name="pkg.alpha",
+            signature_hash="signature-one",
+            library_set=frozenset({"meta_inf_ext:RSA"}),
+            category="pkg",
+            features=module._quick_features_from_layers(layers, "signature-one"),
+        ),
+        module.ApkRecord(
+            path=tmp_path / "pkg.alpha_2.apk",
+            app_id="pkg.alpha_2",
+            sha256="sha-two",
+            package_name="pkg.alpha",
+            signature_hash="signature-two",
+            library_set=frozenset({"meta_inf_ext:RSA"}),
+            category="pkg",
+            features=module._quick_features_from_layers(layers, "signature-two"),
+        ),
+    ]
+
+    pools = module.build_pair_pools(records)
+
+    assert pools["clone"]

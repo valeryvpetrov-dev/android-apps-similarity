@@ -1,0 +1,969 @@
+{
+  "artifact_id": "EXEC-HINT-27-CHANNEL-COVERAGE",
+  "source_dataset": "fdroid_v2",
+  "n_pairs": 30,
+  "channels": {
+    "code": {
+      "n_pairs_with_data": 30,
+      "faithfulness_mean": 1.0,
+      "sufficiency_mean": 1.0,
+      "comprehensiveness_mean": 1.0
+    },
+    "component": {
+      "n_pairs_with_data": 30,
+      "faithfulness_mean": 0.566667,
+      "sufficiency_mean": 0.566667,
+      "comprehensiveness_mean": 0.566667
+    },
+    "library": {
+      "n_pairs_with_data": 30,
+      "faithfulness_mean": 0.933333,
+      "sufficiency_mean": 0.933333,
+      "comprehensiveness_mean": 0.933333
+    },
+    "resource": {
+      "n_pairs_with_data": 30,
+      "faithfulness_mean": 1.0,
+      "sufficiency_mean": 1.0,
+      "comprehensiveness_mean": 1.0
+    },
+    "signing": {
+      "n_pairs_with_data": 30,
+      "faithfulness_mean": 0.0,
+      "sufficiency_mean": 0.0,
+      "comprehensiveness_mean": 0.0
+    }
+  },
+  "per_pair": [
+    {
+      "pair_id": "ch.joshuah.bibleverseapp_4__ch.joshuah.bibleverseapp_6",
+      "ground_truth": "clone",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "cc.echonet.coolmicapp_10__cc.echonet.coolmicapp_10300",
+      "ground_truth": "clone",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "chat.seers.app_6__chat.seers.app_7",
+      "ground_truth": "clone",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "app.podiumpodcasts.podium_1000005__app.podiumpodcasts.podium_1000006",
+      "ground_truth": "clone",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "at.manuelbichler.octalsuntime_5__at.manuelbichler.octalsuntime_6",
+      "ground_truth": "clone",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "app.umerfarooq.littlerelay_8__app.umerfarooq.littlerelay_9",
+      "ground_truth": "clone",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "biz.gyrus.yaab_28__biz.gyrus.yaab_30",
+      "ground_truth": "clone",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "ch.tiim.markdown_widget_3__ch.tiim.markdown_widget_7",
+      "ground_truth": "clone",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "ch.bailu.aat_44__ch.bailu.aat_45",
+      "ground_truth": "repackage",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "biz.binarysolutions.weatherusa_26__biz.binarysolutions.weatherusa_27",
+      "ground_truth": "repackage",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "aq.metallists.loudbang_52__aq.metallists.loudbang_53",
+      "ground_truth": "repackage",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "cf.playhi.freezeyou_150__cf.playhi.freezeyou_151",
+      "ground_truth": "repackage",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "biz.binarysolutions.vatcalculator_10__biz.binarysolutions.vatcalculator_11",
+      "ground_truth": "repackage",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "be.uhasselt.privacypolice_12__be.uhasselt.privacypolice_13",
+      "ground_truth": "repackage",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "alt.nainapps.aer_1730403000__alt.nainapps.aer_1735160000",
+      "ground_truth": "repackage",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "app.hypostats_57__app.hypostats_58",
+      "ground_truth": "repackage",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "An.stop_9__at.or.at.plugoffairplane_1010",
+      "ground_truth": "similar",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "au.id.colby.nfcquicksettings_19__be.knars.netflixtoimdb_4",
+      "ground_truth": "similar",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "at.dasz.KolabDroid_95__ca.mudar.fairphone.peaceofmind_19",
+      "ground_truth": "similar",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "a2dp.Vol_169__ademar.textlauncher_9",
+      "ground_truth": "similar",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "apps.droidnotify_64__axp.tool.apkextractor_5",
+      "ground_truth": "similar",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "aq.metallists.loudbang_52__by.yauhenl.gardine_3",
+      "ground_truth": "similar",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "app.fluffy_729__app.shosetsu.android.fdroid_44",
+      "ground_truth": "similar",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "ca.momi.lift_1__cat.naval.florae_5",
+      "ground_truth": "similar",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "agrigolo.opendrummer_2__atm.nasaimages_3",
+      "ground_truth": "different",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        },
+        "library": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "ardash.lato_1001005__be.chvp.nanoledger_2026040501",
+      "ground_truth": "different",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "ai.susi_16__ca.hamaluik.timecop_45",
+      "ground_truth": "different",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "app.easy.launcher_32__be.humanoids.webthingify_2",
+      "ground_truth": "different",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "app.slauncher_103__ca.littlesvr.everyonestimetable_4",
+      "ground_truth": "different",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        },
+        "library": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    },
+    {
+      "pair_id": "app.hkTransport_105__axp.tool.apkextractor_4",
+      "ground_truth": "different",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 0.0,
+          "sufficiency": 0.0,
+          "comprehensiveness": 0.0
+        }
+      }
+    }
+  ]
+}
