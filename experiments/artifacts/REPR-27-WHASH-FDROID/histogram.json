@@ -1,0 +1,334 @@
+{
+  "bins": [
+    {
+      "count": 237,
+      "distance": 0
+    },
+    {
+      "count": 4,
+      "distance": 1
+    },
+    {
+      "count": 194,
+      "distance": 2
+    },
+    {
+      "count": 122,
+      "distance": 3
+    },
+    {
+      "count": 1436,
+      "distance": 4
+    },
+    {
+      "count": 314,
+      "distance": 5
+    },
+    {
+      "count": 2051,
+      "distance": 6
+    },
+    {
+      "count": 716,
+      "distance": 7
+    },
+    {
+      "count": 6239,
+      "distance": 8
+    },
+    {
+      "count": 2032,
+      "distance": 9
+    },
+    {
+      "count": 1437,
+      "distance": 10
+    },
+    {
+      "count": 543,
+      "distance": 11
+    },
+    {
+      "count": 1345,
+      "distance": 12
+    },
+    {
+      "count": 703,
+      "distance": 13
+    },
+    {
+      "count": 709,
+      "distance": 14
+    },
+    {
+      "count": 771,
+      "distance": 15
+    },
+    {
+      "count": 1781,
+      "distance": 16
+    },
+    {
+      "count": 874,
+      "distance": 17
+    },
+    {
+      "count": 671,
+      "distance": 18
+    },
+    {
+      "count": 662,
+      "distance": 19
+    },
+    {
+      "count": 1202,
+      "distance": 20
+    },
+    {
+      "count": 570,
+      "distance": 21
+    },
+    {
+      "count": 444,
+      "distance": 22
+    },
+    {
+      "count": 363,
+      "distance": 23
+    },
+    {
+      "count": 1145,
+      "distance": 24
+    },
+    {
+      "count": 371,
+      "distance": 25
+    },
+    {
+      "count": 207,
+      "distance": 26
+    },
+    {
+      "count": 166,
+      "distance": 27
+    },
+    {
+      "count": 252,
+      "distance": 28
+    },
+    {
+      "count": 126,
+      "distance": 29
+    },
+    {
+      "count": 209,
+      "distance": 30
+    },
+    {
+      "count": 195,
+      "distance": 31
+    },
+    {
+      "count": 590,
+      "distance": 32
+    },
+    {
+      "count": 238,
+      "distance": 33
+    },
+    {
+      "count": 186,
+      "distance": 34
+    },
+    {
+      "count": 94,
+      "distance": 35
+    },
+    {
+      "count": 128,
+      "distance": 36
+    },
+    {
+      "count": 81,
+      "distance": 37
+    },
+    {
+      "count": 86,
+      "distance": 38
+    },
+    {
+      "count": 10,
+      "distance": 39
+    },
+    {
+      "count": 207,
+      "distance": 40
+    },
+    {
+      "count": 30,
+      "distance": 41
+    },
+    {
+      "count": 51,
+      "distance": 42
+    },
+    {
+      "count": 20,
+      "distance": 43
+    },
+    {
+      "count": 43,
+      "distance": 44
+    },
+    {
+      "count": 24,
+      "distance": 45
+    },
+    {
+      "count": 48,
+      "distance": 46
+    },
+    {
+      "count": 30,
+      "distance": 47
+    },
+    {
+      "count": 54,
+      "distance": 48
+    },
+    {
+      "count": 36,
+      "distance": 49
+    },
+    {
+      "count": 144,
+      "distance": 50
+    },
+    {
+      "count": 46,
+      "distance": 51
+    },
+    {
+      "count": 238,
+      "distance": 52
+    },
+    {
+      "count": 32,
+      "distance": 53
+    },
+    {
+      "count": 192,
+      "distance": 54
+    },
+    {
+      "count": 44,
+      "distance": 55
+    },
+    {
+      "count": 288,
+      "distance": 56
+    },
+    {
+      "count": 4,
+      "distance": 57
+    },
+    {
+      "count": 62,
+      "distance": 58
+    },
+    {
+      "count": 4,
+      "distance": 59
+    },
+    {
+      "count": 20,
+      "distance": 60
+    },
+    {
+      "count": 0,
+      "distance": 61
+    },
+    {
+      "count": 4,
+      "distance": 62
+    },
+    {
+      "count": 0,
+      "distance": 63
+    },
+    {
+      "count": 0,
+      "distance": 64
+    }
+  ],
+  "distance_counts": {
+    "0": 237,
+    "1": 4,
+    "10": 1437,
+    "11": 543,
+    "12": 1345,
+    "13": 703,
+    "14": 709,
+    "15": 771,
+    "16": 1781,
+    "17": 874,
+    "18": 671,
+    "19": 662,
+    "2": 194,
+    "20": 1202,
+    "21": 570,
+    "22": 444,
+    "23": 363,
+    "24": 1145,
+    "25": 371,
+    "26": 207,
+    "27": 166,
+    "28": 252,
+    "29": 126,
+    "3": 122,
+    "30": 209,
+    "31": 195,
+    "32": 590,
+    "33": 238,
+    "34": 186,
+    "35": 94,
+    "36": 128,
+    "37": 81,
+    "38": 86,
+    "39": 10,
+    "4": 1436,
+    "40": 207,
+    "41": 30,
+    "42": 51,
+    "43": 20,
+    "44": 43,
+    "45": 24,
+    "46": 48,
+    "47": 30,
+    "48": 54,
+    "49": 36,
+    "5": 314,
+    "50": 144,
+    "51": 46,
+    "52": 238,
+    "53": 32,
+    "54": 192,
+    "55": 44,
+    "56": 288,
+    "57": 4,
+    "58": 62,
+    "59": 4,
+    "6": 2051,
+    "60": 20,
+    "61": 0,
+    "62": 4,
+    "63": 0,
+    "64": 0,
+    "7": 716,
+    "8": 6239,
+    "9": 2032
+  },
+  "n_pairs": 31125,
+  "near_duplicate_threshold": 5,
+  "run_id": "REPR-27-WHASH-FDROID"
+}
