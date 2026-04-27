@@ -14,6 +14,7 @@ import argparse
 import json
 import logging
 import sys
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -130,12 +131,19 @@ except Exception:
         compare_code_v4 = None
 
 try:
-    from script.code_view_v4_shingled import compare_code_v4_shingled
+    from script.code_view_v4_shingled import (
+        compare_code_v4_shingled,
+        extract_code_view_v4_shingled,
+    )
 except Exception:
     try:
-        from code_view_v4_shingled import compare_code_v4_shingled
+        from code_view_v4_shingled import (
+            compare_code_v4_shingled,
+            extract_code_view_v4_shingled,
+        )
     except Exception:
         compare_code_v4_shingled = None
+        extract_code_view_v4_shingled = None
 
 try:
     from script.resource_view_v2 import (
@@ -492,6 +500,24 @@ def _extract_code_v4(apk_path: str | None) -> dict:
         return {"method_fingerprints": {}, "total_methods": 0, "mode": "v4_unavailable"}
 
 
+def _extract_code_v4_shingled(apk_path: str | None) -> dict:
+    """Return code_view_v4_shingled bundle or a null stub."""
+    if apk_path is None or extract_code_view_v4_shingled is None:
+        return {
+            "method_fingerprints": {},
+            "total_methods": 0,
+            "mode": "v4_shingled_unavailable",
+        }
+    try:
+        return extract_code_view_v4_shingled(apk_path)
+    except Exception:
+        return {
+            "method_fingerprints": {},
+            "total_methods": 0,
+            "mode": "v4_shingled_unavailable",
+        }
+
+
 def _extract_resource_v2(unpacked_dir: str | None) -> dict:
     """Return resource_view_v2 bundle or a null stub.
 
@@ -535,6 +561,7 @@ def _extract_quick(apk_path: str) -> dict:
         "library": layers.get("library", set()),
         "signing": _extract_signing(str(resolved)),
         "code_v4": _extract_code_v4(str(resolved)),
+        "code_v4_shingled": _extract_code_v4_shingled(str(resolved)),
         # resource_v2 requires unpacked_dir — null stub in quick mode.
         "resource_v2": _extract_resource_v2(None),
         "mode": "quick",
@@ -603,6 +630,9 @@ def _extract_enhanced(unpacked_dir: str, apk_path: str | None) -> dict:
     # code_view_v4: method-level fuzzy fingerprint; only from APK ZIP.
     features["code_v4"] = _extract_code_v4(apk_path)
 
+    # code_view_v4_shingled: preferred canonical code fingerprint.
+    features["code_v4_shingled"] = _extract_code_v4_shingled(apk_path)
+
     # resource_view_v2: sub-categorised resource signal from unpacked dir.
     features["resource_v2"] = _extract_resource_v2(unpacked_dir)
 
@@ -646,36 +676,53 @@ def _compare_code(
     code_v2_hash_b: str | None = None,
     code_v3_set_a: Any | None = None,
     code_v3_set_b: Any | None = None,
+    code_v4_features_a: dict | None = None,
+    code_v4_features_b: dict | None = None,
+    code_v4_shingled_a: dict | None = None,
+    code_v4_shingled_b: dict | None = None,
 ) -> dict:
-    """Compare code layer.
+    """Compare code layer through the canonical v4 family only.
 
-    Priority: GED > v3 method-opcode Jaccard > v2 TLSH > v1 Jaccard on DEX names.
+    REPR-26-CODE-VIEW-SUNSET-PLAN:
+    ``code_v4_shingled`` is preferred; ``code_v4`` is the canonical fallback.
+    GED, historical hash/set inputs, and DEX-name sets are accepted only for
+    backward-compatible call signatures and raise ``DeprecationWarning`` when
+    a caller tries to feed them into production-flow comparison.
     """
-    if code_ged_score is not None:
-        return {"score": float(code_ged_score), "status": "ged"}
-    if code_v3_set_a is not None or code_v3_set_b is not None:
-        try:
-            from code_view_v3 import compare_code_v3
-        except ImportError:
-            try:
-                from script.code_view_v3 import compare_code_v3
-            except ImportError:
-                compare_code_v3 = None
-        if compare_code_v3 is not None:
-            return compare_code_v3(code_v3_set_a, code_v3_set_b)
-    if code_v2_hash_a is not None or code_v2_hash_b is not None:
-        try:
-            from code_view_v2 import compare_code_v2
-        except ImportError:
-            try:
-                from script.code_view_v2 import compare_code_v2
-            except ImportError:
-                compare_code_v2 = None
-        if compare_code_v2 is not None:
-            return compare_code_v2(code_v2_hash_a, code_v2_hash_b)
+    legacy_requested = (
+        code_ged_score is not None
+        or code_v2_hash_a is not None
+        or code_v2_hash_b is not None
+        or code_v3_set_a is not None
+        or code_v3_set_b is not None
+        or bool(feat_a)
+        or bool(feat_b)
+    )
+    if legacy_requested:
+        warnings.warn(
+            "Deprecated code-view inputs were ignored; production comparison "
+            "uses only code_view_v4_shingled or code_view_v4.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
+    if code_v4_shingled_a is not None or code_v4_shingled_b is not None:
+        if compare_code_v4_shingled is None:
+            return {"score": 0.0, "status": "v4_shingled_unavailable"}
+        result = dict(compare_code_v4_shingled(code_v4_shingled_a, code_v4_shingled_b))
+        result.setdefault("status", "canonical_v4_shingled")
+        return result
+
+    if code_v4_features_a is not None or code_v4_features_b is not None:
+        if compare_code_v4 is None:
+            return {"score": 0.0, "status": "v4_unavailable"}
+        result = dict(compare_code_v4(code_v4_features_a, code_v4_features_b))
+        result.setdefault("status", "canonical_v4")
+        return result
+
     left = feat_a if isinstance(feat_a, set) else set()
     right = feat_b if isinstance(feat_b, set) else set()
-    return {"score": _jaccard_on_sets(left, right), "status": "jaccard_dex"}
+    return {"score": _jaccard_on_sets(left, right), "status": "deprecated_jaccard_dex"}
 
 
 def _compare_resource_enhanced(feat_a: dict, feat_b: dict) -> dict:
@@ -1293,7 +1340,14 @@ def compare_all(
                 code_v2_hash_b=code_v2_hash_b,
                 code_v3_set_a=code_v3_set_a,
                 code_v3_set_b=code_v3_set_b,
+                code_v4_features_a=features_a.get("code_v4"),
+                code_v4_features_b=features_b.get("code_v4"),
+                code_v4_shingled_a=features_a.get("code_v4_shingled"),
+                code_v4_shingled_b=features_b.get("code_v4_shingled"),
             )
+
+        elif layer in {"code_v4", "code_v4_shingled", "resource_v2"}:
+            per_layer[layer] = compare_m_static_layer(layer, feat_a, feat_b)
 
         elif layer == "metadata":
             per_layer["metadata"] = _compare_layer_quick(layer, feat_a, feat_b)

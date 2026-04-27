@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """EXEC-082a: code_view_v4 — method-level fuzzy fingerprint of opcode sequences.
 
+@canonical REPR-26-CODE-VIEW-SUNSET-PLAN: canonical code representation.
+Production comparison uses this method-level fuzzy representation, with
+code_view_v4_shingled preferred when available.
+
 Motivation (REV-1 / research/R-04):
   v2 hashes the whole APK opcode stream with TLSH; v3 compares per-method
   opcode multisets with set Jaccard. Neither is a per-method *fuzzy* hash,

@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """SOTA-001: code_view_v2 — opcode n-gram + TLSH fuzzy hash similarity.
 
+@deprecated REPR-26-CODE-VIEW-SUNSET-PLAN: legacy research variant.
+Production comparison must use the canonical code_view_v4 /
+code_view_v4_shingled path. This module is kept for historical experiments
+and regression tests until the sunset plan reaches removal phase.
+
 Replaces v1 (DEX filename Jaccard) with:
   1. Dalvik opcode extraction via androguard
   2. Opcode n-gram bag (window=5) across all methods in APK

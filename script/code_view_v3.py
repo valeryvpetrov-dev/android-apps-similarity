@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 """
 R_code v3: Method-level opcode multiset similarity.
+
+@deprecated REPR-26-CODE-VIEW-SUNSET-PLAN: legacy research variant.
+Production comparison must use the canonical code_view_v4 /
+code_view_v4_shingled path. This module is kept for historical experiments
+and regression tests until the sunset plan reaches removal phase.
+
 Approach inspired by MOSDroid (Computers & Security, 2025).
 
 Key idea: represent APK as a set of per-method opcode sequences,

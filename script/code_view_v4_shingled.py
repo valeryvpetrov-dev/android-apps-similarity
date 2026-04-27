@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """EXEC-082.1: code_view_v4_shingled — shingled opcode fuzzy fingerprint.
 
+@canonical REPR-26-CODE-VIEW-SUNSET-PLAN: preferred canonical code
+representation. Production comparison uses this shingled method-level fuzzy
+representation first, with code_view_v4 as the canonical fallback.
+
 Motivation (REV-1 / research/R-04):
   ``code_view_v4`` hashes the full opcode sequence of every method as one
   byte string. A single-byte mutation inside the method therefore flips
