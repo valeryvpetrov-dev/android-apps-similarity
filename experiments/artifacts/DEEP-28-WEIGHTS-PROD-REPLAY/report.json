@@ -1,0 +1,616 @@
+{
+  "artifact_id": "DEEP-28-WEIGHTS-PROD-REPLAY",
+  "task_id": "DEEP-28-LAYER-WEIGHTS-PROD-APPLY",
+  "source_dataset": "/private/tmp/wave28-deep-submodule/experiments/artifacts/EXEC-HINT-27-CHANNEL-COVERAGE/channel_dataset.json",
+  "n_pairs": 30,
+  "old_weights_source": "DEEP-19 (_LAYER_WEIGHTS_FALLBACK in m_static_views)",
+  "new_weights_source": "DEEP-27 (LAYER_WEIGHTS via CALIBRATED_WEIGHTS_PATH)",
+  "old_weights": {
+    "code": 0.391304347826087,
+    "component": 0.2173913043478261,
+    "resource": 0.1739130434782609,
+    "library": 0.08695652173913045,
+    "api": 0.13043478260869565,
+    "code_v4": 0.0,
+    "code_v4_shingled": 0.0,
+    "resource_v2": 0.0
+  },
+  "new_weights": {
+    "code": 0.05,
+    "component": 0.6,
+    "resource": 0.0,
+    "library": 0.35,
+    "api": 0.0,
+    "code_v4": 0.0,
+    "code_v4_shingled": 0.0,
+    "resource_v2": 0.0
+  },
+  "aggregate": {
+    "old_full_similarity_score": {
+      "n": 30,
+      "mean": 0.7279869523078315,
+      "median": 0.8122232383519445,
+      "std": 0.2805201805406429,
+      "min": 0.1713235294117647,
+      "max": 1.0
+    },
+    "new_full_similarity_score": {
+      "n": 30,
+      "mean": 0.6094179292929293,
+      "median": 0.8090909090909091,
+      "std": 0.38129633606775787,
+      "min": 0.025,
+      "max": 1.0
+    },
+    "delta_new_minus_old": {
+      "n": 30,
+      "mean": -0.11856902301490212,
+      "median": -0.06041666666666662,
+      "std": 0.1436850747641687,
+      "min": -0.4009448818897638,
+      "max": 0.06670918367346945
+    },
+    "n_pairs_with_abs_delta_ge_0_10": 13,
+    "share_with_abs_delta_ge_0_10": 0.43333333333333335
+  },
+  "per_ground_truth": {
+    "clone": {
+      "old": {
+        "n": 8,
+        "mean": 0.9772770214073914,
+        "median": 0.9874999999999999,
+        "std": 0.024650348939436895,
+        "min": 0.9409090909090909,
+        "max": 1.0
+      },
+      "new": {
+        "n": 8,
+        "mean": 0.9428977272727272,
+        "median": 0.95625,
+        "std": 0.0635265641628669,
+        "min": 0.8181818181818181,
+        "max": 1.0
+      },
+      "delta": {
+        "n": 8,
+        "mean": -0.034379294134664076,
+        "median": -0.01573687350835329,
+        "std": 0.04169250693851029,
+        "min": -0.1227272727272728,
+        "max": 0.0
+      },
+      "abs_delta": {
+        "n": 8,
+        "mean": 0.034379294134664076,
+        "median": 0.01573687350835329,
+        "std": 0.04169250693851029,
+        "min": 0.0,
+        "max": 0.1227272727272728
+      }
+    },
+    "different": {
+      "old": {
+        "n": 6,
+        "mean": 0.3493608352650423,
+        "median": 0.3648955178679588,
+        "std": 0.12842731078410666,
+        "min": 0.1713235294117647,
+        "max": 0.49424925422605237
+      },
+      "new": {
+        "n": 6,
+        "mean": 0.13680555555555554,
+        "median": 0.16666666666666666,
+        "std": 0.07501607338052357,
+        "min": 0.025,
+        "max": 0.2125
+      },
+      "delta": {
+        "n": 6,
+        "mean": -0.2125552797094867,
+        "median": -0.2475978132329,
+        "std": 0.1534000914785745,
+        "min": -0.4009448818897638,
+        "max": 0.04117647058823529
+      },
+      "abs_delta": {
+        "n": 6,
+        "mean": 0.22628076990556512,
+        "median": 0.2475978132329,
+        "std": 0.132319114903924,
+        "min": 0.04117647058823529,
+        "max": 0.4009448818897638
+      }
+    },
+    "repackage": {
+      "old": {
+        "n": 8,
+        "mean": 0.9527594241985671,
+        "median": 0.9994186880495748,
+        "std": 0.08987856103763624,
+        "min": 0.7349056603773585,
+        "max": 1.0
+      },
+      "new": {
+        "n": 8,
+        "mean": 0.96953125,
+        "median": 1.0,
+        "std": 0.06565754401390218,
+        "min": 0.7999999999999999,
+        "max": 1.0
+      },
+      "delta": {
+        "n": 8,
+        "mean": 0.01677182580143287,
+        "median": 0.0005813119504252673,
+        "std": 0.02837123729189072,
+        "min": 0.0,
+        "max": 0.06670918367346945
+      },
+      "abs_delta": {
+        "n": 8,
+        "mean": 0.01677182580143287,
+        "median": 0.0005813119504252673,
+        "std": 0.02837123729189072,
+        "min": 0.0,
+        "max": 0.06670918367346945
+      }
+    },
+    "similar": {
+      "old": {
+        "n": 8,
+        "mean": 0.5378939990996277,
+        "median": 0.5309252253956245,
+        "std": 0.1330998943462934,
+        "min": 0.2457989347536618,
+        "max": 0.7055555555555556
+      },
+      "new": {
+        "n": 8,
+        "mean": 0.2702840909090909,
+        "median": 0.27166666666666667,
+        "std": 0.09596760977136799,
+        "min": 0.095,
+        "max": 0.39999999999999997
+      },
+      "delta": {
+        "n": 8,
+        "mean": -0.2676099081905367,
+        "median": -0.27254901960784317,
+        "std": 0.054635755473316665,
+        "min": -0.34090909090909083,
+        "max": -0.1507989347536618
+      },
+      "abs_delta": {
+        "n": 8,
+        "mean": 0.2676099081905367,
+        "median": 0.27254901960784317,
+        "std": 0.054635755473316665,
+        "min": 0.1507989347536618,
+        "max": 0.34090909090909083
+      }
+    }
+  },
+  "per_pair": [
+    {
+      "pair_id": "ch.joshuah.bibleverseapp_4__ch.joshuah.bibleverseapp_6",
+      "ground_truth": "clone",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 0.8333333333333334,
+        "resource": 1.0,
+        "library": 1.0
+      },
+      "full_similarity_score_old_deep19": 0.9583333333333334,
+      "full_similarity_score_new_deep27": 0.9,
+      "delta_new_minus_old": -0.05833333333333335,
+      "stored_full_similarity_score": 0.9583333333333334
+    },
+    {
+      "pair_id": "cc.echonet.coolmicapp_10__cc.echonet.coolmicapp_10300",
+      "ground_truth": "clone",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 0.9090909090909091,
+        "resource": 1.0,
+        "library": 0.6363636363636364
+      },
+      "full_similarity_score_old_deep19": 0.9409090909090909,
+      "full_similarity_score_new_deep27": 0.8181818181818181,
+      "delta_new_minus_old": -0.1227272727272728,
+      "stored_full_similarity_score": 0.9409090909090909
+    },
+    {
+      "pair_id": "chat.seers.app_6__chat.seers.app_7",
+      "ground_truth": "clone",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 1.0,
+        "resource": 0.8448687350835322,
+        "library": 0.75
+      },
+      "full_similarity_score_old_deep19": 0.9439737470167066,
+      "full_similarity_score_new_deep27": 0.9125,
+      "delta_new_minus_old": -0.03147374701670658,
+      "stored_full_similarity_score": 0.9439737470167063
+    },
+    {
+      "pair_id": "app.podiumpodcasts.podium_1000005__app.podiumpodcasts.podium_1000006",
+      "ground_truth": "clone",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 1.0,
+        "resource": 1.0,
+        "library": 0.75
+      },
+      "full_similarity_score_old_deep19": 0.9749999999999999,
+      "full_similarity_score_new_deep27": 0.9125,
+      "delta_new_minus_old": -0.06249999999999989,
+      "stored_full_similarity_score": 0.9749999999999999
+    },
+    {
+      "pair_id": "at.manuelbichler.octalsuntime_5__at.manuelbichler.octalsuntime_6",
+      "ground_truth": "clone",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 1.0,
+        "resource": 1.0,
+        "library": 1.0
+      },
+      "full_similarity_score_old_deep19": 1.0,
+      "full_similarity_score_new_deep27": 1.0,
+      "delta_new_minus_old": 0.0,
+      "stored_full_similarity_score": 1.0
+    },
+    {
+      "pair_id": "app.umerfarooq.littlerelay_8__app.umerfarooq.littlerelay_9",
+      "ground_truth": "clone",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 1.0,
+        "resource": 1.0,
+        "library": 1.0
+      },
+      "full_similarity_score_old_deep19": 1.0,
+      "full_similarity_score_new_deep27": 1.0,
+      "delta_new_minus_old": 0.0,
+      "stored_full_similarity_score": 1.0
+    },
+    {
+      "pair_id": "biz.gyrus.yaab_28__biz.gyrus.yaab_30",
+      "ground_truth": "clone",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 1.0,
+        "resource": 1.0,
+        "library": 1.0
+      },
+      "full_similarity_score_old_deep19": 1.0,
+      "full_similarity_score_new_deep27": 1.0,
+      "delta_new_minus_old": 0.0,
+      "stored_full_similarity_score": 1.0
+    },
+    {
+      "pair_id": "ch.tiim.markdown_widget_3__ch.tiim.markdown_widget_7",
+      "ground_truth": "clone",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 1.0,
+        "resource": 1.0,
+        "library": 1.0
+      },
+      "full_similarity_score_old_deep19": 1.0,
+      "full_similarity_score_new_deep27": 1.0,
+      "delta_new_minus_old": 0.0,
+      "stored_full_similarity_score": 1.0
+    },
+    {
+      "pair_id": "ch.bailu.aat_44__ch.bailu.aat_45",
+      "ground_truth": "repackage",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 1.0,
+        "resource": 1.0,
+        "library": 1.0
+      },
+      "full_similarity_score_old_deep19": 1.0,
+      "full_similarity_score_new_deep27": 1.0,
+      "delta_new_minus_old": 0.0,
+      "stored_full_similarity_score": 1.0
+    },
+    {
+      "pair_id": "biz.binarysolutions.weatherusa_26__biz.binarysolutions.weatherusa_27",
+      "ground_truth": "repackage",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 0.6666666666666666,
+        "resource": 0.09119496855345911,
+        "library": 1.0
+      },
+      "full_similarity_score_old_deep19": 0.7349056603773585,
+      "full_similarity_score_new_deep27": 0.7999999999999999,
+      "delta_new_minus_old": 0.06509433962264144,
+      "stored_full_similarity_score": 0.7349056603773584
+    },
+    {
+      "pair_id": "aq.metallists.loudbang_52__aq.metallists.loudbang_53",
+      "ground_truth": "repackage",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 1.0,
+        "resource": 1.0,
+        "library": 1.0
+      },
+      "full_similarity_score_old_deep19": 1.0,
+      "full_similarity_score_new_deep27": 1.0,
+      "delta_new_minus_old": 0.0,
+      "stored_full_similarity_score": 1.0
+    },
+    {
+      "pair_id": "cf.playhi.freezeyou_150__cf.playhi.freezeyou_151",
+      "ground_truth": "repackage",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 1.0,
+        "resource": 0.9988452655889145,
+        "library": 1.0
+      },
+      "full_similarity_score_old_deep19": 0.999769053117783,
+      "full_similarity_score_new_deep27": 1.0,
+      "delta_new_minus_old": 0.0002309468822170313,
+      "stored_full_similarity_score": 0.9997690531177829
+    },
+    {
+      "pair_id": "biz.binarysolutions.vatcalculator_10__biz.binarysolutions.vatcalculator_11",
+      "ground_truth": "repackage",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 1.0,
+        "resource": 0.9953416149068323,
+        "library": 1.0
+      },
+      "full_similarity_score_old_deep19": 0.9990683229813665,
+      "full_similarity_score_new_deep27": 1.0,
+      "delta_new_minus_old": 0.0009316770186335033,
+      "stored_full_similarity_score": 0.9990683229813664
+    },
+    {
+      "pair_id": "be.uhasselt.privacypolice_12__be.uhasselt.privacypolice_13",
+      "ground_truth": "repackage",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 1.0,
+        "resource": 1.0,
+        "library": 1.0
+      },
+      "full_similarity_score_old_deep19": 1.0,
+      "full_similarity_score_new_deep27": 1.0,
+      "delta_new_minus_old": 0.0,
+      "stored_full_similarity_score": 1.0
+    },
+    {
+      "pair_id": "alt.nainapps.aer_1730403000__alt.nainapps.aer_1735160000",
+      "ground_truth": "repackage",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 1.0,
+        "resource": 0.5102040816326531,
+        "library": 0.875
+      },
+      "full_similarity_score_old_deep19": 0.8895408163265306,
+      "full_similarity_score_new_deep27": 0.95625,
+      "delta_new_minus_old": 0.06670918367346945,
+      "stored_full_similarity_score": 0.8895408163265306
+    },
+    {
+      "pair_id": "app.hypostats_57__app.hypostats_58",
+      "ground_truth": "repackage",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 1.0,
+        "resource": 0.9939577039274925,
+        "library": 1.0
+      },
+      "full_similarity_score_old_deep19": 0.9987915407854985,
+      "full_similarity_score_new_deep27": 1.0,
+      "delta_new_minus_old": 0.0012084592145015227,
+      "stored_full_similarity_score": 0.9987915407854985
+    },
+    {
+      "pair_id": "An.stop_9__at.or.at.plugoffairplane_1010",
+      "ground_truth": "similar",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 0.0,
+        "resource": 0.6666666666666666,
+        "library": 1.0
+      },
+      "full_similarity_score_old_deep19": 0.6833333333333333,
+      "full_similarity_score_new_deep27": 0.39999999999999997,
+      "delta_new_minus_old": -0.2833333333333334,
+      "stored_full_similarity_score": 0.6833333333333332
+    },
+    {
+      "pair_id": "au.id.colby.nfcquicksettings_19__be.knars.netflixtoimdb_4",
+      "ground_truth": "similar",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 0.0,
+        "resource": 0.005964214711729622,
+        "library": 0.6666666666666666
+      },
+      "full_similarity_score_old_deep19": 0.5178595096090125,
+      "full_similarity_score_new_deep27": 0.2833333333333333,
+      "delta_new_minus_old": -0.23452617627567918,
+      "stored_full_similarity_score": 0.5178595096090125
+    },
+    {
+      "pair_id": "at.dasz.KolabDroid_95__ca.mudar.fairphone.peaceofmind_19",
+      "ground_truth": "similar",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 0.0,
+        "resource": 0.45454545454545453,
+        "library": 0.6
+      },
+      "full_similarity_score_old_deep19": 0.6009090909090908,
+      "full_similarity_score_new_deep27": 0.26,
+      "delta_new_minus_old": -0.34090909090909083,
+      "stored_full_similarity_score": 0.6009090909090908
+    },
+    {
+      "pair_id": "a2dp.Vol_169__ademar.textlauncher_9",
+      "ground_truth": "similar",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 0.0,
+        "resource": 0.058823529411764705,
+        "library": 0.6
+      },
+      "full_similarity_score_old_deep19": 0.5217647058823529,
+      "full_similarity_score_new_deep27": 0.26,
+      "delta_new_minus_old": -0.2617647058823529,
+      "stored_full_similarity_score": 0.5217647058823529
+    },
+    {
+      "pair_id": "apps.droidnotify_64__axp.tool.apkextractor_5",
+      "ground_truth": "similar",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 0.0,
+        "resource": 0.7777777777777778,
+        "library": 1.0
+      },
+      "full_similarity_score_old_deep19": 0.7055555555555556,
+      "full_similarity_score_new_deep27": 0.39999999999999997,
+      "delta_new_minus_old": -0.30555555555555564,
+      "stored_full_similarity_score": 0.7055555555555556
+    },
+    {
+      "pair_id": "aq.metallists.loudbang_52__by.yauhenl.gardine_3",
+      "ground_truth": "similar",
+      "per_layer_scores": {
+        "code": 0.5,
+        "component": 0.0,
+        "resource": 0.0039946737683089215,
+        "library": 0.2
+      },
+      "full_similarity_score_old_deep19": 0.2457989347536618,
+      "full_similarity_score_new_deep27": 0.095,
+      "delta_new_minus_old": -0.1507989347536618,
+      "stored_full_similarity_score": 0.2457989347536618
+    },
+    {
+      "pair_id": "app.fluffy_729__app.shosetsu.android.fdroid_44",
+      "ground_truth": "similar",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 0.2,
+        "resource": 0.03376205787781351,
+        "library": 0.3333333333333333
+      },
+      "full_similarity_score_old_deep19": 0.540085744908896,
+      "full_similarity_score_new_deep27": 0.2866666666666666,
+      "delta_new_minus_old": -0.2534190782422294,
+      "stored_full_similarity_score": 0.540085744908896
+    },
+    {
+      "pair_id": "ca.momi.lift_1__cat.naval.florae_5",
+      "ground_truth": "similar",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 0.0,
+        "resource": 0.007407407407407408,
+        "library": 0.36363636363636365
+      },
+      "full_similarity_score_old_deep19": 0.4878451178451178,
+      "full_similarity_score_new_deep27": 0.17727272727272725,
+      "delta_new_minus_old": -0.31057239057239056,
+      "stored_full_similarity_score": 0.4878451178451178
+    },
+    {
+      "pair_id": "agrigolo.opendrummer_2__atm.nasaimages_3",
+      "ground_truth": "different",
+      "per_layer_scores": {
+        "code": 0.5,
+        "component": 0.0,
+        "resource": 0.00473186119873817,
+        "library": 0.0
+      },
+      "full_similarity_score_old_deep19": 0.22594637223974764,
+      "full_similarity_score_new_deep27": 0.025,
+      "delta_new_minus_old": -0.20094637223974765,
+      "stored_full_similarity_score": 0.22594637223974764
+    },
+    {
+      "pair_id": "ardash.lato_1001005__be.chvp.nanoledger_2026040501",
+      "ground_truth": "different",
+      "per_layer_scores": {
+        "code": 0.25,
+        "component": 0.0,
+        "resource": 0.008403361344537815,
+        "library": 0.5714285714285714
+      },
+      "full_similarity_score_old_deep19": 0.1713235294117647,
+      "full_similarity_score_new_deep27": 0.2125,
+      "delta_new_minus_old": 0.04117647058823529,
+      "stored_full_similarity_score": 0.17132352941176468
+    },
+    {
+      "pair_id": "ai.susi_16__ca.hamaluik.timecop_45",
+      "ground_truth": "different",
+      "per_layer_scores": {
+        "code": 0.5,
+        "component": 0.0,
+        "resource": 0.019230769230769232,
+        "library": 0.5
+      },
+      "full_similarity_score_old_deep19": 0.2788461538461538,
+      "full_similarity_score_new_deep27": 0.19999999999999998,
+      "delta_new_minus_old": -0.07884615384615382,
+      "stored_full_similarity_score": 0.2788461538461538
+    },
+    {
+      "pair_id": "app.easy.launcher_32__be.humanoids.webthingify_2",
+      "ground_truth": "different",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 0.0,
+        "resource": 0.005226480836236934,
+        "library": 0.23809523809523808
+      },
+      "full_similarity_score_old_deep19": 0.4748548199767712,
+      "full_similarity_score_new_deep27": 0.13333333333333333,
+      "delta_new_minus_old": -0.34152148664343784,
+      "stored_full_similarity_score": 0.4748548199767712
+    },
+    {
+      "pair_id": "app.slauncher_103__ca.littlesvr.everyonestimetable_4",
+      "ground_truth": "different",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 0.0,
+        "resource": 0.004724409448818898,
+        "library": 0.0
+      },
+      "full_similarity_score_old_deep19": 0.4509448818897638,
+      "full_similarity_score_new_deep27": 0.05,
+      "delta_new_minus_old": -0.4009448818897638,
+      "stored_full_similarity_score": 0.4509448818897638
+    },
+    {
+      "pair_id": "app.hkTransport_105__axp.tool.apkextractor_4",
+      "ground_truth": "different",
+      "per_layer_scores": {
+        "code": 1.0,
+        "component": 0.0,
+        "resource": 0.0069605568445475635,
+        "library": 0.42857142857142855
+      },
+      "full_similarity_score_old_deep19": 0.49424925422605237,
+      "full_similarity_score_new_deep27": 0.2,
+      "delta_new_minus_old": -0.29424925422605236,
+      "stored_full_similarity_score": 0.49424925422605237
+    }
+  ]
+}
