@@ -10,6 +10,7 @@ from itertools import combinations
 from pathlib import Path
 from typing import Any
 
+import lsh_geometry
 from m_static_views import compare_m_static_layer
 from minhash_lsh import LSHIndex, MinHashSignature
 from screening_runner import (
@@ -153,6 +154,10 @@ def build_diagnostic_report(
     if candidate_index_params is None:
         raise ValueError("Diagnostic requires stages.screening.candidate_index")
 
+    lsh_num_perm = int(candidate_index_params["num_perm"])
+    lsh_bands = int(candidate_index_params["bands"])
+    lsh_rows_per_band = lsh_geometry.rows_per_band(lsh_num_perm, lsh_bands)
+
     records = _load_app_records(
         app_records=app_records,
         apk_root=apk_root,
@@ -197,6 +202,12 @@ def build_diagnostic_report(
         if in_shortlist and passed_thresh:
             candidate_score_means.append(_mean(list(per_view_scores.values())))
 
+        lsh_expected_hit_probability = lsh_geometry.expected_hit_probability(
+            j=full_score,
+            num_perm=lsh_num_perm,
+            bands=lsh_bands,
+        )
+
         pair_rows.append(
             {
                 "query_app_id": app_a["app_id"],
@@ -204,6 +215,7 @@ def build_diagnostic_report(
                 "in_shortlist": in_shortlist,
                 "passed_thresh": passed_thresh,
                 "full_score": full_score,
+                "lsh_geometry_expected_hit_probability": lsh_expected_hit_probability,
                 "selected_similarity_score": selected_similarity_score,
                 "per_view_scores": per_view_scores,
             }
@@ -223,6 +235,7 @@ def build_diagnostic_report(
     false_positive_rate = (
         shortlist_false_positive_count / shortlist_size if shortlist_size > 0 else 0.0
     )
+    lost_positive_pairs = positive_pairs_above_threshold - shortlist_true_positive_count
 
     return {
         "schema_version": "screening-diagnostic-v1",
@@ -235,8 +248,9 @@ def build_diagnostic_report(
             "threshold": float(threshold),
             "candidate_index": {
                 "type": candidate_index_params["type"],
-                "num_perm": int(candidate_index_params["num_perm"]),
-                "bands": int(candidate_index_params["bands"]),
+                "num_perm": lsh_num_perm,
+                "bands": lsh_bands,
+                "rows_per_band": lsh_rows_per_band,
                 "seed": int(candidate_index_params["seed"]),
                 "features": list(candidate_index_params["features"]),
             },
@@ -250,6 +264,8 @@ def build_diagnostic_report(
             "negative_pairs_below_threshold": negative_pairs_below_threshold,
             "shortlist_true_positive_count": shortlist_true_positive_count,
             "shortlist_false_positive_count": shortlist_false_positive_count,
+            "lost_positive_pairs": lost_positive_pairs,
+            "rows_per_band": lsh_rows_per_band,
             "recall_at_shortlist": recall_at_shortlist,
             "false_negative_rate": false_negative_rate,
             "false_positive_rate": false_positive_rate,
