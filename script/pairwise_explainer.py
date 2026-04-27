@@ -854,10 +854,22 @@ def build_output_rows(pair_rows: list[dict]) -> list[dict]:
         if isinstance(raw_evidence, list):
             filtered_evidence = [item for item in raw_evidence if isinstance(item, dict)]
 
-        hint_metadata: dict[str, str]
+        # EXEC-HINT-28-TYPED-TAXONOMY: типизированная taxonomy (9 классов
+        # DeYoung ACL 2020) строится как СЛОЙ ПОВЕРХ Evidence. Canonical
+        # Evidence -> hint путь не меняется (см. hint_taxonomy.py docstring и
+        # `system/result-interpretation-contract-v1.md`). Каждый hint_metadata
+        # дополнительно получает ключ `classified_types`: список такой же
+        # длины, как evidence-записи пары; legacy-ветка отдаёт пустой
+        # список — типизация имеет смысл только поверх Evidence.
+        from hint_taxonomy import classify_evidence_list  # noqa: WPS433
+
+        hint_metadata: dict[str, Any]
         if filtered_evidence:
             explanation_hints = _hints_from_evidence(filtered_evidence)
-            hint_metadata = {"source": "canonical"}
+            hint_metadata = {
+                "source": "canonical",
+                "classified_types": classify_evidence_list(filtered_evidence),
+            }
         else:
             pair_id = clean_string(pair.get("pair_id")) or f"{app_a}__{app_b}"
             logger.warning(
@@ -866,7 +878,11 @@ def build_output_rows(pair_rows: list[dict]) -> list[dict]:
                 pair_id,
             )
             explanation_hints = build_explanation_hints(pair)
-            hint_metadata = {"source": "legacy", "reason": "evidence_empty"}
+            hint_metadata = {
+                "source": "legacy",
+                "reason": "evidence_empty",
+                "classified_types": [],
+            }
 
         row: dict[str, Any] = {
             "app_a": app_a,
