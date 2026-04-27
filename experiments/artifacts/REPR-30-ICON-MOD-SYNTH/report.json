@@ -1,0 +1,1547 @@
+{
+  "baseline_pairs_requested": 30,
+  "brightness": {
+    "max_hamming": 18,
+    "mean_hamming": 5.966666666666667,
+    "n_pairs": 30,
+    "n_pairs_distance_le_5": 18,
+    "std_hamming": 5.671468553695379
+  },
+  "pair_records": {
+    "mods": {
+      "brightness": [
+        {
+          "apk_name": "InfinityLoop1309.NewPipeEnhanced_109503.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc381981881c3e7",
+          "original_whash": "ffc381981881c3e7",
+          "package_name": "InfinityLoop1309.NewPipeEnhanced"
+        },
+        {
+          "apk_name": "InfinityLoop1309.NewPipeEnhanced_109504.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc381981881c3e7",
+          "original_whash": "ffc381981881c3e7",
+          "package_name": "InfinityLoop1309.NewPipeEnhanced"
+        },
+        {
+          "apk_name": "a2dp.Vol_169.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc383818181c3ef",
+          "original_whash": "ffc383818181c3ef",
+          "package_name": "a2dp.Vol"
+        },
+        {
+          "apk_name": "ac.robinson.mediaphone_64.apk",
+          "hamming": 2,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "c3819999bd9981c3",
+          "original_whash": "c3819999bd99c3c3",
+          "package_name": "ac.robinson.mediaphone"
+        },
+        {
+          "apk_name": "ac.robinson.mediaphone_65.apk",
+          "hamming": 2,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "c3819999bd9981c3",
+          "original_whash": "c3819999bd99c3c3",
+          "package_name": "ac.robinson.mediaphone"
+        },
+        {
+          "apk_name": "acr.browser.lightning_100.apk",
+          "hamming": 5,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "c7830d2f360d83c7",
+          "original_whash": "e7838d2d368983c7",
+          "package_name": "acr.browser.lightning"
+        },
+        {
+          "apk_name": "acr.browser.lightning_101.apk",
+          "hamming": 5,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "c7830d2f360d83c7",
+          "original_whash": "e7838d2d368983c7",
+          "package_name": "acr.browser.lightning"
+        },
+        {
+          "apk_name": "ademar.bitac_7.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "e7819d1434bd81e7",
+          "original_whash": "e7819d1434bd81e7",
+          "package_name": "ademar.bitac"
+        },
+        {
+          "apk_name": "ademar.bitac_8.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "e7819d1434bd81e7",
+          "original_whash": "e7819d1434bd81e7",
+          "package_name": "ademar.bitac"
+        },
+        {
+          "apk_name": "agrigolo.chubbyclick_24.apk",
+          "hamming": 5,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "cbff818182c2fd81",
+          "original_whash": "ffff818182c2bc81",
+          "package_name": "agrigolo.chubbyclick"
+        },
+        {
+          "apk_name": "agrigolo.chubbyclick_25.apk",
+          "hamming": 5,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "cbff818182c2fd81",
+          "original_whash": "ffff818182c2bc81",
+          "package_name": "agrigolo.chubbyclick"
+        },
+        {
+          "apk_name": "agrigolo.opendrummer_2.apk",
+          "hamming": 15,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "ffe38181e4c8c0f1",
+          "original_whash": "ff818181a1b981ff",
+          "package_name": "agrigolo.opendrummer"
+        },
+        {
+          "apk_name": "agrigolo.opendrummer_3.apk",
+          "hamming": 15,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "ffe38181e4c8c0f1",
+          "original_whash": "ff818181a1b981ff",
+          "package_name": "agrigolo.opendrummer"
+        },
+        {
+          "apk_name": "androdns.android.leetdreams.ch.androdns_16.apk",
+          "hamming": 3,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "e7c381b4ab8181e7",
+          "original_whash": "e7c38195ab8183e7",
+          "package_name": "androdns.android.leetdreams.ch.androdns"
+        },
+        {
+          "apk_name": "androdns.android.leetdreams.ch.androdns_27.apk",
+          "hamming": 8,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffbf1f12080081c3",
+          "original_whash": "ff9f07162b0181c3",
+          "package_name": "androdns.android.leetdreams.ch.androdns"
+        },
+        {
+          "apk_name": "anupam.acrylic_18.apk",
+          "hamming": 12,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "fff7e6c242c62000",
+          "original_whash": "fff7e3c1c1c0a081",
+          "package_name": "anupam.acrylic"
+        },
+        {
+          "apk_name": "anupam.acrylic_19.apk",
+          "hamming": 12,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "fff7e6c242c62000",
+          "original_whash": "fff7e3c1c1c0a081",
+          "package_name": "anupam.acrylic"
+        },
+        {
+          "apk_name": "app.bitbag_272.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "0072fa7a7afb7200",
+          "original_whash": "0072fa7a7afb7200",
+          "package_name": "app.bitbag"
+        },
+        {
+          "apk_name": "app.bitbag_273.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "0072fa7a7afb7200",
+          "original_whash": "0072fa7a7afb7200",
+          "package_name": "app.bitbag"
+        },
+        {
+          "apk_name": "app.cclauncher_1289.apk",
+          "hamming": 4,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "fff742ca8a422400",
+          "original_whash": "fff742ca8ac2a481",
+          "package_name": "app.cclauncher"
+        },
+        {
+          "apk_name": "app.cclauncher_1290.apk",
+          "hamming": 4,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "fff742ca8a422400",
+          "original_whash": "fff742ca8ac2a481",
+          "package_name": "app.cclauncher"
+        },
+        {
+          "apk_name": "app.clauncher_420.apk",
+          "hamming": 11,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "fff7c2ce9ec22000",
+          "original_whash": "ffe442989cc22081",
+          "package_name": "app.clauncher"
+        },
+        {
+          "apk_name": "app.clauncher_430.apk",
+          "hamming": 11,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "fff7c2ce9ec22000",
+          "original_whash": "ffe442989cc22081",
+          "package_name": "app.clauncher"
+        },
+        {
+          "apk_name": "app.crescentcash.src_118.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc3c381818181ff",
+          "original_whash": "ffc3c381818181ff",
+          "package_name": "app.crescentcash.src"
+        },
+        {
+          "apk_name": "app.crescentcash.src_120.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc3c381818181ff",
+          "original_whash": "ffc3c381818181ff",
+          "package_name": "app.crescentcash.src"
+        },
+        {
+          "apk_name": "app.crossword.yourealwaysbe.forkyz_7900000.apk",
+          "hamming": 8,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "f73e7e6470707081",
+          "original_whash": "ffbffe2460702081",
+          "package_name": "app.crossword.yourealwaysbe.forkyz"
+        },
+        {
+          "apk_name": "app.crossword.yourealwaysbe.forkyz_8000000.apk",
+          "hamming": 8,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "f73e7e6470707081",
+          "original_whash": "ffbffe2460702081",
+          "package_name": "app.crossword.yourealwaysbe.forkyz"
+        },
+        {
+          "apk_name": "app.dumdum_13.apk",
+          "hamming": 18,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffcf4e9e0161018d",
+          "original_whash": "ff81819f81a181df",
+          "package_name": "app.dumdum"
+        },
+        {
+          "apk_name": "app.dumdum_14.apk",
+          "hamming": 18,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffcf4e9e0161018d",
+          "original_whash": "ff81819f81a181df",
+          "package_name": "app.dumdum"
+        },
+        {
+          "apk_name": "app.eduroam.geteduroam_2682.apk",
+          "hamming": 8,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "ffc3818183e7e581",
+          "original_whash": "ffc3818181e781db",
+          "package_name": "app.eduroam.geteduroam"
+        }
+      ],
+      "recompress": [
+        {
+          "apk_name": "InfinityLoop1309.NewPipeEnhanced_109503.apk",
+          "hamming": 1,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc381991881c3e7",
+          "original_whash": "ffc381981881c3e7",
+          "package_name": "InfinityLoop1309.NewPipeEnhanced"
+        },
+        {
+          "apk_name": "InfinityLoop1309.NewPipeEnhanced_109504.apk",
+          "hamming": 1,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc381991881c3e7",
+          "original_whash": "ffc381981881c3e7",
+          "package_name": "InfinityLoop1309.NewPipeEnhanced"
+        },
+        {
+          "apk_name": "a2dp.Vol_169.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc383818181c3ef",
+          "original_whash": "ffc383818181c3ef",
+          "package_name": "a2dp.Vol"
+        },
+        {
+          "apk_name": "ac.robinson.mediaphone_64.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "c3819999bd99c3c3",
+          "original_whash": "c3819999bd99c3c3",
+          "package_name": "ac.robinson.mediaphone"
+        },
+        {
+          "apk_name": "ac.robinson.mediaphone_65.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "c3819999bd99c3c3",
+          "original_whash": "c3819999bd99c3c3",
+          "package_name": "ac.robinson.mediaphone"
+        },
+        {
+          "apk_name": "acr.browser.lightning_100.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "e7838d2d368983c7",
+          "original_whash": "e7838d2d368983c7",
+          "package_name": "acr.browser.lightning"
+        },
+        {
+          "apk_name": "acr.browser.lightning_101.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "e7838d2d368983c7",
+          "original_whash": "e7838d2d368983c7",
+          "package_name": "acr.browser.lightning"
+        },
+        {
+          "apk_name": "ademar.bitac_7.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "e7819d1434bd81e7",
+          "original_whash": "e7819d1434bd81e7",
+          "package_name": "ademar.bitac"
+        },
+        {
+          "apk_name": "ademar.bitac_8.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "e7819d1434bd81e7",
+          "original_whash": "e7819d1434bd81e7",
+          "package_name": "ademar.bitac"
+        },
+        {
+          "apk_name": "agrigolo.chubbyclick_24.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffff818182c2bc81",
+          "original_whash": "ffff818182c2bc81",
+          "package_name": "agrigolo.chubbyclick"
+        },
+        {
+          "apk_name": "agrigolo.chubbyclick_25.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffff818182c2bc81",
+          "original_whash": "ffff818182c2bc81",
+          "package_name": "agrigolo.chubbyclick"
+        },
+        {
+          "apk_name": "agrigolo.opendrummer_2.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "ff818181a1b981ff",
+          "original_whash": "ff818181a1b981ff",
+          "package_name": "agrigolo.opendrummer"
+        },
+        {
+          "apk_name": "agrigolo.opendrummer_3.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "ff818181a1b981ff",
+          "original_whash": "ff818181a1b981ff",
+          "package_name": "agrigolo.opendrummer"
+        },
+        {
+          "apk_name": "androdns.android.leetdreams.ch.androdns_16.apk",
+          "hamming": 2,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "e7c38194a98183e7",
+          "original_whash": "e7c38195ab8183e7",
+          "package_name": "androdns.android.leetdreams.ch.androdns"
+        },
+        {
+          "apk_name": "androdns.android.leetdreams.ch.androdns_27.apk",
+          "hamming": 2,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ff9f07120b0181c3",
+          "original_whash": "ff9f07162b0181c3",
+          "package_name": "androdns.android.leetdreams.ch.androdns"
+        },
+        {
+          "apk_name": "anupam.acrylic_18.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "fff7e3c1c1c0a081",
+          "original_whash": "fff7e3c1c1c0a081",
+          "package_name": "anupam.acrylic"
+        },
+        {
+          "apk_name": "anupam.acrylic_19.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "fff7e3c1c1c0a081",
+          "original_whash": "fff7e3c1c1c0a081",
+          "package_name": "anupam.acrylic"
+        },
+        {
+          "apk_name": "app.bitbag_272.apk",
+          "hamming": 1,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "0072fb7a7afb7200",
+          "original_whash": "0072fa7a7afb7200",
+          "package_name": "app.bitbag"
+        },
+        {
+          "apk_name": "app.bitbag_273.apk",
+          "hamming": 1,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "0072fb7a7afb7200",
+          "original_whash": "0072fa7a7afb7200",
+          "package_name": "app.bitbag"
+        },
+        {
+          "apk_name": "app.cclauncher_1289.apk",
+          "hamming": 1,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "fff742ca8a42a481",
+          "original_whash": "fff742ca8ac2a481",
+          "package_name": "app.cclauncher"
+        },
+        {
+          "apk_name": "app.cclauncher_1290.apk",
+          "hamming": 1,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "fff742ca8a42a481",
+          "original_whash": "fff742ca8ac2a481",
+          "package_name": "app.cclauncher"
+        },
+        {
+          "apk_name": "app.clauncher_420.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "ffe442989cc22081",
+          "original_whash": "ffe442989cc22081",
+          "package_name": "app.clauncher"
+        },
+        {
+          "apk_name": "app.clauncher_430.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "ffe442989cc22081",
+          "original_whash": "ffe442989cc22081",
+          "package_name": "app.clauncher"
+        },
+        {
+          "apk_name": "app.crescentcash.src_118.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc3c381818181ff",
+          "original_whash": "ffc3c381818181ff",
+          "package_name": "app.crescentcash.src"
+        },
+        {
+          "apk_name": "app.crescentcash.src_120.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc3c381818181ff",
+          "original_whash": "ffc3c381818181ff",
+          "package_name": "app.crescentcash.src"
+        },
+        {
+          "apk_name": "app.crossword.yourealwaysbe.forkyz_7900000.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffbffe2460702081",
+          "original_whash": "ffbffe2460702081",
+          "package_name": "app.crossword.yourealwaysbe.forkyz"
+        },
+        {
+          "apk_name": "app.crossword.yourealwaysbe.forkyz_8000000.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffbffe2460702081",
+          "original_whash": "ffbffe2460702081",
+          "package_name": "app.crossword.yourealwaysbe.forkyz"
+        },
+        {
+          "apk_name": "app.dumdum_13.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ff81819f81a181df",
+          "original_whash": "ff81819f81a181df",
+          "package_name": "app.dumdum"
+        },
+        {
+          "apk_name": "app.dumdum_14.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ff81819f81a181df",
+          "original_whash": "ff81819f81a181df",
+          "package_name": "app.dumdum"
+        },
+        {
+          "apk_name": "app.eduroam.geteduroam_2682.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "ffc3818181e781db",
+          "original_whash": "ffc3818181e781db",
+          "package_name": "app.eduroam.geteduroam"
+        }
+      ],
+      "scale": [
+        {
+          "apk_name": "InfinityLoop1309.NewPipeEnhanced_109503.apk",
+          "hamming": 1,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc381981081c3e7",
+          "original_whash": "ffc381981881c3e7",
+          "package_name": "InfinityLoop1309.NewPipeEnhanced"
+        },
+        {
+          "apk_name": "InfinityLoop1309.NewPipeEnhanced_109504.apk",
+          "hamming": 1,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc381981081c3e7",
+          "original_whash": "ffc381981881c3e7",
+          "package_name": "InfinityLoop1309.NewPipeEnhanced"
+        },
+        {
+          "apk_name": "a2dp.Vol_169.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc383818181c3ef",
+          "original_whash": "ffc383818181c3ef",
+          "package_name": "a2dp.Vol"
+        },
+        {
+          "apk_name": "ac.robinson.mediaphone_64.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "c3819999bd99c3c3",
+          "original_whash": "c3819999bd99c3c3",
+          "package_name": "ac.robinson.mediaphone"
+        },
+        {
+          "apk_name": "ac.robinson.mediaphone_65.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "c3819999bd99c3c3",
+          "original_whash": "c3819999bd99c3c3",
+          "package_name": "ac.robinson.mediaphone"
+        },
+        {
+          "apk_name": "acr.browser.lightning_100.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "e7838d2d368983c7",
+          "original_whash": "e7838d2d368983c7",
+          "package_name": "acr.browser.lightning"
+        },
+        {
+          "apk_name": "acr.browser.lightning_101.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "e7838d2d368983c7",
+          "original_whash": "e7838d2d368983c7",
+          "package_name": "acr.browser.lightning"
+        },
+        {
+          "apk_name": "ademar.bitac_7.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "e7819d1434bd81e7",
+          "original_whash": "e7819d1434bd81e7",
+          "package_name": "ademar.bitac"
+        },
+        {
+          "apk_name": "ademar.bitac_8.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "e7819d1434bd81e7",
+          "original_whash": "e7819d1434bd81e7",
+          "package_name": "ademar.bitac"
+        },
+        {
+          "apk_name": "agrigolo.chubbyclick_24.apk",
+          "hamming": 3,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "cfff818082c2bc81",
+          "original_whash": "ffff818182c2bc81",
+          "package_name": "agrigolo.chubbyclick"
+        },
+        {
+          "apk_name": "agrigolo.chubbyclick_25.apk",
+          "hamming": 3,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "cfff818082c2bc81",
+          "original_whash": "ffff818182c2bc81",
+          "package_name": "agrigolo.chubbyclick"
+        },
+        {
+          "apk_name": "agrigolo.opendrummer_2.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "ff818181a1b981ff",
+          "original_whash": "ff818181a1b981ff",
+          "package_name": "agrigolo.opendrummer"
+        },
+        {
+          "apk_name": "agrigolo.opendrummer_3.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "ff818181a1b981ff",
+          "original_whash": "ff818181a1b981ff",
+          "package_name": "agrigolo.opendrummer"
+        },
+        {
+          "apk_name": "androdns.android.leetdreams.ch.androdns_16.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "e7c38195ab8183e7",
+          "original_whash": "e7c38195ab8183e7",
+          "package_name": "androdns.android.leetdreams.ch.androdns"
+        },
+        {
+          "apk_name": "androdns.android.leetdreams.ch.androdns_27.apk",
+          "hamming": 1,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ff9f07122b0181c3",
+          "original_whash": "ff9f07162b0181c3",
+          "package_name": "androdns.android.leetdreams.ch.androdns"
+        },
+        {
+          "apk_name": "anupam.acrylic_18.apk",
+          "hamming": 1,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "fff7e3c1c0c0a081",
+          "original_whash": "fff7e3c1c1c0a081",
+          "package_name": "anupam.acrylic"
+        },
+        {
+          "apk_name": "anupam.acrylic_19.apk",
+          "hamming": 1,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "fff7e3c1c0c0a081",
+          "original_whash": "fff7e3c1c1c0a081",
+          "package_name": "anupam.acrylic"
+        },
+        {
+          "apk_name": "app.bitbag_272.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "0072fa7a7afb7200",
+          "original_whash": "0072fa7a7afb7200",
+          "package_name": "app.bitbag"
+        },
+        {
+          "apk_name": "app.bitbag_273.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "0072fa7a7afb7200",
+          "original_whash": "0072fa7a7afb7200",
+          "package_name": "app.bitbag"
+        },
+        {
+          "apk_name": "app.cclauncher_1289.apk",
+          "hamming": 5,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "fff5428a88422481",
+          "original_whash": "fff742ca8ac2a481",
+          "package_name": "app.cclauncher"
+        },
+        {
+          "apk_name": "app.cclauncher_1290.apk",
+          "hamming": 5,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "fff5428a88422481",
+          "original_whash": "fff742ca8ac2a481",
+          "package_name": "app.cclauncher"
+        },
+        {
+          "apk_name": "app.clauncher_420.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "ffe442989cc22081",
+          "original_whash": "ffe442989cc22081",
+          "package_name": "app.clauncher"
+        },
+        {
+          "apk_name": "app.clauncher_430.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "ffe442989cc22081",
+          "original_whash": "ffe442989cc22081",
+          "package_name": "app.clauncher"
+        },
+        {
+          "apk_name": "app.crescentcash.src_118.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc3c381818181ff",
+          "original_whash": "ffc3c381818181ff",
+          "package_name": "app.crescentcash.src"
+        },
+        {
+          "apk_name": "app.crescentcash.src_120.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc3c381818181ff",
+          "original_whash": "ffc3c381818181ff",
+          "package_name": "app.crescentcash.src"
+        },
+        {
+          "apk_name": "app.crossword.yourealwaysbe.forkyz_7900000.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffbffe2460702081",
+          "original_whash": "ffbffe2460702081",
+          "package_name": "app.crossword.yourealwaysbe.forkyz"
+        },
+        {
+          "apk_name": "app.crossword.yourealwaysbe.forkyz_8000000.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffbffe2460702081",
+          "original_whash": "ffbffe2460702081",
+          "package_name": "app.crossword.yourealwaysbe.forkyz"
+        },
+        {
+          "apk_name": "app.dumdum_13.apk",
+          "hamming": 1,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ff81819d81a181df",
+          "original_whash": "ff81819f81a181df",
+          "package_name": "app.dumdum"
+        },
+        {
+          "apk_name": "app.dumdum_14.apk",
+          "hamming": 1,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ff81819d81a181df",
+          "original_whash": "ff81819f81a181df",
+          "package_name": "app.dumdum"
+        },
+        {
+          "apk_name": "app.eduroam.geteduroam_2682.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "ffc3818181e781db",
+          "original_whash": "ffc3818181e781db",
+          "package_name": "app.eduroam.geteduroam"
+        }
+      ],
+      "translate": [
+        {
+          "apk_name": "InfinityLoop1309.NewPipeEnhanced_109503.apk",
+          "hamming": 9,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc381818181c3ff",
+          "original_whash": "ffc381981881c3e7",
+          "package_name": "InfinityLoop1309.NewPipeEnhanced"
+        },
+        {
+          "apk_name": "InfinityLoop1309.NewPipeEnhanced_109504.apk",
+          "hamming": 9,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc381818181c3ff",
+          "original_whash": "ffc381981881c3e7",
+          "package_name": "InfinityLoop1309.NewPipeEnhanced"
+        },
+        {
+          "apk_name": "a2dp.Vol_169.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc383818181c3ef",
+          "original_whash": "ffc383818181c3ef",
+          "package_name": "a2dp.Vol"
+        },
+        {
+          "apk_name": "ac.robinson.mediaphone_64.apk",
+          "hamming": 8,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "c3c399c39999c3c3",
+          "original_whash": "c3819999bd99c3c3",
+          "package_name": "ac.robinson.mediaphone"
+        },
+        {
+          "apk_name": "ac.robinson.mediaphone_65.apk",
+          "hamming": 8,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "c3c399c39999c3c3",
+          "original_whash": "c3819999bd99c3c3",
+          "package_name": "ac.robinson.mediaphone"
+        },
+        {
+          "apk_name": "acr.browser.lightning_100.apk",
+          "hamming": 6,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "e783892d358183ef",
+          "original_whash": "e7838d2d368983c7",
+          "package_name": "acr.browser.lightning"
+        },
+        {
+          "apk_name": "acr.browser.lightning_101.apk",
+          "hamming": 6,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "e783892d358183ef",
+          "original_whash": "e7838d2d368983c7",
+          "package_name": "acr.browser.lightning"
+        },
+        {
+          "apk_name": "ademar.bitac_7.apk",
+          "hamming": 6,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "e7c39914349983e7",
+          "original_whash": "e7819d1434bd81e7",
+          "package_name": "ademar.bitac"
+        },
+        {
+          "apk_name": "ademar.bitac_8.apk",
+          "hamming": 6,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "e7c39914349983e7",
+          "original_whash": "e7819d1434bd81e7",
+          "package_name": "ademar.bitac"
+        },
+        {
+          "apk_name": "agrigolo.chubbyclick_24.apk",
+          "hamming": 2,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffff818182c2ad81",
+          "original_whash": "ffff818182c2bc81",
+          "package_name": "agrigolo.chubbyclick"
+        },
+        {
+          "apk_name": "agrigolo.chubbyclick_25.apk",
+          "hamming": 2,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffff818182c2ad81",
+          "original_whash": "ffff818182c2bc81",
+          "package_name": "agrigolo.chubbyclick"
+        },
+        {
+          "apk_name": "agrigolo.opendrummer_2.apk",
+          "hamming": 4,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "ffc38181a19181ff",
+          "original_whash": "ff818181a1b981ff",
+          "package_name": "agrigolo.opendrummer"
+        },
+        {
+          "apk_name": "agrigolo.opendrummer_3.apk",
+          "hamming": 4,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "ffc38181a19181ff",
+          "original_whash": "ff818181a1b981ff",
+          "package_name": "agrigolo.opendrummer"
+        },
+        {
+          "apk_name": "androdns.android.leetdreams.ch.androdns_16.apk",
+          "hamming": 10,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc381818181c3ff",
+          "original_whash": "e7c38195ab8183e7",
+          "package_name": "androdns.android.leetdreams.ch.androdns"
+        },
+        {
+          "apk_name": "androdns.android.leetdreams.ch.androdns_27.apk",
+          "hamming": 7,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ff9f8710098181c7",
+          "original_whash": "ff9f07162b0181c3",
+          "package_name": "androdns.android.leetdreams.ch.androdns"
+        },
+        {
+          "apk_name": "anupam.acrylic_18.apk",
+          "hamming": 7,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffdda2c140c0a081",
+          "original_whash": "fff7e3c1c1c0a081",
+          "package_name": "anupam.acrylic"
+        },
+        {
+          "apk_name": "anupam.acrylic_19.apk",
+          "hamming": 7,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffdda2c140c0a081",
+          "original_whash": "fff7e3c1c1c0a081",
+          "package_name": "anupam.acrylic"
+        },
+        {
+          "apk_name": "app.bitbag_272.apk",
+          "hamming": 11,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "81307b7a7a7b3081",
+          "original_whash": "0072fa7a7afb7200",
+          "package_name": "app.bitbag"
+        },
+        {
+          "apk_name": "app.bitbag_273.apk",
+          "hamming": 11,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "81307b7a7a7b3081",
+          "original_whash": "0072fa7a7afb7200",
+          "package_name": "app.bitbag"
+        },
+        {
+          "apk_name": "app.cclauncher_1289.apk",
+          "hamming": 12,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "ffb5024048428081",
+          "original_whash": "fff742ca8ac2a481",
+          "package_name": "app.cclauncher"
+        },
+        {
+          "apk_name": "app.cclauncher_1290.apk",
+          "hamming": 12,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "ffb5024048428081",
+          "original_whash": "fff742ca8ac2a481",
+          "package_name": "app.cclauncher"
+        },
+        {
+          "apk_name": "app.clauncher_420.apk",
+          "hamming": 9,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "ffe5c28999c38081",
+          "original_whash": "ffe442989cc22081",
+          "package_name": "app.clauncher"
+        },
+        {
+          "apk_name": "app.clauncher_430.apk",
+          "hamming": 9,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "ffe5c28999c38081",
+          "original_whash": "ffe442989cc22081",
+          "package_name": "app.clauncher"
+        },
+        {
+          "apk_name": "app.crescentcash.src_118.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc3c381818181ff",
+          "original_whash": "ffc3c381818181ff",
+          "package_name": "app.crescentcash.src"
+        },
+        {
+          "apk_name": "app.crescentcash.src_120.apk",
+          "hamming": 0,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc3c381818181ff",
+          "original_whash": "ffc3c381818181ff",
+          "package_name": "app.crescentcash.src"
+        },
+        {
+          "apk_name": "app.crossword.yourealwaysbe.forkyz_7900000.apk",
+          "hamming": 7,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffa5fe24a070a181",
+          "original_whash": "ffbffe2460702081",
+          "package_name": "app.crossword.yourealwaysbe.forkyz"
+        },
+        {
+          "apk_name": "app.crossword.yourealwaysbe.forkyz_8000000.apk",
+          "hamming": 7,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffa5fe24a070a181",
+          "original_whash": "ffbffe2460702081",
+          "package_name": "app.crossword.yourealwaysbe.forkyz"
+        },
+        {
+          "apk_name": "app.dumdum_13.apk",
+          "hamming": 4,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc1818d81a181ff",
+          "original_whash": "ff81819f81a181df",
+          "package_name": "app.dumdum"
+        },
+        {
+          "apk_name": "app.dumdum_14.apk",
+          "hamming": 4,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+          "modified_whash": "ffc1818d81a181ff",
+          "original_whash": "ff81819f81a181df",
+          "package_name": "app.dumdum"
+        },
+        {
+          "apk_name": "app.eduroam.geteduroam_2682.apk",
+          "hamming": 4,
+          "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+          "modified_whash": "ffc3818181a581ff",
+          "original_whash": "ffc3818181e781db",
+          "package_name": "app.eduroam.geteduroam"
+        }
+      ]
+    },
+    "unrelated_pairs_baseline": [
+      {
+        "hamming": 14,
+        "left_apk_name": "agrigolo.opendrummer_3.apk",
+        "left_package_name": "agrigolo.opendrummer",
+        "left_whash": "ff818181a1b981ff",
+        "right_apk_name": "androdns.android.leetdreams.ch.androdns_16.apk",
+        "right_package_name": "androdns.android.leetdreams.ch.androdns",
+        "right_whash": "e7c38195ab8183e7"
+      },
+      {
+        "hamming": 34,
+        "left_apk_name": "app.crossword.yourealwaysbe.forkyz_7900000.apk",
+        "left_package_name": "app.crossword.yourealwaysbe.forkyz",
+        "left_whash": "ffbffe2460702081",
+        "right_apk_name": "app.dumdum_13.apk",
+        "right_package_name": "app.dumdum",
+        "right_whash": "ff81819f81a181df"
+      },
+      {
+        "hamming": 33,
+        "left_apk_name": "acr.browser.lightning_100.apk",
+        "left_package_name": "acr.browser.lightning",
+        "left_whash": "e7838d2d368983c7",
+        "right_apk_name": "app.clauncher_430.apk",
+        "right_package_name": "app.clauncher",
+        "right_whash": "ffe442989cc22081"
+      },
+      {
+        "hamming": 23,
+        "left_apk_name": "androdns.android.leetdreams.ch.androdns_27.apk",
+        "left_package_name": "androdns.android.leetdreams.ch.androdns",
+        "left_whash": "ff9f07162b0181c3",
+        "right_apk_name": "app.cclauncher_1289.apk",
+        "right_package_name": "app.cclauncher",
+        "right_whash": "fff742ca8ac2a481"
+      },
+      {
+        "hamming": 40,
+        "left_apk_name": "InfinityLoop1309.NewPipeEnhanced_109503.apk",
+        "left_package_name": "InfinityLoop1309.NewPipeEnhanced",
+        "left_whash": "ffc381981881c3e7",
+        "right_apk_name": "app.bitbag_272.apk",
+        "right_package_name": "app.bitbag",
+        "right_whash": "0072fa7a7afb7200"
+      },
+      {
+        "hamming": 23,
+        "left_apk_name": "androdns.android.leetdreams.ch.androdns_27.apk",
+        "left_package_name": "androdns.android.leetdreams.ch.androdns",
+        "left_whash": "ff9f07162b0181c3",
+        "right_apk_name": "app.crossword.yourealwaysbe.forkyz_7900000.apk",
+        "right_package_name": "app.crossword.yourealwaysbe.forkyz",
+        "right_whash": "ffbffe2460702081"
+      },
+      {
+        "hamming": 24,
+        "left_apk_name": "anupam.acrylic_18.apk",
+        "left_package_name": "anupam.acrylic",
+        "left_whash": "fff7e3c1c1c0a081",
+        "right_apk_name": "app.dumdum_14.apk",
+        "right_package_name": "app.dumdum",
+        "right_whash": "ff81819f81a181df"
+      },
+      {
+        "hamming": 24,
+        "left_apk_name": "ac.robinson.mediaphone_64.apk",
+        "left_package_name": "ac.robinson.mediaphone",
+        "left_whash": "c3819999bd99c3c3",
+        "right_apk_name": "app.eduroam.geteduroam_2682.apk",
+        "right_package_name": "app.eduroam.geteduroam",
+        "right_whash": "ffc3818181e781db"
+      },
+      {
+        "hamming": 20,
+        "left_apk_name": "ac.robinson.mediaphone_65.apk",
+        "left_package_name": "ac.robinson.mediaphone",
+        "left_whash": "c3819999bd99c3c3",
+        "right_apk_name": "app.dumdum_14.apk",
+        "right_package_name": "app.dumdum",
+        "right_whash": "ff81819f81a181df"
+      },
+      {
+        "hamming": 35,
+        "left_apk_name": "InfinityLoop1309.NewPipeEnhanced_109503.apk",
+        "left_package_name": "InfinityLoop1309.NewPipeEnhanced",
+        "left_whash": "ffc381981881c3e7",
+        "right_apk_name": "app.crossword.yourealwaysbe.forkyz_8000000.apk",
+        "right_package_name": "app.crossword.yourealwaysbe.forkyz",
+        "right_whash": "ffbffe2460702081"
+      },
+      {
+        "hamming": 16,
+        "left_apk_name": "ademar.bitac_8.apk",
+        "left_package_name": "ademar.bitac",
+        "left_whash": "e7819d1434bd81e7",
+        "right_apk_name": "agrigolo.opendrummer_3.apk",
+        "right_package_name": "agrigolo.opendrummer",
+        "right_whash": "ff818181a1b981ff"
+      },
+      {
+        "hamming": 33,
+        "left_apk_name": "ademar.bitac_7.apk",
+        "left_package_name": "ademar.bitac",
+        "left_whash": "e7819d1434bd81e7",
+        "right_apk_name": "app.clauncher_430.apk",
+        "right_package_name": "app.clauncher",
+        "right_whash": "ffe442989cc22081"
+      },
+      {
+        "hamming": 17,
+        "left_apk_name": "anupam.acrylic_18.apk",
+        "left_package_name": "anupam.acrylic",
+        "left_whash": "fff7e3c1c1c0a081",
+        "right_apk_name": "app.clauncher_430.apk",
+        "right_package_name": "app.clauncher",
+        "right_whash": "ffe442989cc22081"
+      },
+      {
+        "hamming": 18,
+        "left_apk_name": "a2dp.Vol_169.apk",
+        "left_package_name": "a2dp.Vol",
+        "left_whash": "ffc383818181c3ef",
+        "right_apk_name": "anupam.acrylic_18.apk",
+        "right_package_name": "anupam.acrylic",
+        "right_whash": "fff7e3c1c1c0a081"
+      },
+      {
+        "hamming": 25,
+        "left_apk_name": "InfinityLoop1309.NewPipeEnhanced_109504.apk",
+        "left_package_name": "InfinityLoop1309.NewPipeEnhanced",
+        "left_whash": "ffc381981881c3e7",
+        "right_apk_name": "anupam.acrylic_18.apk",
+        "right_package_name": "anupam.acrylic",
+        "right_whash": "fff7e3c1c1c0a081"
+      },
+      {
+        "hamming": 24,
+        "left_apk_name": "agrigolo.chubbyclick_24.apk",
+        "left_package_name": "agrigolo.chubbyclick",
+        "left_whash": "ffff818182c2bc81",
+        "right_apk_name": "app.crossword.yourealwaysbe.forkyz_8000000.apk",
+        "right_package_name": "app.crossword.yourealwaysbe.forkyz",
+        "right_whash": "ffbffe2460702081"
+      },
+      {
+        "hamming": 17,
+        "left_apk_name": "InfinityLoop1309.NewPipeEnhanced_109503.apk",
+        "left_package_name": "InfinityLoop1309.NewPipeEnhanced",
+        "left_whash": "ffc381981881c3e7",
+        "right_apk_name": "acr.browser.lightning_100.apk",
+        "right_package_name": "acr.browser.lightning",
+        "right_whash": "e7838d2d368983c7"
+      },
+      {
+        "hamming": 31,
+        "left_apk_name": "agrigolo.opendrummer_2.apk",
+        "left_package_name": "agrigolo.opendrummer",
+        "left_whash": "ff818181a1b981ff",
+        "right_apk_name": "app.clauncher_420.apk",
+        "right_package_name": "app.clauncher",
+        "right_whash": "ffe442989cc22081"
+      },
+      {
+        "hamming": 29,
+        "left_apk_name": "ac.robinson.mediaphone_65.apk",
+        "left_package_name": "ac.robinson.mediaphone",
+        "left_whash": "c3819999bd99c3c3",
+        "right_apk_name": "app.clauncher_420.apk",
+        "right_package_name": "app.clauncher",
+        "right_whash": "ffe442989cc22081"
+      },
+      {
+        "hamming": 25,
+        "left_apk_name": "InfinityLoop1309.NewPipeEnhanced_109503.apk",
+        "left_package_name": "InfinityLoop1309.NewPipeEnhanced",
+        "left_whash": "ffc381981881c3e7",
+        "right_apk_name": "anupam.acrylic_18.apk",
+        "right_package_name": "anupam.acrylic",
+        "right_whash": "fff7e3c1c1c0a081"
+      },
+      {
+        "hamming": 17,
+        "left_apk_name": "InfinityLoop1309.NewPipeEnhanced_109504.apk",
+        "left_package_name": "InfinityLoop1309.NewPipeEnhanced",
+        "left_whash": "ffc381981881c3e7",
+        "right_apk_name": "agrigolo.opendrummer_2.apk",
+        "right_package_name": "agrigolo.opendrummer",
+        "right_whash": "ff818181a1b981ff"
+      },
+      {
+        "hamming": 12,
+        "left_apk_name": "a2dp.Vol_169.apk",
+        "left_package_name": "a2dp.Vol",
+        "left_whash": "ffc383818181c3ef",
+        "right_apk_name": "app.dumdum_14.apk",
+        "right_package_name": "app.dumdum",
+        "right_whash": "ff81819f81a181df"
+      },
+      {
+        "hamming": 34,
+        "left_apk_name": "app.crossword.yourealwaysbe.forkyz_8000000.apk",
+        "left_package_name": "app.crossword.yourealwaysbe.forkyz",
+        "left_whash": "ffbffe2460702081",
+        "right_apk_name": "app.dumdum_14.apk",
+        "right_package_name": "app.dumdum",
+        "right_whash": "ff81819f81a181df"
+      },
+      {
+        "hamming": 14,
+        "left_apk_name": "androdns.android.leetdreams.ch.androdns_16.apk",
+        "left_package_name": "androdns.android.leetdreams.ch.androdns",
+        "left_whash": "e7c38195ab8183e7",
+        "right_apk_name": "app.dumdum_14.apk",
+        "right_package_name": "app.dumdum",
+        "right_whash": "ff81819f81a181df"
+      },
+      {
+        "hamming": 32,
+        "left_apk_name": "agrigolo.opendrummer_2.apk",
+        "left_package_name": "agrigolo.opendrummer",
+        "left_whash": "ff818181a1b981ff",
+        "right_apk_name": "app.crossword.yourealwaysbe.forkyz_7900000.apk",
+        "right_package_name": "app.crossword.yourealwaysbe.forkyz",
+        "right_whash": "ffbffe2460702081"
+      },
+      {
+        "hamming": 23,
+        "left_apk_name": "ademar.bitac_8.apk",
+        "left_package_name": "ademar.bitac",
+        "left_whash": "e7819d1434bd81e7",
+        "right_apk_name": "androdns.android.leetdreams.ch.androdns_27.apk",
+        "right_package_name": "androdns.android.leetdreams.ch.androdns",
+        "right_whash": "ff9f07162b0181c3"
+      },
+      {
+        "hamming": 18,
+        "left_apk_name": "anupam.acrylic_18.apk",
+        "left_package_name": "anupam.acrylic",
+        "left_whash": "fff7e3c1c1c0a081",
+        "right_apk_name": "app.eduroam.geteduroam_2682.apk",
+        "right_package_name": "app.eduroam.geteduroam",
+        "right_whash": "ffc3818181e781db"
+      },
+      {
+        "hamming": 24,
+        "left_apk_name": "acr.browser.lightning_101.apk",
+        "left_package_name": "acr.browser.lightning",
+        "left_whash": "e7838d2d368983c7",
+        "right_apk_name": "app.eduroam.geteduroam_2682.apk",
+        "right_package_name": "app.eduroam.geteduroam",
+        "right_whash": "ffc3818181e781db"
+      },
+      {
+        "hamming": 8,
+        "left_apk_name": "agrigolo.opendrummer_2.apk",
+        "left_package_name": "agrigolo.opendrummer",
+        "left_whash": "ff818181a1b981ff",
+        "right_apk_name": "app.dumdum_14.apk",
+        "right_package_name": "app.dumdum",
+        "right_whash": "ff81819f81a181df"
+      },
+      {
+        "hamming": 19,
+        "left_apk_name": "InfinityLoop1309.NewPipeEnhanced_109504.apk",
+        "left_package_name": "InfinityLoop1309.NewPipeEnhanced",
+        "left_whash": "ffc381981881c3e7",
+        "right_apk_name": "ademar.bitac_8.apk",
+        "right_package_name": "ademar.bitac",
+        "right_whash": "e7819d1434bd81e7"
+      }
+    ]
+  },
+  "random_seed": 30,
+  "recompress": {
+    "max_hamming": 2,
+    "mean_hamming": 0.3333333333333333,
+    "n_pairs": 30,
+    "n_pairs_distance_le_5": 30,
+    "std_hamming": 0.5962847939999439
+  },
+  "report_path": "/private/tmp/wave30-repr-submodule/experiments/artifacts/REPR-30-ICON-MOD-SYNTH/report.json",
+  "run_id": "REPR-30-ICON-MOD-SYNTH",
+  "samples": [
+    {
+      "apk_name": "InfinityLoop1309.NewPipeEnhanced_109503.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/InfinityLoop1309.NewPipeEnhanced_109503.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "InfinityLoop1309.NewPipeEnhanced",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:f0f0f0f0e8f0f0f0"
+    },
+    {
+      "apk_name": "InfinityLoop1309.NewPipeEnhanced_109504.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/InfinityLoop1309.NewPipeEnhanced_109504.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "InfinityLoop1309.NewPipeEnhanced",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:f0f0f0f0e8f0f0f0"
+    },
+    {
+      "apk_name": "a2dp.Vol_169.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/a2dp.Vol_169.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "a2dp.Vol",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:70f0f0f0f0f0f070"
+    },
+    {
+      "apk_name": "ac.robinson.mediaphone_64.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/ac.robinson.mediaphone_64.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "ac.robinson.mediaphone",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:e0e8e8e8e8e8f0f0"
+    },
+    {
+      "apk_name": "ac.robinson.mediaphone_65.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/ac.robinson.mediaphone_65.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "ac.robinson.mediaphone",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:e0e8e8e8e8e8f0f0"
+    },
+    {
+      "apk_name": "acr.browser.lightning_100.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/acr.browser.lightning_100.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "acr.browser.lightning",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:f8f8e8c8ecf8f8f0"
+    },
+    {
+      "apk_name": "acr.browser.lightning_101.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/acr.browser.lightning_101.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "acr.browser.lightning",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:f8f8e8c8ecf8f8f0"
+    },
+    {
+      "apk_name": "ademar.bitac_7.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/ademar.bitac_7.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "ademar.bitac",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:70f0f0e8e8e8e060"
+    },
+    {
+      "apk_name": "ademar.bitac_8.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/ademar.bitac_8.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "ademar.bitac",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:70f0f0e8e8e8e060"
+    },
+    {
+      "apk_name": "agrigolo.chubbyclick_24.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/agrigolo.chubbyclick_24.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "agrigolo.chubbyclick",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:c0c09a9e96c6c4c0"
+    },
+    {
+      "apk_name": "agrigolo.chubbyclick_25.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/agrigolo.chubbyclick_25.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "agrigolo.chubbyclick",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:c0c09a9e96c6c4c0"
+    },
+    {
+      "apk_name": "agrigolo.opendrummer_2.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/agrigolo.opendrummer_2.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+      "package_name": "agrigolo.opendrummer",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:c0cc8e86cce0c0c0"
+    },
+    {
+      "apk_name": "agrigolo.opendrummer_3.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/agrigolo.opendrummer_3.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+      "package_name": "agrigolo.opendrummer",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:c0cc8e86cce0c0c0"
+    },
+    {
+      "apk_name": "androdns.android.leetdreams.ch.androdns_16.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/androdns.android.leetdreams.ch.androdns_16.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "androdns.android.leetdreams.ch.androdns",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:f0e08cacaa8ce0f0"
+    },
+    {
+      "apk_name": "androdns.android.leetdreams.ch.androdns_27.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/androdns.android.leetdreams.ch.androdns_27.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "androdns.android.leetdreams.ch.androdns",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:f0fcf6f6cadefcf0"
+    },
+    {
+      "apk_name": "anupam.acrylic_18.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/anupam.acrylic_18.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "anupam.acrylic",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:c0cccc8692ccccc4"
+    },
+    {
+      "apk_name": "anupam.acrylic_19.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/anupam.acrylic_19.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "anupam.acrylic",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:c0cccc8692ccccc4"
+    },
+    {
+      "apk_name": "app.bitbag_272.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/app.bitbag_272.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "app.bitbag",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:c0c692969292c6c0"
+    },
+    {
+      "apk_name": "app.bitbag_273.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/app.bitbag_273.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "app.bitbag",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:c0c692969292c6c0"
+    },
+    {
+      "apk_name": "app.cclauncher_1289.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/app.cclauncher_1289.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+      "package_name": "app.cclauncher",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:c0cccc9cb49eccc0"
+    },
+    {
+      "apk_name": "app.cclauncher_1290.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/app.cclauncher_1290.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+      "package_name": "app.cclauncher",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:c0cccc9cb49eccc0"
+    },
+    {
+      "apk_name": "app.clauncher_420.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/app.clauncher_420.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+      "package_name": "app.clauncher",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:c0ccdcb0b0dcccc0"
+    },
+    {
+      "apk_name": "app.clauncher_430.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/app.clauncher_430.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+      "package_name": "app.clauncher",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:c0ccdcb0b0dcccc0"
+    },
+    {
+      "apk_name": "app.crescentcash.src_118.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/app.crescentcash.src_118.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "app.crescentcash.src",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:d4f0e8ccf8d8c8c0"
+    },
+    {
+      "apk_name": "app.crescentcash.src_120.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/app.crescentcash.src_120.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "app.crescentcash.src",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:d4f0e8ccf8d8c8c0"
+    },
+    {
+      "apk_name": "app.crossword.yourealwaysbe.forkyz_7900000.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/app.crossword.yourealwaysbe.forkyz_7900000.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "app.crossword.yourealwaysbe.forkyz",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:ccececccc4c0c0c0"
+    },
+    {
+      "apk_name": "app.crossword.yourealwaysbe.forkyz_8000000.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/app.crossword.yourealwaysbe.forkyz_8000000.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "app.crossword.yourealwaysbe.forkyz",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:ccececccc4c0c0c0"
+    },
+    {
+      "apk_name": "app.dumdum_13.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/app.dumdum_13.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "app.dumdum",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:c0d8d8bc86c6c6c0"
+    },
+    {
+      "apk_name": "app.dumdum_14.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/app.dumdum_14.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.png",
+      "package_name": "app.dumdum",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:c0d8d8bc86c6c6c0"
+    },
+    {
+      "apk_name": "app.eduroam.geteduroam_2682.apk",
+      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/app.eduroam.geteduroam_2682.apk",
+      "extraction_source": "decoded_dir",
+      "icon_rel_path": "res/mipmap-xxxhdpi/ic_launcher.webp",
+      "package_name": "app.eduroam.geteduroam",
+      "resource_view_v2_icon_phash": "icon_phash:dhash:c0d496aa96ccccc0"
+    }
+  ],
+  "scale": {
+    "max_hamming": 5,
+    "mean_hamming": 0.7666666666666667,
+    "n_pairs": 30,
+    "n_pairs_distance_le_5": 30,
+    "std_hamming": 1.382831234179436
+  },
+  "selection": {
+    "decoded_root": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-decoded",
+    "fallback_count": 10,
+    "n_apks_discovered": 350,
+    "n_errors": 0,
+    "n_icon_candidates_collected": 30,
+    "n_selected_icons": 30,
+    "requested_corpus_dir": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks",
+    "selection_mode": "target_30",
+    "target_count": 30
+  },
+  "source": {
+    "hash_method": "native_8x8_median_whash",
+    "imagehash_available": false,
+    "pillow_available": true,
+    "resource_view_v2_hash_method": "whash",
+    "script": "script/run_icon_mod_synth_bench.py"
+  },
+  "status": "done",
+  "timestamp_utc": "2026-04-27T17:01:11.544754+00:00",
+  "translate": {
+    "max_hamming": 12,
+    "mean_hamming": 6.366666666666666,
+    "n_pairs": 30,
+    "n_pairs_distance_le_5": 10,
+    "std_hamming": 3.381156935461917
+  },
+  "unrelated_pairs_baseline": {
+    "max_hamming": 40,
+    "mean_hamming": 23.533333333333335,
+    "n_pairs": 30,
+    "n_pairs_distance_le_5": 0,
+    "std_hamming": 7.74481905677739
+  }
+}
