@@ -51,6 +51,9 @@ except Exception:
 
 logger = logging.getLogger(__name__)
 
+THRESH_002_BASELINE = 0.28
+THRESH_002_PRODUCTION = 0.70
+
 # EXEC-091: high-confidence shortcut
 # Если на этапе первичного отбора оценка сходства очень высока и цифровая
 # подпись APK совпадает — кандидат помечается как shortcut_applied=True с
@@ -1150,7 +1153,7 @@ def extract_screening_stage(config: dict) -> tuple[list[str], str, float]:
         raise ValueError("'stages.screening.metric' must be a string")
     metric = normalize_metric_name(metric_raw)
 
-    threshold_raw = screening.get("threshold", 0.0)
+    threshold_raw = screening.get("threshold", THRESH_002_PRODUCTION)
     try:
         threshold = float(threshold_raw)
     except (TypeError, ValueError):

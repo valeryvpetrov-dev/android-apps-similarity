@@ -1,0 +1,138 @@
+{
+  "schema_version": "screening-thresh-production-replay-v1",
+  "generated_at_utc": "2026-04-27T15:45:15.262645+00:00",
+  "artifact_id": "SCREENING-28-THRESH-RAISE",
+  "status": "ok",
+  "calibration_source": {
+    "artifact_id": "SCREENING-27-THRESH-CALIBRATE",
+    "commit": "b7928f9",
+    "optimal_threshold": 0.7
+  },
+  "threshold_change": {
+    "baseline": 0.28,
+    "production": 0.7
+  },
+  "corpus": {
+    "name": "F-Droid v2",
+    "path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks",
+    "apk_count": 350,
+    "train_apk_count": 245,
+    "test_apk_count": 105,
+    "replay_train_apk_count": 245,
+    "replay_test_apk_count": 105,
+    "train_ratio": 0.7,
+    "seed": 2
+  },
+  "screening": {
+    "selected_layers": [
+      "code",
+      "metadata"
+    ],
+    "metric": "jaccard",
+    "positive_policy": "score >= threshold => preliminary_positive",
+    "replay_mode": "scoring_only_no_candidate_row_materialization"
+  },
+  "ground_truth_policy": {
+    "label_clone_when": "same package_name and same signing key",
+    "package_source": "metadata package_name token, fallback to F-Droid stem before final _version",
+    "signature_source": "APK signing certificate SHA-256 chain, fallback to metadata signing_prefix token"
+  },
+  "coordination": {
+    "layer_weights": "Not modified here; DEEP-28 owns new LAYER_WEIGHTS."
+  },
+  "warnings": [],
+  "segments": [
+    {
+      "name": "train",
+      "documents": 245,
+      "pairs_total": 29890,
+      "pairs_clone": 76,
+      "pairs_non_clone": 29814,
+      "baseline": {
+        "threshold": 0.28,
+        "tp": 76,
+        "fp": 19189,
+        "fn": 0,
+        "tn": 10625,
+        "precision": 0.003945,
+        "recall": 1.0,
+        "tpr": 1.0,
+        "fpr": 0.643624,
+        "f1": 0.007859,
+        "youden_j": 0.356376,
+        "shortlist_size": 19265,
+        "preliminary_positive_count": 19265,
+        "preliminary_negative_count": 10625
+      },
+      "production": {
+        "threshold": 0.7,
+        "tp": 54,
+        "fp": 16,
+        "fn": 22,
+        "tn": 29798,
+        "precision": 0.771429,
+        "recall": 0.710526,
+        "tpr": 0.710526,
+        "fpr": 0.000537,
+        "f1": 0.739726,
+        "youden_j": 0.70999,
+        "shortlist_size": 70,
+        "preliminary_positive_count": 70,
+        "preliminary_negative_count": 29820
+      },
+      "delta_production_minus_baseline": {
+        "shortlist_size": -19195,
+        "precision": 0.767484,
+        "recall": -0.289474,
+        "f1": 0.731867,
+        "fpr": -0.643087
+      }
+    },
+    {
+      "name": "test",
+      "documents": 105,
+      "pairs_total": 5460,
+      "pairs_clone": 15,
+      "pairs_non_clone": 5445,
+      "baseline": {
+        "threshold": 0.28,
+        "tp": 15,
+        "fp": 3792,
+        "fn": 0,
+        "tn": 1653,
+        "precision": 0.00394,
+        "recall": 1.0,
+        "tpr": 1.0,
+        "fpr": 0.696419,
+        "f1": 0.007849,
+        "youden_j": 0.303581,
+        "shortlist_size": 3807,
+        "preliminary_positive_count": 3807,
+        "preliminary_negative_count": 1653
+      },
+      "production": {
+        "threshold": 0.7,
+        "tp": 7,
+        "fp": 1,
+        "fn": 8,
+        "tn": 5444,
+        "precision": 0.875,
+        "recall": 0.466667,
+        "tpr": 0.466667,
+        "fpr": 0.000184,
+        "f1": 0.608696,
+        "youden_j": 0.466483,
+        "shortlist_size": 8,
+        "preliminary_positive_count": 8,
+        "preliminary_negative_count": 5452
+      },
+      "delta_production_minus_baseline": {
+        "shortlist_size": -3799,
+        "precision": 0.87106,
+        "recall": -0.533333,
+        "f1": 0.600847,
+        "fpr": -0.696235
+      }
+    }
+  ]
+}
