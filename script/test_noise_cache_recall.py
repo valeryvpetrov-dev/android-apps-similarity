@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
+import sys
 import time
 from pathlib import Path
 from unittest import mock
@@ -108,3 +110,27 @@ def test_missing_corpus_falls_back_to_mini_corpus_with_warning(tmp_path: Path) -
     assert report["corpus_source"] == "mini_corpus"
     assert "fallback_mini_corpus_used" in report["warnings"]
     assert report["pass_2"]["cache_hits"] == 5
+
+
+def test_script_file_entrypoint_writes_report(tmp_path: Path) -> None:
+    out_path = tmp_path / "report.json"
+    result = subprocess.run(
+        [
+            sys.executable,
+            "script/run_noise_cache_recall.py",
+            "--corpus_dir",
+            str(tmp_path / "missing"),
+            "--out",
+            str(out_path),
+            "--n_iterations",
+            "2",
+        ],
+        check=False,
+        cwd=Path(__file__).resolve().parent.parent,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    report = json.loads(out_path.read_text(encoding="utf-8"))
+    assert report["corpus_source"] == "mini_corpus"
