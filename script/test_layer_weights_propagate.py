@@ -31,10 +31,22 @@ class TestLayerWeightsPropagate(unittest.TestCase):
             f"missing {CALIBRATED_WEIGHTS_PATH}",
         )
 
-    def test_loaded_weights_match_fallback_after_externalisation(self) -> None:
-        """Externalised JSON численно совпадает с hard-coded fallback (refactor, не feat)."""
-        for layer, expected in _LAYER_WEIGHTS_FALLBACK.items():
-            self.assertAlmostEqual(LAYER_WEIGHTS[layer], expected, places=10)
+    def test_loaded_weights_are_valid_distribution(self) -> None:
+        """LAYER_WEIGHTS — корректное распределение (сумма активных = 1.0).
+
+        DEEP-27-LAYER-WEIGHTS-FDROID-CALIBRATE: после реальной калибровки
+        на F-Droid v2 LAYER_WEIGHTS ≠ _LAYER_WEIGHTS_FALLBACK по
+        значениям (раньше было refactor, теперь — feat). Старая проверка
+        `LAYER_WEIGHTS == FALLBACK` снята; вместо неё фиксируем только
+        контракт: непустой словарь, каждое значение в [0, 1], сумма
+        активных весов ≈ 1.0.
+        """
+        self.assertGreater(len(LAYER_WEIGHTS), 0)
+        for layer, w in LAYER_WEIGHTS.items():
+            self.assertGreaterEqual(w, 0.0, f"{layer} weight < 0: {w}")
+            self.assertLessEqual(w, 1.0, f"{layer} weight > 1: {w}")
+        active_sum = sum(w for w in LAYER_WEIGHTS.values() if w > 0)
+        self.assertAlmostEqual(active_sum, 1.0, delta=1e-6)
 
     def test_load_falls_back_with_warning_when_file_missing(self) -> None:
         with TemporaryDirectory() as tmp:
