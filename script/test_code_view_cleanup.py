@@ -7,10 +7,14 @@ from pathlib import Path
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+LEGACY_CODE_VIEW_FILES = tuple(f"code_view{suffix}.py" for suffix in ("", "_v2", "_v3"))
+LEGACY_CODE_VIEW_TESTS = tuple(
+    f"test_code_view{suffix}.py" for suffix in ("_v1", "_v2", "_v3")
+)
 
 
 def test_legacy_code_view_files_are_physically_removed() -> None:
-    for filename in ("code_view.py", "code_view_v2.py", "code_view_v3.py"):
+    for filename in LEGACY_CODE_VIEW_FILES:
         assert not (SCRIPT_DIR / filename).is_file()
 
 
@@ -30,7 +34,7 @@ def test_m_static_views_imports_only_canonical_code_views() -> None:
 
 
 def test_legacy_code_view_tests_are_removed_or_skipped() -> None:
-    for filename in ("test_code_view_v1.py", "test_code_view_v2.py", "test_code_view_v3.py"):
+    for filename in LEGACY_CODE_VIEW_TESTS:
         path = SCRIPT_DIR / filename
         if not path.exists():
             continue

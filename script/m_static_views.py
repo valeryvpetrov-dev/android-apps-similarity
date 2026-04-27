@@ -1406,7 +1406,7 @@ def compare_all(
     # `library_mask.get_library_mask` (см. canonical implementation), а не
     # heuristic `_library_mask_for_features`. Локальные mask-helper'ы
     # NOISE-ветки делегированы внутри canonical для согласованного поведения
-    # между noise_normalizer / library_view_v2 / code_view_v2 / m_static_views.
+    # между noise_normalizer / library_view_v2 / canonical code view / m_static_views.
     canonical_features_a = _normalize_features_for_canonical(features_a, selected)
     canonical_features_b = _normalize_features_for_canonical(features_b, selected)
     # Единая логика: всегда вызвать get_library_mask (NOISE-24-MASK-CONTRACT),
