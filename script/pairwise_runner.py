@@ -1229,6 +1229,47 @@ def _should_skip_deep_verification(candidate: dict[str, Any]) -> bool:
     return True
 
 
+def _coerce_unit_float(value: Any, default: float = 0.0) -> float:
+    """DEEP-26-SHORTCUT-EVIDENCE-FILL: безопасно привести к float в [0, 1].
+
+    Используется для переноса score-полей из screening (retrieval_score,
+    signature_match.score) в pair_row shortcut-пары. Невалидные значения
+    дают ``default``, выход за [0, 1] зажимается.
+    """
+    try:
+        result = float(value)
+    except (TypeError, ValueError):
+        return float(default)
+    if result < 0.0:
+        return 0.0
+    if result > 1.0:
+        return 1.0
+    return result
+
+
+def _shortcut_full_similarity_score(candidate: dict[str, Any]) -> float:
+    """DEEP-26-SHORTCUT-EVIDENCE-FILL: вывести full_similarity_score для shortcut-пары.
+
+    Источники по приоритету (single-source-of-truth — screening signal,
+    тяжёлая feature extraction в shortcut path не вызывается):
+
+    1. ``candidate["retrieval_score"]`` — агрегированный screening score,
+       заведомо высокий когда shortcut применяется (см.
+       ``screening_runner._compute_shortcut_flags``).
+    2. ``candidate["signature_match"]["score"]`` — fallback, когда retrieval
+       по какой-то причине не пробросился (искусственные тесты, legacy).
+
+    Возвращает float в [0, 1]; гарантированно не None.
+    """
+    retrieval = candidate.get("retrieval_score")
+    if retrieval is not None:
+        return _coerce_unit_float(retrieval, default=0.0)
+    signature_match = candidate.get("signature_match")
+    if isinstance(signature_match, dict):
+        return _coerce_unit_float(signature_match.get("score"), default=0.0)
+    return 0.0
+
+
 def _build_shortcut_pair_row(
     candidate: dict[str, Any],
     selected_layers: list[str],
@@ -1240,6 +1281,28 @@ def _build_shortcut_pair_row(
     короткого пути», а не как успешное подтверждение сходства тяжёлыми
     функциями. Поле ``shortcut_status="success_shortcut"`` выставляется
     именно здесь — после реального пропускания тяжёлых функций.
+
+    DEEP-26-SHORTCUT-EVIDENCE-FILL: shortcut-пара заполняет
+    ``full_similarity_score`` и ``library_reduced_score`` non-None
+    значениями из screening signal (retrieval_score / signature_match.score),
+    переносит ``per_view_scores`` из candidate в pair_row, чтобы
+    ``collect_evidence_from_pairwise`` построил per-layer Evidence.
+
+    Контракт значений:
+      - ``full_similarity_score`` — float в [0, 1], берётся из
+        ``candidate["retrieval_score"]`` (screening), fallback на
+        ``signature_match["score"]``;
+      - ``library_reduced_score`` — float в [0, 1], равен
+        ``full_similarity_score`` (shortcut path не вызывает heavy feature
+        extraction; при высоком retrieval_score и signature_match=match
+        library_reduced близок к full — безопасное приближение, и контроль
+        реального расхождения уже делается через DEEP-21-SHORTCUT-LIBRARY-
+        REDUCED-CONTROL);
+      - ``per_view_scores`` — переносится из candidate, чтобы Evidence
+        получил per-layer magnitude;
+      - ``evidence`` — non-empty: signature_match + по одной layer_score
+        записи на каждый присутствующий слой (если per_view_scores не
+        переданы, fallback на общий layer_score = library_reduced_score).
     """
     app_a_raw, app_b_raw = extract_apps(candidate)
     app_a = resolve_app_label(app_a_raw, "unknown_app_a")
@@ -1248,6 +1311,12 @@ def _build_shortcut_pair_row(
     signature_match = candidate.get("signature_match")
     if not isinstance(signature_match, dict):
         signature_match = {"score": 0.0, "status": "missing"}
+
+    full_similarity_score = _shortcut_full_similarity_score(candidate)
+    # library_reduced_score: fallback на full (shortcut не делает heavy
+    # feature extraction; реальный контроль расхождения — отдельной
+    # задачей DEEP-21-SHORTCUT-LIBRARY-REDUCED-CONTROL).
+    library_reduced_score = full_similarity_score
 
     pair_row: dict[str, Any] = {
         "app_a": app_a,
@@ -1259,12 +1328,19 @@ def _build_shortcut_pair_row(
         "shortcut_reason": SHORTCUT_REASON_HIGH_CONFIDENCE,
         "elapsed_ms_deep": int(elapsed_ms_deep),
         "analysis_failed_reason": None,
-        "full_similarity_score": None,
-        "library_reduced_score": None,
+        "full_similarity_score": float(full_similarity_score),
+        "library_reduced_score": float(library_reduced_score),
         "status": "success_shortcut",
         "views_used": list(selected_layers),
         "signature_match": dict(signature_match),
     }
+
+    # DEEP-26-SHORTCUT-EVIDENCE-FILL: пробросить per_view_scores из screening,
+    # чтобы collect_evidence_from_pairwise построил per-layer Evidence.
+    per_view_scores = candidate.get("per_view_scores")
+    if isinstance(per_view_scores, dict) and per_view_scores:
+        pair_row["per_view_scores"] = dict(per_view_scores)
+
     pair_row["evidence"] = collect_evidence_from_pairwise(pair_row)
     return pair_row
 
