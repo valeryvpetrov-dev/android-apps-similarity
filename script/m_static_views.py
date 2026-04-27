@@ -225,9 +225,14 @@ ALL_LAYERS = (
 # DEEP-22-LAYER-WEIGHTS-PROPAGATE (2026-04-25): веса вынесены в JSON-артефакт
 # experiments/artifacts/DEEP-22-LAYER-WEIGHTS-EXTERNALIZED/calibrated_weights.json.
 # Hard-coded словарь ниже остаётся как FALLBACK на случай отсутствия файла.
-# Когда EXEC-086 реально откалибрует веса по корпусу — изменится только JSON,
-# без правки кода. Это {refactor}, не {feat}: численно агрегированный score
-# не меняется (JSON содержит те же значения, что и hard-coded fallback).
+#
+# DEEP-27-LAYER-WEIGHTS-FDROID-CALIBRATE (2026-04-27): веса в JSON-артефакте
+# реально откалиброваны grid-search по labelled-парам F-Droid v2 (350 APK,
+# 175 clone vs 175 non-clone). Старая нормировка DEEP-19 отброшена. Артефакт
+# с метаданными калибровки — DEEP-27-LAYER-WEIGHTS-FDROID/calibrated_weights.json,
+# содержимое скопировано в canonical CALIBRATED_WEIGHTS_PATH (DEEP-22). Hard-coded
+# fallback ниже сохранён для случая отсутствия файла, но численно отличается от
+# реальных весов в JSON (см. README артефакта DEEP-27 для интерпретации).
 _LAYER_WEIGHTS_FALLBACK = {
     "code": 0.45 / 1.15,
     "component": 0.25 / 1.15,

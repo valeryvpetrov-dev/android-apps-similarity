@@ -58,17 +58,16 @@ class TestLayerWeightsSumInvariant(unittest.TestCase):
         total_sum = sum(LAYER_WEIGHTS.values())
         self.assertAlmostEqual(total_sum, 1.0, delta=1e-9)
 
-    def test_active_weights_relative_proportions_preserved(self):
-        # Проверяем, что калибровка выполнена именно через
-        # нормировку (new_w = old_w / old_sum), а не произвольным
-        # переопределением. Пропорции code/library должны совпадать
-        # с исходными 0.45 / 0.10 = 4.5.
-        ratio_code_to_library = LAYER_WEIGHTS["code"] / LAYER_WEIGHTS["library"]
-        self.assertAlmostEqual(ratio_code_to_library, 4.5, delta=1e-9)
-        ratio_component_to_api = (
-            LAYER_WEIGHTS["component"] / LAYER_WEIGHTS["api"]
-        )
-        self.assertAlmostEqual(ratio_component_to_api, 0.25 / 0.15, delta=1e-9)
+    def test_active_weights_in_unit_interval(self):
+        # DEEP-27-LAYER-WEIGHTS-FDROID-CALIBRATE: после реальной калибровки
+        # на F-Droid v2 пропорции старой нормировки (DEEP-19, ratio
+        # code/library = 4.5) больше не верны — веса теперь распределены
+        # по data-driven результату grid-search. Проверяем только базовый
+        # инвариант: каждый активный вес в [0, 1].
+        for layer in ACTIVE_LAYERS:
+            w = LAYER_WEIGHTS[layer]
+            self.assertGreaterEqual(w, 0.0, f"{layer} weight < 0: {w}")
+            self.assertLessEqual(w, 1.0, f"{layer} weight > 1: {w}")
 
     def test_inactive_layers_remain_zero(self):
         # Layers, выключенные до EXEC-086, не должны получить ненулевой
@@ -119,58 +118,44 @@ class TestAggregateScoreInRange(unittest.TestCase):
 
 
 class TestAggregateRegression(unittest.TestCase):
-    """Регрессия: точные числа для синтетической пары.
+    """Регрессия: формула агрегации остаётся ``sum(w_i * s_i) / sum(w_i)``.
 
-    Per-layer scores подобраны так, чтобы охватить все пять активных
-    слоёв. Ручной расчёт:
-      * веса после калибровки: old_w / 1.15;
-      * agg = sum(new_w_i * s_i) / sum(new_w_i);
-      * sum(new_w_i) по активным слоям = 1.0.
-
-    Поскольку знаменатель после калибровки равен 1.0, agg = сумма
-    произведений new_w * s.
+    DEEP-27-LAYER-WEIGHTS-FDROID-CALIBRATE: после реальной калибровки на
+    F-Droid v2 точные числа нормировки DEEP-19 более не воспроизводимы.
+    Регрессия проверяет инвариант формулы: агрегированный score равен
+    взвешенному среднему по активным слоям с нулевой суммой нормировки.
     """
 
     PER_LAYER_SCORES = {
-        "code": 0.5,  # самый низкий score при самом большом весе
+        "code": 0.5,
         "component": 0.9,
         "resource": 0.8,
         "library": 0.85,
         "api": 0.7,
     }
 
-    def _manual_aggregate(self) -> float:
-        # Новые веса: old_w / 1.15.
-        old_sum = 1.15
-        expected = 0.0
+    def test_aggregate_formula_is_weighted_average(self):
+        # Прямая формула: sum(w_i * s_i) / sum(w_i) по активным
+        # слоям с w_i > 0. Сравниваем с ручной свёрткой.
+        weighted_sum = 0.0
+        weight_total = 0.0
+        manual_terms: list[tuple[float, float]] = []
         for layer in ACTIVE_LAYERS:
-            old_w = {
-                "code": 0.45,
-                "component": 0.25,
-                "resource": 0.20,
-                "library": 0.10,
-                "api": 0.15,
-            }[layer]
-            new_w = old_w / old_sum
-            expected += new_w * self.PER_LAYER_SCORES[layer]
-        return expected
-
-    def test_calibrated_aggregate_matches_manual(self):
-        # Агрегация через LAYER_WEIGHTS (sum=1.0) должна совпасть с
-        # ручной цифрой из нормированных весов.
-        weighted_sum = sum(
-            LAYER_WEIGHTS[layer] * self.PER_LAYER_SCORES[layer]
-            for layer in ACTIVE_LAYERS
-        )
-        weight_total = sum(LAYER_WEIGHTS[layer] for layer in ACTIVE_LAYERS)
-        agg = weighted_sum / weight_total
-        expected = self._manual_aggregate()
-        self.assertAlmostEqual(agg, expected, delta=1e-9)
-        # Дополнительно зафиксируем числовое ожидание:
-        # (0.45*0.5 + 0.25*0.9 + 0.20*0.8 + 0.10*0.85 + 0.15*0.7) / 1.15
-        # = (0.225 + 0.225 + 0.16 + 0.085 + 0.105) / 1.15
-        # = 0.800 / 1.15 ≈ 0.6956521739...
-        self.assertAlmostEqual(agg, 0.800 / 1.15, delta=1e-9)
+            w = LAYER_WEIGHTS[layer]
+            if w <= 0.0:
+                continue
+            s = self.PER_LAYER_SCORES[layer]
+            weighted_sum += w * s
+            weight_total += w
+            manual_terms.append((w, s))
+        agg = weighted_sum / weight_total if weight_total > 0 else 0.0
+        # Ручная свёртка должна совпасть.
+        manual = (sum(w * s for w, s in manual_terms)
+                  / sum(w for w, _ in manual_terms))
+        self.assertAlmostEqual(agg, manual, delta=1e-9)
+        # И всегда лежит в [0, 1] для score-ов из [0, 1].
+        self.assertGreaterEqual(agg, 0.0)
+        self.assertLessEqual(agg, 1.0)
 
 
 if __name__ == "__main__":

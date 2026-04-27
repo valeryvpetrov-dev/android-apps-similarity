@@ -291,13 +291,33 @@ class TestBothEmptyExclusionInAggregation(unittest.TestCase):
         self.assertEqual(
             result["per_layer"]["resource"]["status"], "both_empty",
         )
-        # Без resource (вес 0.20/1.15) и api (cos=1.0, вес 0.15/1.15):
-        # weighted = code*0.45 + component*0 + library*0 + api*0.15 → /(0.45+0.25+0.10+0.15)
-        # code = jaccard({same},{same}) = 1.0, api = 1.0.
-        # full = (1.0*0.45/1.15 + 0 + 0 + 1.0*0.15/1.15) / ((0.45+0.25+0.10+0.15)/1.15)
-        #      = (0.60/1.15) / (0.95/1.15) = 0.60/0.95.
+        # DEEP-27-LAYER-WEIGHTS-FDROID-CALIBRATE: после реальной калибровки
+        # точные числа DEEP-19-нормировки (``0.60/0.95``) более не верны.
+        # Тест проверяет инвариант: resource исключается, остальные слои
+        # дают full_similarity_score = sum(w_i * s_i) / sum(w_i) только
+        # по {code, component, library, api}. Per-layer scores:
+        #   code = J({same},{same}) = 1.0
+        #   component = J({left-only},{right-only}) = 0.0
+        #   library = J({left-only},{right-only}) = 0.0
+        #   api = cosine_chain({A->B:1},{A->B:1}) = 1.0
+        per_layer_scores = {
+            "code": 1.0,
+            "component": 0.0,
+            "library": 0.0,
+            "api": 1.0,
+        }
+        weighted_sum = sum(
+            LAYER_WEIGHTS.get(layer, 0.0) * score
+            for layer, score in per_layer_scores.items()
+        )
+        weight_total = sum(
+            LAYER_WEIGHTS.get(layer, 0.0)
+            for layer in per_layer_scores
+            if LAYER_WEIGHTS.get(layer, 0.0) > 0.0
+        )
+        expected = weighted_sum / weight_total if weight_total > 0 else 0.0
         self.assertAlmostEqual(
-            result["full_similarity_score"], 0.60 / 0.95, places=6,
+            result["full_similarity_score"], expected, places=6,
         )
 
 

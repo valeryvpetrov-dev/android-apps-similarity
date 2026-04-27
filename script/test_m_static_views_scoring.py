@@ -178,6 +178,26 @@ class TestCompareAllApiAggregation(unittest.TestCase):
 
     _CANONICAL_LIBRARY_REDUCED = 2.0 / 4.0
 
+    @staticmethod
+    def _expected_full_score(per_layer_scores: dict[str, float]) -> float:
+        """Динамически собрать expected full_similarity_score на основе
+        текущих ``LAYER_WEIGHTS``.
+
+        DEEP-27-LAYER-WEIGHTS-FDROID-CALIBRATE: после реальной калибровки
+        на F-Droid v2 точные числа DEEP-19-нормировки (``0.8 / 1.15``)
+        более не верны. Тест больше не привязан к конкретным весам,
+        проверяет только формулу sum(w_i*s_i)/sum(w_i) по активным слоям.
+        """
+        weighted_sum = 0.0
+        weight_total = 0.0
+        for layer, score in per_layer_scores.items():
+            w = LAYER_WEIGHTS.get(layer, 0.0)
+            if w <= 0.0:
+                continue
+            weighted_sum += w * score
+            weight_total += w
+        return weighted_sum / weight_total if weight_total > 0 else 0.0
+
     def test_all_present_keeps_existing_weighted_aggregation(self) -> None:
         features_a = _make_quick_features(
             code={"same"},
@@ -200,8 +220,23 @@ class TestCompareAllApiAggregation(unittest.TestCase):
             api_chain_b={"A->B": 1.0},
         )
 
+        # Per-layer scores (вычисляются Jaccard / cosine):
+        #   code = J({same}, {same}) = 1.0
+        #   component = J({left-only}, {right-only}) = 0.0
+        #   resource = J({same}, {same}) = 1.0
+        #   library = J({left-only}, {right-only}) = 0.0
+        #   api = cosine_chain({A->B:1.0}, {A->B:1.0}) = 1.0
+        expected = self._expected_full_score({
+            "code": 1.0,
+            "component": 0.0,
+            "resource": 1.0,
+            "library": 0.0,
+            "api": 1.0,
+        })
         self.assertEqual(result["per_layer"]["api"]["status"], "markov_cosine")
-        self.assertAlmostEqual(result["full_similarity_score"], 0.8 / 1.15, places=6)
+        self.assertAlmostEqual(
+            result["full_similarity_score"], expected, places=6,
+        )
         self.assertAlmostEqual(
             result["library_reduced_score"], self._CANONICAL_LIBRARY_REDUCED, places=6,
         )
@@ -228,8 +263,18 @@ class TestCompareAllApiAggregation(unittest.TestCase):
             api_chain_b=None,
         )
 
+        # api both_empty → исключается из агрегации; остаются 4 слоя.
+        # code=1.0, component=0.0, resource=1.0, library=0.0.
+        expected = self._expected_full_score({
+            "code": 1.0,
+            "component": 0.0,
+            "resource": 1.0,
+            "library": 0.0,
+        })
         self.assertEqual(result["per_layer"]["api"]["status"], "both_empty")
-        self.assertAlmostEqual(result["full_similarity_score"], 0.65, places=6)
+        self.assertAlmostEqual(
+            result["full_similarity_score"], expected, places=6,
+        )
         self.assertAlmostEqual(
             result["library_reduced_score"], self._CANONICAL_LIBRARY_REDUCED, places=6,
         )
@@ -256,8 +301,19 @@ class TestCompareAllApiAggregation(unittest.TestCase):
             api_chain_b=None,
         )
 
+        # api one_empty → score=0, но слой включается в weighted sum.
+        # code=1, component=0, resource=1, library=0, api=0.
+        expected = self._expected_full_score({
+            "code": 1.0,
+            "component": 0.0,
+            "resource": 1.0,
+            "library": 0.0,
+            "api": 0.0,
+        })
         self.assertEqual(result["per_layer"]["api"]["status"], "one_empty")
-        self.assertAlmostEqual(result["full_similarity_score"], 0.65 / 1.15, places=6)
+        self.assertAlmostEqual(
+            result["full_similarity_score"], expected, places=6,
+        )
         self.assertAlmostEqual(
             result["library_reduced_score"], self._CANONICAL_LIBRARY_REDUCED, places=6,
         )
