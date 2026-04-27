@@ -51,6 +51,7 @@ _PHD_ROOT = next(
     _PHD_ROOT_CANDIDATES[-1],
 )
 _SMOKE_DIR = _PHD_ROOT / "experiments" / "scripts"
+_SMOKE_SCRIPT = _SMOKE_DIR / "run_e2e_smoke.py"
 if str(_SMOKE_DIR) not in sys.path:
     sys.path.insert(0, str(_SMOKE_DIR))
 
@@ -200,6 +201,8 @@ def test_e2e_smoke_fails_fast_without_required_dep(monkeypatch, tmp_path):
     """
     monkeypatch.delenv("SIMILARITY_SKIP_REQ_CHECK", raising=False)
     _prepare_libloom_home(monkeypatch, tmp_path)
+    if not _SMOKE_SCRIPT.is_file():
+        pytest.skip("external experiments/scripts/run_e2e_smoke.py is unavailable")
 
     # Импорт лениво — модуль уже мог быть импортирован test_e2e_pipeline.
     import run_e2e_smoke

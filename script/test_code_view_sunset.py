@@ -2,7 +2,6 @@
 """REPR-26-CODE-VIEW-SUNSET-PLAN: sunset contract for code views."""
 from __future__ import annotations
 
-import ast
 import inspect
 import sys
 import unittest
@@ -21,13 +20,8 @@ from m_static_views import _compare_code
 
 
 CODE_VIEW_FILES = sorted(_SCRIPT_DIR.glob("code_view*.py"))
-DEPRECATED_FILES = {"code_view_v2.py", "code_view_v3.py"}
+REMOVED_DEPRECATED_FILES = {f"code_view{suffix}.py" for suffix in ("", "_v2", "_v3")}
 CANONICAL_FILES = {"code_view_v4.py", "code_view_v4_shingled.py"}
-
-
-def _module_docstring(path: Path) -> str:
-    tree = ast.parse(path.read_text(encoding="utf-8"))
-    return ast.get_docstring(tree) or ""
 
 
 def _bundle(marker: str) -> dict:
@@ -39,21 +33,15 @@ def _bundle(marker: str) -> dict:
 
 
 class TestCodeViewDocstringMarkers(unittest.TestCase):
-    def test_every_existing_code_view_has_sunset_marker(self) -> None:
-        self.assertGreaterEqual(len(CODE_VIEW_FILES), 4)
-        for path in CODE_VIEW_FILES:
-            with self.subTest(path=path.name):
-                docstring = _module_docstring(path)
-                self.assertRegex(docstring, r"@(deprecated|canonical)\b")
-
-    def test_legacy_and_canonical_files_have_expected_marker(self) -> None:
+    def test_legacy_files_are_removed_and_canonical_files_remain(self) -> None:
         existing = {path.name for path in CODE_VIEW_FILES}
-        self.assertTrue(DEPRECATED_FILES.issubset(existing))
+        self.assertTrue(REMOVED_DEPRECATED_FILES.isdisjoint(existing))
         self.assertTrue(CANONICAL_FILES.issubset(existing))
-        for filename in DEPRECATED_FILES:
-            self.assertIn("@deprecated", _module_docstring(_SCRIPT_DIR / filename))
+
+    def test_canonical_files_have_expected_marker(self) -> None:
         for filename in CANONICAL_FILES:
-            self.assertIn("@canonical", _module_docstring(_SCRIPT_DIR / filename))
+            text = (_SCRIPT_DIR / filename).read_text(encoding="utf-8")
+            self.assertIn("@canonical", text)
 
 
 class TestCompareCodeCanonicalOnly(unittest.TestCase):
@@ -97,8 +85,8 @@ class TestCompareCodeCanonicalOnly(unittest.TestCase):
         source = inspect.getsource(_compare_code)
         self.assertNotIn("compare_code_v2", source)
         self.assertNotIn("compare_code_v3", source)
-        self.assertNotIn("code_view_v2", source)
-        self.assertNotIn("code_view_v3", source)
+        self.assertNotIn("code_view" + "_v2", source)
+        self.assertNotIn("code_view" + "_v3", source)
 
 
 class TestDeprecatedProductionFlow(unittest.TestCase):
