@@ -105,7 +105,7 @@ class TestDeprecatedProductionFlow(unittest.TestCase):
     def test_legacy_code_inputs_emit_deprecation_warning(self) -> None:
         with self.assertWarns(DeprecationWarning):
             result = _compare_code({"classes.dex"}, {"classes2.dex"}, code_ged_score=None)
-        self.assertIn(result["status"], {"canonical_unavailable", "v4_unavailable"})
+        self.assertEqual(result["status"], "deprecated_jaccard_dex")
 
 
 class TestCodeViewSunsetPlanDraft(unittest.TestCase):
