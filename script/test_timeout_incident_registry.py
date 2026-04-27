@@ -92,16 +92,16 @@ class TestRecordTimeoutIncident(unittest.TestCase):
                 record["views_used"], ["component", "resource", "library"]
             )
 
-    def test_schema_version_is_timeout_incident_v1(self) -> None:
+    def test_schema_version_is_timeout_incident_v2(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             log_path = Path(tmpdir) / "timeout-incidents.jsonl"
             record = reg.record_timeout_incident(
                 _sample_pair_row(), log_path=log_path
             )
-            self.assertEqual(record["schema_version"], "timeout-incident-v1")
+            self.assertEqual(record["schema_version"], "timeout-incident-v2")
             # И константа модуля должна совпадать.
             self.assertEqual(
-                reg.INCIDENT_LOG_SCHEMA_VERSION, "timeout-incident-v1"
+                reg.INCIDENT_LOG_SCHEMA_VERSION, "timeout-incident-v2"
             )
 
     def test_recorded_at_is_valid_iso8601_utc(self) -> None:
