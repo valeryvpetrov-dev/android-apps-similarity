@@ -120,6 +120,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# SCREENING-30 generated APK rebuild outputs; report.json is the tracked artifact.
+experiments/artifacts/SCREENING-30-PACKAGE-RENAME/shifted_apks/
+
 # C extensions
 *.so
 
