@@ -21,6 +21,6 @@ stages:
   screening:
     features: [code, metadata]
     metric: jaccard
-    threshold: 0.28  # preliminary t=0.28, калибровка отложена до EXEC-080 (train/test split)
+    threshold: 0.70  # THRESH-002 calibrated by SCREENING-27 on F-Droid v2 train/test
   pairwise:
     features: [code, component, resource, library, metadata]

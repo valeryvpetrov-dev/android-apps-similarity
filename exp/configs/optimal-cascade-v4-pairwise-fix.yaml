@@ -18,8 +18,8 @@ stages:
   screening:
     features: [code, metadata]
     metric: jaccard
-    # preliminary t=0.28, калибровка отложена до EXEC-080 (train/test split)
-    threshold: 0.28
+    # THRESH-002 calibrated by SCREENING-27 on F-Droid v2 train/test.
+    threshold: 0.70
   deepening:
     # добавлено в волне 12 (ARCH-12-CASCADE-DEEPENING)
     # Обязательный блок для deepening_runner.run_deepening: без него
