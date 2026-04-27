@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import importlib
 import os
 import subprocess
 import sys
@@ -139,6 +140,55 @@ def test_false_negative_pair_above_thresh_is_visible_in_recall_metrics(tmp_path:
     assert pair["in_shortlist"] is False
     assert pair["full_score"] > 0.28
     assert pair["selected_similarity_score"] == pytest.approx(0.0)
+
+
+def test_report_exposes_lsh_geometry_fields_for_synthetic_pairs(tmp_path: Path) -> None:
+    config_path = _write_config(tmp_path, threshold=0.28, num_perm=16, bands=8, seed=1)
+    app_records = [
+        _make_app("APP-A", {"f0", "f1", "f2", "f3"}),
+        _make_app("APP-B", {"f0", "f1", "f5", "f11"}),
+    ]
+
+    report = diagnostic.build_diagnostic_report(
+        app_records=app_records,
+        cascade_config_path=config_path,
+    )
+
+    assert "rows_per_band" in report["summary"]
+    assert "lost_positive_pairs" in report["summary"]
+    assert "lsh_geometry_expected_hit_probability" in report["pairs"][0]
+
+
+def test_lsh_geometry_expected_hit_probability_uses_band_formula() -> None:
+    lsh_geometry = importlib.import_module("lsh_geometry")
+
+    assert lsh_geometry.expected_hit_probability(
+        j=0.3,
+        num_perm=128,
+        bands=32,
+    ) == pytest.approx(0.22914536447207823)
+
+
+def test_lost_positive_pairs_counts_positive_pairs_missing_from_shortlist(tmp_path: Path) -> None:
+    config_path = _write_config(tmp_path, threshold=0.28, num_perm=16, bands=8, seed=1)
+    app_records = [
+        _make_app("APP-A", {"f0", "f1", "f2", "f3"}),
+        _make_app("APP-B", {"f0", "f1", "f5", "f11"}),
+        _make_app("APP-C", {"x0", "x1", "x2", "x3"}),
+    ]
+
+    report = diagnostic.build_diagnostic_report(
+        app_records=app_records,
+        cascade_config_path=config_path,
+    )
+
+    false_negative_count = sum(
+        1
+        for pair in report["pairs"]
+        if pair["full_score"] >= report["screening"]["threshold"]
+        and not pair["in_shortlist"]
+    )
+    assert report["summary"]["lost_positive_pairs"] == false_negative_count
 
 
 def test_below_threshold_pair_is_not_counted_as_shortlist_false_positive(tmp_path: Path) -> None:
