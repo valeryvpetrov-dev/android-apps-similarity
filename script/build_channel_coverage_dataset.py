@@ -340,6 +340,15 @@ def _canonical_evidence(score: float, signing_score: float) -> list[dict[str, ob
             "ref": "apk_signature",
             "magnitude": signing_score,
         },
+        # 6-й канал, добавлен в волне 30 (EXEC-HINT-30-OBFUSCATION-WRITER): synthetic-fallback
+        # генерирует тривиальный obfuscation_shift сигнал, чтобы all_channels_ratio
+        # после расширения EVIDENCE_CHANNELS оставался 1.0 на чистой синтетике.
+        {
+            "source_stage": "pairwise",
+            "signal_type": "obfuscation_shift",
+            "ref": "jaccard_v2_libmask",
+            "magnitude": 0.0 if signing_score > 0.5 else 0.4,
+        },
     ]
 
 
