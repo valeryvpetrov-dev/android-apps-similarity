@@ -1,0 +1,407 @@
+{
+  "artifact_id": "EXEC-HINT-31-CHANNEL-FAITHFULNESS-REAL",
+  "source_dataset": "EXEC-HINT-31-R8-PAIRS-REAL/r8_pairs_real.json",
+  "mode": "mock_fallback",
+  "n_pairs": 10,
+  "channels": {
+    "code": {
+      "n_pairs_with_data": 10,
+      "faithfulness_mean": 0.65,
+      "sufficiency_mean": 0.825,
+      "comprehensiveness_mean": 1.0
+    },
+    "component": {
+      "n_pairs_with_data": 10,
+      "faithfulness_mean": 1.0,
+      "sufficiency_mean": 1.0,
+      "comprehensiveness_mean": 1.0
+    },
+    "library": {
+      "n_pairs_with_data": 10,
+      "faithfulness_mean": 1.0,
+      "sufficiency_mean": 1.0,
+      "comprehensiveness_mean": 1.0
+    },
+    "resource": {
+      "n_pairs_with_data": 10,
+      "faithfulness_mean": 1.0,
+      "sufficiency_mean": 1.0,
+      "comprehensiveness_mean": 1.0
+    },
+    "signing": {
+      "n_pairs_with_data": 10,
+      "faithfulness_mean": 1.0,
+      "sufficiency_mean": 1.0,
+      "comprehensiveness_mean": 1.0
+    },
+    "obfuscation": {
+      "n_pairs_with_data": 10,
+      "faithfulness_mean": 1.0,
+      "sufficiency_mean": 1.0,
+      "comprehensiveness_mean": 1.0
+    }
+  },
+  "per_pair": [
+    {
+      "pair_id": "REAL-R8-FALLBACK-001",
+      "ground_truth": "mock_fallback",
+      "channels": {
+        "code": {
+          "faithfulness": 0.65,
+          "sufficiency": 0.825,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "obfuscation": {
+          "faithfulness": 0.9999999999999998,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        }
+      }
+    },
+    {
+      "pair_id": "REAL-R8-FALLBACK-002",
+      "ground_truth": "mock_fallback",
+      "channels": {
+        "code": {
+          "faithfulness": 0.65,
+          "sufficiency": 0.825,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "obfuscation": {
+          "faithfulness": 0.9999999999999998,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        }
+      }
+    },
+    {
+      "pair_id": "REAL-R8-FALLBACK-003",
+      "ground_truth": "mock_fallback",
+      "channels": {
+        "code": {
+          "faithfulness": 0.65,
+          "sufficiency": 0.825,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "obfuscation": {
+          "faithfulness": 0.9999999999999998,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        }
+      }
+    },
+    {
+      "pair_id": "REAL-R8-FALLBACK-004",
+      "ground_truth": "mock_fallback",
+      "channels": {
+        "code": {
+          "faithfulness": 0.65,
+          "sufficiency": 0.825,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "obfuscation": {
+          "faithfulness": 0.9999999999999998,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        }
+      }
+    },
+    {
+      "pair_id": "REAL-R8-FALLBACK-005",
+      "ground_truth": "mock_fallback",
+      "channels": {
+        "code": {
+          "faithfulness": 0.65,
+          "sufficiency": 0.825,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "obfuscation": {
+          "faithfulness": 0.9999999999999998,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        }
+      }
+    },
+    {
+      "pair_id": "REAL-R8-FALLBACK-006",
+      "ground_truth": "mock_fallback",
+      "channels": {
+        "code": {
+          "faithfulness": 0.65,
+          "sufficiency": 0.825,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "obfuscation": {
+          "faithfulness": 0.9999999999999998,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        }
+      }
+    },
+    {
+      "pair_id": "REAL-R8-FALLBACK-007",
+      "ground_truth": "mock_fallback",
+      "channels": {
+        "code": {
+          "faithfulness": 0.65,
+          "sufficiency": 0.825,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "obfuscation": {
+          "faithfulness": 0.9999999999999998,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        }
+      }
+    },
+    {
+      "pair_id": "REAL-R8-FALLBACK-008",
+      "ground_truth": "mock_fallback",
+      "channels": {
+        "code": {
+          "faithfulness": 0.65,
+          "sufficiency": 0.825,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "obfuscation": {
+          "faithfulness": 0.9999999999999998,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        }
+      }
+    },
+    {
+      "pair_id": "REAL-R8-FALLBACK-009",
+      "ground_truth": "mock_fallback",
+      "channels": {
+        "code": {
+          "faithfulness": 0.65,
+          "sufficiency": 0.825,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "obfuscation": {
+          "faithfulness": 0.9999999999999998,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        }
+      }
+    },
+    {
+      "pair_id": "REAL-R8-FALLBACK-010",
+      "ground_truth": "mock_fallback",
+      "channels": {
+        "code": {
+          "faithfulness": 0.65,
+          "sufficiency": 0.825,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "signing": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "obfuscation": {
+          "faithfulness": 0.9999999999999998,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        }
+      }
+    }
+  ],
+  "generated_at": "2026-04-28T13:00:36Z"
+}
