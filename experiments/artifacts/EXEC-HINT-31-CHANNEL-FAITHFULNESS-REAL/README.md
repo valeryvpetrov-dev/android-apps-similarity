@@ -24,11 +24,15 @@ HINT-31 строит **реальные** R8-пары через d8/r8 + apktool
 - `n_pairs_real` (build_status=ok, REAL-R8-* префикс): 0
 - `n_pairs_failed`: 10 (все попали в failed_apks из-за r8 toolchain unavailable)
 - `n_pairs_replayed`: 10
-- `mean_faithfulness`: см. JSON
-- `faithfulness_per_channel` (canonical names: code, component, library, resource, signing, obfuscation):
-  см. JSON
+- `mean_faithfulness`: 0.941667
+- `faithfulness_per_channel.code_view_v4`: 0.65
+- `faithfulness_per_channel.component_view`: 1.0
+- `faithfulness_per_channel.library_view_v2`: 1.0
+- `faithfulness_per_channel.resource_view_v2`: 1.0
+- `faithfulness_per_channel.signing_view`: 1.0
+- `faithfulness_per_channel.obfuscation_shift`: 1.0
 - `claim_supported`: `false` (требует mode=`real_r8` ∧ ≥5 ok-пар ∧ code < library; сейчас
-  mode=`mock_fallback` → false по контракту).
+  mode=`mock_fallback` -> false по контракту).
 
 ## Тесты
 
@@ -52,7 +56,7 @@ python3 -m pytest script/test_channel_r8_real.py -v
 
 ## Что закрывает
 
-- Failing тесты {test} 1a8e010 (HINT-31 baseline) — 4/4 PASS.
+- Failing тесты {test} 1a8e010 (HINT-31 baseline) - 4/4 PASS.
 - Контракт от критика волны 29 HINT class_6 (R8 obfuscation): «мы хотим реальные R8-пары
   и per-channel faithfulness, а не synthetic mock». Сейчас выполнено в смысле «pipeline
   готов к real-mode и graceful fallback'ит на mock без обмана». Полный real-mode прогон
