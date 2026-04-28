@@ -61,19 +61,29 @@ class BlockedReportTests(unittest.TestCase):
             self.assertEqual(loaded["status"], "libloom_blocked")
 
 
-class Noise30ReportContractTests(unittest.TestCase):
-    def test_noise30_defaults_point_to_new_artifact(self) -> None:
-        self.assertEqual(rq.RUN_ID, "NOISE-30-LIBLOOM-REAL-QUALITY")
+class Noise31ReportContractTests(unittest.TestCase):
+    def test_noise31_defaults_point_to_new_artifact(self) -> None:
+        self.assertEqual(rq.RUN_ID, "NOISE-31-LIBLOOM-REAL-QUALITY-FULL")
         self.assertEqual(
             rq.DEFAULT_OUTPUT,
             rq.PROJECT_ROOT
             / "experiments"
             / "artifacts"
-            / "NOISE-30-LIBLOOM-REAL-QUALITY"
+            / "NOISE-31-LIBLOOM-REAL-FULL"
             / "report.json",
         )
 
-    def test_available_report_includes_libloom_sha_and_profile_file_count(self) -> None:
+    def test_cli_accepts_wave31_apk_dir_and_out_aliases(self) -> None:
+        parser = rq.build_arg_parser()
+
+        args = parser.parse_args(["--apk_dir", "/tmp/apks", "--out", "/tmp/report.json"])
+
+        self.assertEqual(args.corpus_dir, "/tmp/apks")
+        self.assertEqual(args.output, "/tmp/report.json")
+
+    def test_real_mode_report_includes_available_status_metrics_and_diverse_top_tpl(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             corpus_dir = root / "apks"
@@ -105,7 +115,7 @@ class Noise30ReportContractTests(unittest.TestCase):
                 "build_synthetic_labels",
                 return_value={
                     apk_path.name: {
-                        "ground_truth": ["okhttp3"],
+                        "ground_truth": ["gson", "okhttp3"],
                         "label_source": "test",
                         "decoded_dir": None,
                     }
@@ -115,7 +125,10 @@ class Noise30ReportContractTests(unittest.TestCase):
                 "detect_libraries",
                 return_value={
                     "status": "ok",
-                    "libraries": [{"name": "okhttp-4.12.0", "version": [], "similarity": 1.0}],
+                    "libraries": [
+                        {"name": "gson-2.11.0", "version": [], "similarity": 1.0},
+                        {"name": "okhttp-4.12.0", "version": [], "similarity": 1.0},
+                    ],
                     "elapsed_sec": 0.1,
                     "error_reason": None,
                 },
@@ -125,6 +138,10 @@ class Noise30ReportContractTests(unittest.TestCase):
                     output_path=str(root / "report.json"),
                 )
 
+            self.assertEqual(report["status"], "libloom_available")
+            self.assertIsNotNone(report["precision"])
+            self.assertIsNotNone(report["recall"])
+            self.assertIsNotNone(report["runtime_total_min"])
             self.assertEqual(
                 report["libloom_jar_sha"],
                 hashlib.sha256(jar_bytes).hexdigest(),
@@ -132,6 +149,10 @@ class Noise30ReportContractTests(unittest.TestCase):
             self.assertEqual(report["libs_profile_size"], 2)
             self.assertEqual(report["precision"], 1.0)
             self.assertEqual(report["recall"], 1.0)
+            self.assertGreaterEqual(
+                len({entry["tpl"] for entry in report["top_detected_tpl"]}),
+                2,
+            )
 
     def test_run_quality_can_use_explicit_libs_profile_dir(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -307,7 +328,7 @@ class RealRunMetricsTests(unittest.TestCase):
                     java_heap_mb=128,
                 )
 
-            self.assertEqual(report["status"], "ok")
+            self.assertEqual(report["status"], "libloom_available")
             self.assertEqual(report["corpus_size"], 2)
             self.assertEqual(report["n_apks_with_tpl"], 1)
             self.assertAlmostEqual(report["coverage"], 0.5)
@@ -392,7 +413,7 @@ class RealLibloomMiniCorpusTests(unittest.TestCase):
 
     def test_real_libloom_mini_corpus_precision_and_recall_are_nonzero(self) -> None:
         report = self._real_report()
-        self.assertEqual(report["status"], "ok")
+        self.assertEqual(report["status"], "libloom_available")
         self.assertGreater(report["precision"], 0.0)
         self.assertGreater(report["recall"], 0.0)
 

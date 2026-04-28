@@ -11,6 +11,7 @@ import os
 import random
 import re
 import sys
+import time
 from collections import Counter
 from pathlib import Path
 from typing import Any, Sequence
@@ -23,7 +24,7 @@ except ImportError:  # pragma: no cover - standalone script fallback
     import library_view_v2  # type: ignore[no-redef]
 
 
-RUN_ID = "NOISE-30-LIBLOOM-REAL-QUALITY"
+RUN_ID = "NOISE-31-LIBLOOM-REAL-QUALITY-FULL"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CORPUS_DIR = (
     Path.home()
@@ -37,7 +38,7 @@ DEFAULT_OUTPUT = (
     PROJECT_ROOT
     / "experiments"
     / "artifacts"
-    / RUN_ID
+    / "NOISE-31-LIBLOOM-REAL-FULL"
     / "report.json"
 )
 SOURCE_PATH = "script/run_libloom_real_quality.py"
@@ -403,6 +404,7 @@ def run_quality(
     jar_path: str | Path | None = None,
     libs_profile_dir: str | Path | None = None,
 ) -> dict[str, Any]:
+    started = time.monotonic()
     apk_paths = discover_apks(
         corpus_dir,
         limit=limit,
@@ -479,15 +481,18 @@ def run_quality(
 
     precision, recall = compute_precision_recall(total_tp, total_fp, total_fn)
     coverage = n_apks_with_tpl / len(apk_paths) if apk_paths else 0.0
+    runtime_total_sec = time.monotonic() - started
     report = {
         "run_id": RUN_ID,
-        "status": "ok",
+        "status": "libloom_available",
         "reason": None,
         "corpus_size": len(apk_paths),
         "n_apks_with_tpl": n_apks_with_tpl,
         "precision": precision,
         "recall": recall,
         "coverage": coverage,
+        "runtime_total_sec": runtime_total_sec,
+        "runtime_total_min": runtime_total_sec / 60.0,
         "per_apk_results": per_apk_results,
         "top_detected_tpl": _top_detected_tpl(detected_counter),
         "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
@@ -511,6 +516,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--corpus-dir",
+        "--apk_dir",
+        dest="corpus_dir",
         default=str(DEFAULT_CORPUS_DIR),
         help="APK corpus directory (default: F-Droid v2 cache)",
     )
@@ -521,6 +528,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--output",
+        "--out",
+        dest="output",
         default=str(DEFAULT_OUTPUT),
         help=f"output report path (default: {DEFAULT_OUTPUT})",
     )
