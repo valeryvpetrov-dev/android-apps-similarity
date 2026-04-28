@@ -1,0 +1,50 @@
+{
+  "artifact_id": "SCREENING-31-MIXED-CORPUS",
+  "candidate_index_params": {
+    "bands": 32,
+    "features": [
+      "code",
+      "component",
+      "resource",
+      "metadata",
+      "library"
+    ],
+    "num_perm": 128,
+    "seed": 42,
+    "type": "minhash_lsh"
+  },
+  "current_thresh_002": 0.7,
+  "generated_at_utc": "2026-04-28T12:58:46.259803+00:00",
+  "n_expected_pairs": 244,
+  "n_pairs_per_class": {
+    "class_1": 177,
+    "class_2": 2,
+    "class_4": 20,
+    "class_5": 35,
+    "class_6": 10
+  },
+  "n_records": 488,
+  "proposed_thresh_002": 0.7,
+  "recall_at_shortlist_per_class": {
+    "class_1": 0.9096045197740112,
+    "class_2": 1.0,
+    "class_4": 0.4,
+    "class_5": 1.0,
+    "class_6": 0.0
+  },
+  "schema_version": "screening-lsh-recalibrate-mixed-v1",
+  "shortlist_hits_per_class": {
+    "class_1": 161,
+    "class_2": 2,
+    "class_4": 8,
+    "class_5": 35,
+    "class_6": 0
+  },
+  "shortlist_size": 10529,
+  "sources": {
+    "deep30_code_inject": "experiments/artifacts/DEEP-30-CODE-INJECT/report.json",
+    "fdroid_v2": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks",
+    "hint30_r8_pairs": "experiments/artifacts/EXEC-HINT-30-OBFUSCATION-DATASET/r8_pairs.json",
+    "scrn30_namespace_shift": "experiments/artifacts/SCREENING-30-PACKAGE-RENAME/report.json"
+  }
+}
