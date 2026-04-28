@@ -1,0 +1,756 @@
+{
+  "status": "ok",
+  "corpus_size": 50,
+  "n_inject_pairs": 35,
+  "n_negative_pairs": 35,
+  "threshold_grid": [
+    0.1,
+    0.15,
+    0.2,
+    0.25,
+    0.3,
+    0.35,
+    0.4,
+    0.45,
+    0.5,
+    0.55,
+    0.6,
+    0.65,
+    0.7,
+    0.75,
+    0.8,
+    0.85,
+    0.9,
+    0.95
+  ],
+  "per_threshold_metrics": [
+    {
+      "threshold": 0.1,
+      "tp": 35,
+      "fp": 3,
+      "fn": 0,
+      "tn": 32,
+      "precision": 0.921053,
+      "recall": 1.0,
+      "fpr": 0.085714,
+      "f1": 0.958904,
+      "youden_j": 0.914286
+    },
+    {
+      "threshold": 0.15,
+      "tp": 35,
+      "fp": 2,
+      "fn": 0,
+      "tn": 33,
+      "precision": 0.945946,
+      "recall": 1.0,
+      "fpr": 0.057143,
+      "f1": 0.972222,
+      "youden_j": 0.942857
+    },
+    {
+      "threshold": 0.2,
+      "tp": 35,
+      "fp": 2,
+      "fn": 0,
+      "tn": 33,
+      "precision": 0.945946,
+      "recall": 1.0,
+      "fpr": 0.057143,
+      "f1": 0.972222,
+      "youden_j": 0.942857
+    },
+    {
+      "threshold": 0.25,
+      "tp": 35,
+      "fp": 1,
+      "fn": 0,
+      "tn": 34,
+      "precision": 0.972222,
+      "recall": 1.0,
+      "fpr": 0.028571,
+      "f1": 0.985915,
+      "youden_j": 0.971429
+    },
+    {
+      "threshold": 0.3,
+      "tp": 35,
+      "fp": 0,
+      "fn": 0,
+      "tn": 35,
+      "precision": 1.0,
+      "recall": 1.0,
+      "fpr": 0.0,
+      "f1": 1.0,
+      "youden_j": 1.0
+    },
+    {
+      "threshold": 0.35,
+      "tp": 35,
+      "fp": 0,
+      "fn": 0,
+      "tn": 35,
+      "precision": 1.0,
+      "recall": 1.0,
+      "fpr": 0.0,
+      "f1": 1.0,
+      "youden_j": 1.0
+    },
+    {
+      "threshold": 0.4,
+      "tp": 35,
+      "fp": 0,
+      "fn": 0,
+      "tn": 35,
+      "precision": 1.0,
+      "recall": 1.0,
+      "fpr": 0.0,
+      "f1": 1.0,
+      "youden_j": 1.0
+    },
+    {
+      "threshold": 0.45,
+      "tp": 35,
+      "fp": 0,
+      "fn": 0,
+      "tn": 35,
+      "precision": 1.0,
+      "recall": 1.0,
+      "fpr": 0.0,
+      "f1": 1.0,
+      "youden_j": 1.0
+    },
+    {
+      "threshold": 0.5,
+      "tp": 35,
+      "fp": 0,
+      "fn": 0,
+      "tn": 35,
+      "precision": 1.0,
+      "recall": 1.0,
+      "fpr": 0.0,
+      "f1": 1.0,
+      "youden_j": 1.0
+    },
+    {
+      "threshold": 0.55,
+      "tp": 35,
+      "fp": 0,
+      "fn": 0,
+      "tn": 35,
+      "precision": 1.0,
+      "recall": 1.0,
+      "fpr": 0.0,
+      "f1": 1.0,
+      "youden_j": 1.0
+    },
+    {
+      "threshold": 0.6,
+      "tp": 35,
+      "fp": 0,
+      "fn": 0,
+      "tn": 35,
+      "precision": 1.0,
+      "recall": 1.0,
+      "fpr": 0.0,
+      "f1": 1.0,
+      "youden_j": 1.0
+    },
+    {
+      "threshold": 0.65,
+      "tp": 35,
+      "fp": 0,
+      "fn": 0,
+      "tn": 35,
+      "precision": 1.0,
+      "recall": 1.0,
+      "fpr": 0.0,
+      "f1": 1.0,
+      "youden_j": 1.0
+    },
+    {
+      "threshold": 0.7,
+      "tp": 35,
+      "fp": 0,
+      "fn": 0,
+      "tn": 35,
+      "precision": 1.0,
+      "recall": 1.0,
+      "fpr": 0.0,
+      "f1": 1.0,
+      "youden_j": 1.0
+    },
+    {
+      "threshold": 0.75,
+      "tp": 35,
+      "fp": 0,
+      "fn": 0,
+      "tn": 35,
+      "precision": 1.0,
+      "recall": 1.0,
+      "fpr": 0.0,
+      "f1": 1.0,
+      "youden_j": 1.0
+    },
+    {
+      "threshold": 0.8,
+      "tp": 35,
+      "fp": 0,
+      "fn": 0,
+      "tn": 35,
+      "precision": 1.0,
+      "recall": 1.0,
+      "fpr": 0.0,
+      "f1": 1.0,
+      "youden_j": 1.0
+    },
+    {
+      "threshold": 0.85,
+      "tp": 35,
+      "fp": 0,
+      "fn": 0,
+      "tn": 35,
+      "precision": 1.0,
+      "recall": 1.0,
+      "fpr": 0.0,
+      "f1": 1.0,
+      "youden_j": 1.0
+    },
+    {
+      "threshold": 0.9,
+      "tp": 35,
+      "fp": 0,
+      "fn": 0,
+      "tn": 35,
+      "precision": 1.0,
+      "recall": 1.0,
+      "fpr": 0.0,
+      "f1": 1.0,
+      "youden_j": 1.0
+    },
+    {
+      "threshold": 0.95,
+      "tp": 35,
+      "fp": 0,
+      "fn": 0,
+      "tn": 35,
+      "precision": 1.0,
+      "recall": 1.0,
+      "fpr": 0.0,
+      "f1": 1.0,
+      "youden_j": 1.0
+    }
+  ],
+  "optimal_threshold": 0.95,
+  "optimal_F1": 1.0,
+  "optimal_precision": 1.0,
+  "optimal_recall": 1.0,
+  "optimal_youden_j": 1.0,
+  "failures": [
+    {
+      "apk": "app.hkTransport_106.apk",
+      "stage": "apktool",
+      "reason": "decode/build/patch failed"
+    },
+    {
+      "apk": "app.fedilab.nitterizemelite_33.apk",
+      "stage": "apktool",
+      "reason": "decode/build/patch failed"
+    },
+    {
+      "apk": "ch.hgdev.toposuite_74.apk",
+      "stage": "apktool",
+      "reason": "decode/build/patch failed"
+    },
+    {
+      "apk": "ch.thgoebel.spartathlonapp_8.apk",
+      "stage": "apktool",
+      "reason": "decode/build/patch failed"
+    },
+    {
+      "apk": "ai.susi_16.apk",
+      "stage": "apktool",
+      "reason": "decode/build/patch failed"
+    },
+    {
+      "apk": "app.notesr_58.apk",
+      "stage": "apktool",
+      "reason": "decode/build/patch failed"
+    },
+    {
+      "apk": "ch.abertschi.waterme.water_me_8.apk",
+      "stage": "apktool",
+      "reason": "decode/build/patch failed"
+    },
+    {
+      "apk": "cat.naval.florae_6.apk",
+      "stage": "apktool",
+      "reason": "decode/build/patch failed"
+    },
+    {
+      "apk": "business.braid.polycule_252.apk",
+      "stage": "apktool",
+      "reason": "decode/build/patch failed"
+    }
+  ],
+  "scored_pairs": [
+    {
+      "label": "clone",
+      "score": 0.999932,
+      "apk_a": "ardash.doodledudette_1000008.apk",
+      "apk_b": "ardash.doodledudette_1000008__inject.apk",
+      "activity": "ardash.doodledudette.AndroidLauncher"
+    },
+    {
+      "label": "clone",
+      "score": 0.999977,
+      "apk_a": "biz.binarysolutions.stress_6.apk",
+      "apk_b": "biz.binarysolutions.stress_6__inject.apk",
+      "activity": "biz.binarysolutions.stress.LaunchActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999393,
+      "apk_a": "be.ppareit.shutdown_10201.apk",
+      "apk_b": "be.ppareit.shutdown_10201__inject.apk",
+      "activity": "be.ppareit.shutdown.SdActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.99999,
+      "apk_a": "app.plugbrain.android_153.apk",
+      "apk_b": "app.plugbrain.android_153__inject.apk",
+      "activity": "app.plugbrain.android.ui.main.MainActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999997,
+      "apk_a": "ca.momi.lift_2.apk",
+      "apk_b": "ca.momi.lift_2__inject.apk",
+      "activity": "ca.momi.lift.MainActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999995,
+      "apk_a": "cloud.valetudo.companion_15.apk",
+      "apk_b": "cloud.valetudo.companion_15__inject.apk",
+      "activity": "cloud.valetudo.companion.MainActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999993,
+      "apk_a": "biz.binarysolutions.healthybatterycharging_23.apk",
+      "apk_b": "biz.binarysolutions.healthybatterycharging_23__inject.apk",
+      "activity": "biz.binarysolutions.healthybatterycharging.MainActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999988,
+      "apk_a": "cat.mvmike.minimalcalendarwidget_93.apk",
+      "apk_b": "cat.mvmike.minimalcalendarwidget_93__inject.apk",
+      "activity": "cat.mvmike.minimalcalendarwidget.infrastructure.activity.ConfigurationActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999997,
+      "apk_a": "at.krixec.rosary_12.apk",
+      "apk_b": "at.krixec.rosary_12__inject.apk",
+      "activity": "at.krixec.rosary.MainActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999571,
+      "apk_a": "at.or.at.plugoffairplane_1.apk",
+      "apk_b": "at.or.at.plugoffairplane_1__inject.apk",
+      "activity": "at.or.at.plugoffairplane.SettingsActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999981,
+      "apk_a": "atm.starun.game_121.apk",
+      "apk_b": "atm.starun.game_121__inject.apk",
+      "activity": "atm.starun.game.AndroidLauncher"
+    },
+    {
+      "label": "clone",
+      "score": 0.99998,
+      "apk_a": "ch.bubendorf.locusaddon.gsakdatabase_37.apk",
+      "apk_b": "ch.bubendorf.locusaddon.gsakdatabase_37__inject.apk",
+      "activity": "ch.bubendorf.locusaddon.gsakdatabase.PrefActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.99998,
+      "apk_a": "aws.apps.androidDrawables_8.apk",
+      "apk_b": "aws.apps.androidDrawables_8__inject.apk",
+      "activity": "aws.apps.androidDrawables.activities.Main"
+    },
+    {
+      "label": "clone",
+      "score": 0.999367,
+      "apk_a": "ch.ihdg.calendarcolor_4.apk",
+      "apk_b": "ch.ihdg.calendarcolor_4__inject.apk",
+      "activity": "ch.ihdg.calendarcolor.CalendarListActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999997,
+      "apk_a": "app.podiumpodcasts.podium_1000005.apk",
+      "apk_b": "app.podiumpodcasts.podium_1000005__inject.apk",
+      "activity": "app.podiumpodcasts.podium.Default"
+    },
+    {
+      "label": "clone",
+      "score": 0.999994,
+      "apk_a": "androdns.android.leetdreams.ch.androdns_16.apk",
+      "apk_b": "androdns.android.leetdreams.ch.androdns_16__inject.apk",
+      "activity": "androdns.android.leetdreams.ch.androdns.DNSFormActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999995,
+      "apk_a": "by.yauhenl.gardine_3.apk",
+      "apk_b": "by.yauhenl.gardine_3__inject.apk",
+      "activity": "by.yauhenl.gardine.MainActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999997,
+      "apk_a": "alt.nainapps.sharepaste.fdroid_1734722268.apk",
+      "apk_b": "alt.nainapps.sharepaste.fdroid_1734722268__inject.apk",
+      "activity": "alt.nainapps.sharepaste.launcher.MainActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999998,
+      "apk_a": "app.podiumpodcasts.podium_1000006.apk",
+      "apk_b": "app.podiumpodcasts.podium_1000006__inject.apk",
+      "activity": "app.podiumpodcasts.podium.Default"
+    },
+    {
+      "label": "clone",
+      "score": 0.999996,
+      "apk_a": "be.ugent.zeus.hydra.open_37400.apk",
+      "apk_b": "be.ugent.zeus.hydra.open_37400__inject.apk",
+      "activity": "be.ugent.zeus.hydra.MainActivity"
+    },
+    {
+      "label": "clone",
+      "score": 1.0,
+      "apk_a": "app.mlauncher_1110302.apk",
+      "apk_b": "app.mlauncher_1110302__inject.apk",
+      "activity": "com.github.codeworkscreativehub.mlauncher.MainActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999591,
+      "apk_a": "at.or.at.plugoffairplane_1010.apk",
+      "apk_b": "at.or.at.plugoffairplane_1010__inject.apk",
+      "activity": "at.or.at.plugoffairplane.SettingsActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999998,
+      "apk_a": "app.hypostats_57.apk",
+      "apk_b": "app.hypostats_57__inject.apk",
+      "activity": "app.hypostats.ui.MainActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999981,
+      "apk_a": "biz.binarysolutions.mindfulscale_9.apk",
+      "apk_b": "biz.binarysolutions.mindfulscale_9__inject.apk",
+      "activity": "biz.binarysolutions.mindfulscale.LaunchActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.99999,
+      "apk_a": "au.id.micolous.farebot_2005.apk",
+      "apk_b": "au.id.micolous.farebot_2005__inject.apk",
+      "activity": "au.id.micolous.metrodroid.activity.MainActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999999,
+      "apk_a": "ch.nilsgrob.android.bluemoon_8.apk",
+      "apk_b": "ch.nilsgrob.android.bluemoon_8__inject.apk",
+      "activity": "com.ngrob.android.bluemoon.MainActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999977,
+      "apk_a": "biz.binarysolutions.stress_5.apk",
+      "apk_b": "biz.binarysolutions.stress_5__inject.apk",
+      "activity": "biz.binarysolutions.stress.LaunchActivity"
+    },
+    {
+      "label": "clone",
+      "score": 1.0,
+      "apk_a": "app.crescentcash.src_118.apk",
+      "apk_b": "app.crescentcash.src_118__inject.apk",
+      "activity": "app.crescentcash.src.MainActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999993,
+      "apk_a": "ademar.bitac_7.apk",
+      "apk_b": "ademar.bitac_7__inject.apk",
+      "activity": "ademar.bitac.view.StartActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999991,
+      "apk_a": "ca.mimic.apphangar_75.apk",
+      "apk_b": "ca.mimic.apphangar_75__inject.apk",
+      "activity": "ca.mimic.apphangar.Settings"
+    },
+    {
+      "label": "clone",
+      "score": 0.999979,
+      "apk_a": "ca.cmetcalfe.locationshare_8.apk",
+      "apk_b": "ca.cmetcalfe.locationshare_8__inject.apk",
+      "activity": "ca.cmetcalfe.locationshare.MainActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999864,
+      "apk_a": "be.lionslink.ucllstudent_10101.apk",
+      "apk_b": "be.lionslink.ucllstudent_10101__inject.apk",
+      "activity": "be.lionslink.ucllstudent.MainActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999987,
+      "apk_a": "au.id.colby.nfcquicksettings_19.apk",
+      "apk_b": "au.id.colby.nfcquicksettings_19__inject.apk",
+      "activity": "au.id.colby.nfcquicksettings.SettingsActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999998,
+      "apk_a": "app.cclauncher_1289.apk",
+      "apk_b": "app.cclauncher_1289__inject.apk",
+      "activity": "app.cclauncher.MainActivity"
+    },
+    {
+      "label": "clone",
+      "score": 0.999997,
+      "apk_a": "app.clauncher_430.apk",
+      "apk_b": "app.clauncher_430__inject.apk",
+      "activity": "app.clauncher.MainActivity"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.030977,
+      "apk_a": "app.podiumpodcasts.podium_1000006.apk",
+      "apk_b": "at.krixec.rosary_12.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.004815,
+      "apk_a": "app.hypostats_57.apk",
+      "apk_b": "business.braid.polycule_252.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.007415,
+      "apk_a": "app.hkTransport_106.apk",
+      "apk_b": "app.plugbrain.android_153.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.000224,
+      "apk_a": "ca.mimic.apphangar_75.apk",
+      "apk_b": "cloud.valetudo.companion_15.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.01687,
+      "apk_a": "ch.hgdev.toposuite_74.apk",
+      "apk_b": "ch.abertschi.waterme.water_me_8.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.138326,
+      "apk_a": "app.hkTransport_106.apk",
+      "apk_b": "app.crescentcash.src_118.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.0,
+      "apk_a": "aws.apps.androidDrawables_8.apk",
+      "apk_b": "be.ppareit.shutdown_10201.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.005288,
+      "apk_a": "ca.momi.lift_2.apk",
+      "apk_b": "ai.susi_16.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.002794,
+      "apk_a": "ch.thgoebel.spartathlonapp_8.apk",
+      "apk_b": "app.plugbrain.android_153.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.012973,
+      "apk_a": "app.podiumpodcasts.podium_1000005.apk",
+      "apk_b": "ca.momi.lift_2.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.00018,
+      "apk_a": "ca.cmetcalfe.locationshare_8.apk",
+      "apk_b": "ai.susi_16.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.256573,
+      "apk_a": "app.hkTransport_106.apk",
+      "apk_b": "app.notesr_58.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.0,
+      "apk_a": "biz.binarysolutions.healthybatterycharging_23.apk",
+      "apk_b": "ch.ihdg.calendarcolor_4.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.002627,
+      "apk_a": "au.id.colby.nfcquicksettings_19.apk",
+      "apk_b": "ch.abertschi.waterme.water_me_8.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.000525,
+      "apk_a": "ch.abertschi.waterme.water_me_8.apk",
+      "apk_b": "app.hypostats_57.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.0,
+      "apk_a": "app.hkTransport_106.apk",
+      "apk_b": "ch.ihdg.calendarcolor_4.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.0,
+      "apk_a": "be.ppareit.shutdown_10201.apk",
+      "apk_b": "ca.cmetcalfe.locationshare_8.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.245558,
+      "apk_a": "cat.mvmike.minimalcalendarwidget_93.apk",
+      "apk_b": "by.yauhenl.gardine_3.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.00342,
+      "apk_a": "ch.thgoebel.spartathlonapp_8.apk",
+      "apk_b": "at.krixec.rosary_12.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.0,
+      "apk_a": "ca.mimic.apphangar_75.apk",
+      "apk_b": "biz.binarysolutions.healthybatterycharging_23.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.032594,
+      "apk_a": "app.notesr_58.apk",
+      "apk_b": "alt.nainapps.sharepaste.fdroid_1734722268.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.029886,
+      "apk_a": "ca.cmetcalfe.locationshare_8.apk",
+      "apk_b": "app.clauncher_430.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.0,
+      "apk_a": "atm.starun.game_121.apk",
+      "apk_b": "cloud.valetudo.companion_15.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.001058,
+      "apk_a": "ch.abertschi.waterme.water_me_8.apk",
+      "apk_b": "app.notesr_58.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.029176,
+      "apk_a": "au.id.colby.nfcquicksettings_19.apk",
+      "apk_b": "ch.bubendorf.locusaddon.gsakdatabase_37.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.030715,
+      "apk_a": "ch.hgdev.toposuite_74.apk",
+      "apk_b": "cloud.valetudo.companion_15.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.005099,
+      "apk_a": "ca.cmetcalfe.locationshare_8.apk",
+      "apk_b": "app.prav.client_4215711.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.002486,
+      "apk_a": "app.plugbrain.android_153.apk",
+      "apk_b": "app.notesr_58.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.005785,
+      "apk_a": "app.hkTransport_106.apk",
+      "apk_b": "be.lionslink.ucllstudent_10101.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.0,
+      "apk_a": "aws.apps.androidDrawables_8.apk",
+      "apk_b": "biz.binarysolutions.stress_5.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.0,
+      "apk_a": "app.clauncher_430.apk",
+      "apk_b": "ca.mimic.apphangar_75.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.000941,
+      "apk_a": "ai.susi_16.apk",
+      "apk_b": "ch.swissbitcoinpay.checkout_467001.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.000172,
+      "apk_a": "app.podiumpodcasts.podium_1000006.apk",
+      "apk_b": "au.id.micolous.farebot_2005.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.000454,
+      "apk_a": "ch.abertschi.waterme.water_me_8.apk",
+      "apk_b": "au.id.micolous.farebot_2005.apk"
+    },
+    {
+      "label": "non_clone",
+      "score": 0.046549,
+      "apk_a": "ch.hgdev.toposuite_74.apk",
+      "apk_b": "alt.nainapps.sharepaste.fdroid_1734722268.apk"
+    }
+  ],
+  "elapsed_seconds": 362.96485,
+  "ground_truth": "synthetic_apktool_smali_inject",
+  "code_view": "v4_shingled"
+}
