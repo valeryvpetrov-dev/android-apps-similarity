@@ -73,6 +73,14 @@ class Noise31ReportContractTests(unittest.TestCase):
             / "report.json",
         )
 
+    def test_cli_accepts_wave31_apk_dir_and_out_aliases(self) -> None:
+        parser = rq.build_arg_parser()
+
+        args = parser.parse_args(["--apk_dir", "/tmp/apks", "--out", "/tmp/report.json"])
+
+        self.assertEqual(args.corpus_dir, "/tmp/apks")
+        self.assertEqual(args.output, "/tmp/report.json")
+
     def test_real_mode_report_includes_available_status_metrics_and_diverse_top_tpl(
         self,
     ) -> None:
@@ -320,7 +328,7 @@ class RealRunMetricsTests(unittest.TestCase):
                     java_heap_mb=128,
                 )
 
-            self.assertEqual(report["status"], "ok")
+            self.assertEqual(report["status"], "libloom_available")
             self.assertEqual(report["corpus_size"], 2)
             self.assertEqual(report["n_apks_with_tpl"], 1)
             self.assertAlmostEqual(report["coverage"], 0.5)
@@ -405,7 +413,7 @@ class RealLibloomMiniCorpusTests(unittest.TestCase):
 
     def test_real_libloom_mini_corpus_precision_and_recall_are_nonzero(self) -> None:
         report = self._real_report()
-        self.assertEqual(report["status"], "ok")
+        self.assertEqual(report["status"], "libloom_available")
         self.assertGreater(report["precision"], 0.0)
         self.assertGreater(report["recall"], 0.0)
 
