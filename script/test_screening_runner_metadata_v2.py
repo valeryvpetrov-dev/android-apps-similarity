@@ -57,9 +57,30 @@ class TestMetadataV2OnSimpleApk(unittest.TestCase):
         self.assertIn("signing_present:1", self.metadata)
         self.assertNotIn("signing_present:0", self.metadata)
 
-    def test_signing_scheme_v1_detected(self) -> None:
-        """У simple_app классическая META-INF подпись (.RSA) — схема v1."""
-        self.assertIn("signing_scheme:v1", self.metadata)
+    def test_signing_scheme_detected_no_conflate(self) -> None:
+        """ARCH-31: schema-detection делегирована signing_view и больше не conflate'ит.
+
+        ``simple_app-releaseNonOptimized.apk`` подписан и v1 (META-INF/*.RSA),
+        и v2 (APK Sig Block с ID 0x7109871A). После ARCH-30 приоритет —
+        у наиболее выраженной схемы (``v3_with_rotation`` > ``v3`` > ``v2`` > ``v1``),
+        поэтому здесь ожидаем ``signing_scheme:v2``. Старое ожидание
+        ``signing_scheme:v1`` отражало conflate-баг и снято в ARCH-31.
+        """
+        scheme_tokens = {t for t in self.metadata if t.startswith("signing_scheme:")}
+        self.assertEqual(len(scheme_tokens), 1, "ожидался ровно один signing_scheme")
+        scheme_token = next(iter(scheme_tokens))
+        self.assertIn(
+            scheme_token,
+            {
+                "signing_scheme:v1",
+                "signing_scheme:v2",
+                "signing_scheme:v3",
+                "signing_scheme:v3_with_rotation",
+            },
+            "schema должна принадлежать множеству ARCH-30",
+        )
+        # Конкретно для simple_app — v2 (есть и META-INF, и APK Sig Block v2).
+        self.assertEqual(scheme_token, "signing_scheme:v2")
 
     def test_signing_prefix_is_eight_hex_chars(self) -> None:
         """signing_prefix:XXXXXXXX — ровно 8 hex-символов в нижнем регистре."""
