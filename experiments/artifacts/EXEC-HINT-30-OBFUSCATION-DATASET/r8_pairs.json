@@ -1,0 +1,530 @@
+{
+  "artifact_id": "EXEC-HINT-30-OBFUSCATION-DATASET",
+  "n_pairs": 10,
+  "mode": "mock",
+  "rename_ratio": 0.25,
+  "apktool_path": "/opt/homebrew/bin/apktool",
+  "pairs": [
+    {
+      "pair_id": "MOCK-R8-001",
+      "app_a": "MOCK-R8-001_original.apk",
+      "app_b": "MOCK-R8-001_r8.apk",
+      "full_similarity_score": 0.55,
+      "library_reduced_score": 0.55,
+      "library_view_v2": {
+        "detected_via": "jaccard_v2",
+        "shared_libraries": [
+          "okhttp3",
+          "retrofit"
+        ]
+      },
+      "code_view_v4": {
+        "method_signatures": [
+          "a()",
+          "b()",
+          "c()",
+          "d$e()",
+          "f$g()",
+          "h()",
+          "computeHash()",
+          "encodeBitmap()"
+        ]
+      },
+      "evidence": [
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.55,
+          "ref": "code"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.5,
+          "ref": "library"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.5,
+          "ref": "jaccard_v2_libmask"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.6,
+          "ref": "short_method_names"
+        }
+      ]
+    },
+    {
+      "pair_id": "MOCK-R8-002",
+      "app_a": "MOCK-R8-002_original.apk",
+      "app_b": "MOCK-R8-002_r8.apk",
+      "full_similarity_score": 0.55,
+      "library_reduced_score": 0.55,
+      "library_view_v2": {
+        "detected_via": "jaccard_v2",
+        "shared_libraries": [
+          "okhttp3",
+          "retrofit"
+        ]
+      },
+      "code_view_v4": {
+        "method_signatures": [
+          "a()",
+          "b()",
+          "c()",
+          "d$e()",
+          "f$g()",
+          "h()",
+          "computeHash()",
+          "encodeBitmap()"
+        ]
+      },
+      "evidence": [
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.55,
+          "ref": "code"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.5,
+          "ref": "library"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.5,
+          "ref": "jaccard_v2_libmask"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.6,
+          "ref": "short_method_names"
+        }
+      ]
+    },
+    {
+      "pair_id": "MOCK-R8-003",
+      "app_a": "MOCK-R8-003_original.apk",
+      "app_b": "MOCK-R8-003_r8.apk",
+      "full_similarity_score": 0.55,
+      "library_reduced_score": 0.55,
+      "library_view_v2": {
+        "detected_via": "jaccard_v2",
+        "shared_libraries": [
+          "okhttp3",
+          "retrofit"
+        ]
+      },
+      "code_view_v4": {
+        "method_signatures": [
+          "a()",
+          "b()",
+          "c()",
+          "d$e()",
+          "f$g()",
+          "h()",
+          "computeHash()",
+          "encodeBitmap()"
+        ]
+      },
+      "evidence": [
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.55,
+          "ref": "code"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.5,
+          "ref": "library"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.5,
+          "ref": "jaccard_v2_libmask"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.6,
+          "ref": "short_method_names"
+        }
+      ]
+    },
+    {
+      "pair_id": "MOCK-R8-004",
+      "app_a": "MOCK-R8-004_original.apk",
+      "app_b": "MOCK-R8-004_r8.apk",
+      "full_similarity_score": 0.55,
+      "library_reduced_score": 0.55,
+      "library_view_v2": {
+        "detected_via": "jaccard_v2",
+        "shared_libraries": [
+          "okhttp3",
+          "retrofit"
+        ]
+      },
+      "code_view_v4": {
+        "method_signatures": [
+          "a()",
+          "b()",
+          "c()",
+          "d$e()",
+          "f$g()",
+          "h()",
+          "computeHash()",
+          "encodeBitmap()"
+        ]
+      },
+      "evidence": [
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.55,
+          "ref": "code"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.5,
+          "ref": "library"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.5,
+          "ref": "jaccard_v2_libmask"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.6,
+          "ref": "short_method_names"
+        }
+      ]
+    },
+    {
+      "pair_id": "MOCK-R8-005",
+      "app_a": "MOCK-R8-005_original.apk",
+      "app_b": "MOCK-R8-005_r8.apk",
+      "full_similarity_score": 0.55,
+      "library_reduced_score": 0.55,
+      "library_view_v2": {
+        "detected_via": "jaccard_v2",
+        "shared_libraries": [
+          "okhttp3",
+          "retrofit"
+        ]
+      },
+      "code_view_v4": {
+        "method_signatures": [
+          "a()",
+          "b()",
+          "c()",
+          "d$e()",
+          "f$g()",
+          "h()",
+          "computeHash()",
+          "encodeBitmap()"
+        ]
+      },
+      "evidence": [
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.55,
+          "ref": "code"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.5,
+          "ref": "library"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.5,
+          "ref": "jaccard_v2_libmask"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.6,
+          "ref": "short_method_names"
+        }
+      ]
+    },
+    {
+      "pair_id": "MOCK-R8-006",
+      "app_a": "MOCK-R8-006_original.apk",
+      "app_b": "MOCK-R8-006_r8.apk",
+      "full_similarity_score": 0.55,
+      "library_reduced_score": 0.55,
+      "library_view_v2": {
+        "detected_via": "jaccard_v2",
+        "shared_libraries": [
+          "okhttp3",
+          "retrofit"
+        ]
+      },
+      "code_view_v4": {
+        "method_signatures": [
+          "a()",
+          "b()",
+          "c()",
+          "d$e()",
+          "f$g()",
+          "h()",
+          "computeHash()",
+          "encodeBitmap()"
+        ]
+      },
+      "evidence": [
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.55,
+          "ref": "code"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.5,
+          "ref": "library"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.5,
+          "ref": "jaccard_v2_libmask"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.6,
+          "ref": "short_method_names"
+        }
+      ]
+    },
+    {
+      "pair_id": "MOCK-R8-007",
+      "app_a": "MOCK-R8-007_original.apk",
+      "app_b": "MOCK-R8-007_r8.apk",
+      "full_similarity_score": 0.55,
+      "library_reduced_score": 0.55,
+      "library_view_v2": {
+        "detected_via": "jaccard_v2",
+        "shared_libraries": [
+          "okhttp3",
+          "retrofit"
+        ]
+      },
+      "code_view_v4": {
+        "method_signatures": [
+          "a()",
+          "b()",
+          "c()",
+          "d$e()",
+          "f$g()",
+          "h()",
+          "computeHash()",
+          "encodeBitmap()"
+        ]
+      },
+      "evidence": [
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.55,
+          "ref": "code"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.5,
+          "ref": "library"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.5,
+          "ref": "jaccard_v2_libmask"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.6,
+          "ref": "short_method_names"
+        }
+      ]
+    },
+    {
+      "pair_id": "MOCK-R8-008",
+      "app_a": "MOCK-R8-008_original.apk",
+      "app_b": "MOCK-R8-008_r8.apk",
+      "full_similarity_score": 0.55,
+      "library_reduced_score": 0.55,
+      "library_view_v2": {
+        "detected_via": "jaccard_v2",
+        "shared_libraries": [
+          "okhttp3",
+          "retrofit"
+        ]
+      },
+      "code_view_v4": {
+        "method_signatures": [
+          "a()",
+          "b()",
+          "c()",
+          "d$e()",
+          "f$g()",
+          "h()",
+          "computeHash()",
+          "encodeBitmap()"
+        ]
+      },
+      "evidence": [
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.55,
+          "ref": "code"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.5,
+          "ref": "library"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.5,
+          "ref": "jaccard_v2_libmask"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.6,
+          "ref": "short_method_names"
+        }
+      ]
+    },
+    {
+      "pair_id": "MOCK-R8-009",
+      "app_a": "MOCK-R8-009_original.apk",
+      "app_b": "MOCK-R8-009_r8.apk",
+      "full_similarity_score": 0.55,
+      "library_reduced_score": 0.55,
+      "library_view_v2": {
+        "detected_via": "jaccard_v2",
+        "shared_libraries": [
+          "okhttp3",
+          "retrofit"
+        ]
+      },
+      "code_view_v4": {
+        "method_signatures": [
+          "a()",
+          "b()",
+          "c()",
+          "d$e()",
+          "f$g()",
+          "h()",
+          "computeHash()",
+          "encodeBitmap()"
+        ]
+      },
+      "evidence": [
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.55,
+          "ref": "code"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.5,
+          "ref": "library"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.5,
+          "ref": "jaccard_v2_libmask"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.6,
+          "ref": "short_method_names"
+        }
+      ]
+    },
+    {
+      "pair_id": "MOCK-R8-010",
+      "app_a": "MOCK-R8-010_original.apk",
+      "app_b": "MOCK-R8-010_r8.apk",
+      "full_similarity_score": 0.55,
+      "library_reduced_score": 0.55,
+      "library_view_v2": {
+        "detected_via": "jaccard_v2",
+        "shared_libraries": [
+          "okhttp3",
+          "retrofit"
+        ]
+      },
+      "code_view_v4": {
+        "method_signatures": [
+          "a()",
+          "b()",
+          "c()",
+          "d$e()",
+          "f$g()",
+          "h()",
+          "computeHash()",
+          "encodeBitmap()"
+        ]
+      },
+      "evidence": [
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.55,
+          "ref": "code"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.5,
+          "ref": "library"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.5,
+          "ref": "jaccard_v2_libmask"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.6,
+          "ref": "short_method_names"
+        }
+      ]
+    }
+  ],
+  "generated_at": "2026-04-28T11:25:31Z"
+}

@@ -1,0 +1,406 @@
+{
+  "artifact_id": "EXEC-HINT-30-OBFUSCATION-DATASET",
+  "source_dataset": "r8_pairs_mock_or_real",
+  "n_pairs": 10,
+  "channels": {
+    "code": {
+      "n_pairs_with_data": 10,
+      "faithfulness_mean": 1.0,
+      "sufficiency_mean": 1.0,
+      "comprehensiveness_mean": 1.0
+    },
+    "component": {
+      "n_pairs_with_data": 0,
+      "faithfulness_mean": null,
+      "sufficiency_mean": null,
+      "comprehensiveness_mean": null
+    },
+    "library": {
+      "n_pairs_with_data": 10,
+      "faithfulness_mean": 1.0,
+      "sufficiency_mean": 1.0,
+      "comprehensiveness_mean": 1.0
+    },
+    "resource": {
+      "n_pairs_with_data": 0,
+      "faithfulness_mean": null,
+      "sufficiency_mean": null,
+      "comprehensiveness_mean": null
+    },
+    "signing": {
+      "n_pairs_with_data": 0,
+      "faithfulness_mean": null,
+      "sufficiency_mean": null,
+      "comprehensiveness_mean": null
+    },
+    "obfuscation": {
+      "n_pairs_with_data": 10,
+      "faithfulness_mean": 1.0,
+      "sufficiency_mean": 1.0,
+      "comprehensiveness_mean": 1.0
+    }
+  },
+  "per_pair": [
+    {
+      "pair_id": "MOCK-R8-001",
+      "ground_truth": "r8_obfuscated",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "signing": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "obfuscation": {
+          "faithfulness": 0.9999999999999998,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        }
+      }
+    },
+    {
+      "pair_id": "MOCK-R8-002",
+      "ground_truth": "r8_obfuscated",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "signing": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "obfuscation": {
+          "faithfulness": 0.9999999999999998,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        }
+      }
+    },
+    {
+      "pair_id": "MOCK-R8-003",
+      "ground_truth": "r8_obfuscated",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "signing": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "obfuscation": {
+          "faithfulness": 0.9999999999999998,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        }
+      }
+    },
+    {
+      "pair_id": "MOCK-R8-004",
+      "ground_truth": "r8_obfuscated",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "signing": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "obfuscation": {
+          "faithfulness": 0.9999999999999998,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        }
+      }
+    },
+    {
+      "pair_id": "MOCK-R8-005",
+      "ground_truth": "r8_obfuscated",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "signing": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "obfuscation": {
+          "faithfulness": 0.9999999999999998,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        }
+      }
+    },
+    {
+      "pair_id": "MOCK-R8-006",
+      "ground_truth": "r8_obfuscated",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "signing": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "obfuscation": {
+          "faithfulness": 0.9999999999999998,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        }
+      }
+    },
+    {
+      "pair_id": "MOCK-R8-007",
+      "ground_truth": "r8_obfuscated",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "signing": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "obfuscation": {
+          "faithfulness": 0.9999999999999998,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        }
+      }
+    },
+    {
+      "pair_id": "MOCK-R8-008",
+      "ground_truth": "r8_obfuscated",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "signing": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "obfuscation": {
+          "faithfulness": 0.9999999999999998,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        }
+      }
+    },
+    {
+      "pair_id": "MOCK-R8-009",
+      "ground_truth": "r8_obfuscated",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "signing": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "obfuscation": {
+          "faithfulness": 0.9999999999999998,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        }
+      }
+    },
+    {
+      "pair_id": "MOCK-R8-010",
+      "ground_truth": "r8_obfuscated",
+      "channels": {
+        "code": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "component": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "library": {
+          "faithfulness": 1.0,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        },
+        "resource": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "signing": {
+          "faithfulness": null,
+          "sufficiency": null,
+          "comprehensiveness": null
+        },
+        "obfuscation": {
+          "faithfulness": 0.9999999999999998,
+          "sufficiency": 1.0,
+          "comprehensiveness": 1.0
+        }
+      }
+    }
+  ],
+  "generated_at": "2026-04-28T11:25:31Z"
+}
