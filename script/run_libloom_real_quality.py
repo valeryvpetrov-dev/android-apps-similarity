@@ -5,8 +5,11 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 import os
+import random
+import re
 import sys
 from collections import Counter
 from pathlib import Path
@@ -20,7 +23,7 @@ except ImportError:  # pragma: no cover - standalone script fallback
     import library_view_v2  # type: ignore[no-redef]
 
 
-RUN_ID = "NOISE-26-LIBLOOM-REAL"
+RUN_ID = "NOISE-30-LIBLOOM-REAL-QUALITY"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CORPUS_DIR = (
     Path.home()
@@ -42,29 +45,84 @@ SOURCE_PATH = "script/run_libloom_real_quality.py"
 
 def canonicalize_tpl(name: str) -> str:
     raw = str(name).strip().lower().replace("_", "-")
+    raw = re.sub(r"\.(jar|txt|json)$", "", raw)
+    raw_without_version = re.sub(r"-\d[\w.-]*$", "", raw)
     aliases = {
         "okhttp": "okhttp3",
         "okhttp3": "okhttp3",
         "com.squareup.okhttp3": "okhttp3",
+        "com.squareup.okhttp3.okhttp": "okhttp3",
         "retrofit": "retrofit2",
         "retrofit2": "retrofit2",
         "com.squareup.retrofit2": "retrofit2",
+        "com.squareup.retrofit2.retrofit": "retrofit2",
         "com.google.gson": "gson",
+        "com.google.code.gson": "gson",
+        "com.google.code.gson.gson": "gson",
         "gson": "gson",
+        "androidx.appcompat": "androidx-appcompat",
+        "appcompat": "androidx-appcompat",
+        "androidx.recyclerview": "androidx-recyclerview",
+        "recyclerview": "androidx-recyclerview",
+        "androidx.lifecycle": "androidx-lifecycle",
+        "lifecycle": "androidx-lifecycle",
+        "lifecycle-runtime": "androidx-lifecycle",
+        "androidx.room": "room",
+        "room-runtime": "room",
+        "material": "material-components",
+        "material-components": "material-components",
+        "com.google.android.material": "material-components",
+        "kotlin-stdlib": "kotlin-stdlib",
+        "kotlin-stdlib-jdk7": "kotlin-stdlib",
+        "kotlin-stdlib-jdk8": "kotlin-stdlib",
+        "org.jetbrains.kotlin.kotlin-stdlib": "kotlin-stdlib",
+        "kotlinx-coroutines-core": "kotlinx-coroutines",
+        "kotlinx-coroutines-core-jvm": "kotlinx-coroutines",
         "kotlinx.coroutines": "kotlinx-coroutines",
         "kotlinx-coroutines": "kotlinx-coroutines",
+        "org.jetbrains.kotlinx.kotlinx-coroutines-core": "kotlinx-coroutines",
+        "rxjava": "rxjava3",
+        "io.reactivex.rxjava3.rxjava": "rxjava3",
+        "glide": "glide",
+        "dagger": "dagger2",
+        "dagger2": "dagger2",
+        "volley": "volley",
+        "leakcanary-android": "leakcanary",
+        "leakcanary": "leakcanary",
+        "timber": "timber",
+        "moshi": "moshi",
+        "fresco": "fresco",
+        "exoplayer-core": "exoplayer2",
+        "exoplayer": "exoplayer2",
+        "media3-common": "androidx-media3",
+        "media3-exoplayer": "androidx-media3",
+        "work-runtime": "androidx-workmanager",
+        "work-runtime-ktx": "androidx-workmanager",
+        "datastore-preferences": "androidx-datastore",
+        "datastore-preferences-core": "androidx-datastore",
+        "datastore-preferences-core-jvm": "androidx-datastore",
+        "navigation-runtime": "androidx-navigation",
+        "navigation-fragment": "androidx-navigation",
+        "bcprov-jdk18on": "bouncycastle",
+        "commons-io": "apache-commons",
+        "coil": "coil",
+        "picasso": "picasso",
     }
     if raw in aliases:
         return aliases[raw]
+    if raw_without_version in aliases:
+        return aliases[raw_without_version]
     for prefix, normalized in (
         ("com.squareup.okhttp3.", "okhttp3"),
         ("com.squareup.retrofit2.", "retrofit2"),
         ("com.google.gson.", "gson"),
+        ("com.google.android.material.", "material-components"),
         ("com.bumptech.glide.", "glide"),
         ("kotlinx.coroutines.", "kotlinx-coroutines"),
     ):
         if raw.startswith(prefix):
             return normalized
+    raw = raw_without_version
     for suffix in ("-android", "-jvm", "-runtime", "-core"):
         if raw.endswith(suffix):
             raw = raw[: -len(suffix)]
@@ -100,16 +158,55 @@ def score_tpls(predicted: list[str], ground_truth: list[str]) -> dict[str, Any]:
     }
 
 
-def discover_apks(corpus_dir: str | Path, limit: int | None = None) -> list[Path]:
+def discover_apks(
+    corpus_dir: str | Path,
+    limit: int | None = None,
+    sample_size: int | None = None,
+    sample_seed: int = 42,
+) -> list[Path]:
     root = Path(corpus_dir).expanduser().resolve()
     if not root.is_dir():
         raise ValueError(f"corpus_dir not found: {root}")
     apk_paths = sorted(path for path in root.rglob("*.apk") if path.is_file())
+    if sample_size is not None:
+        if sample_size <= 0:
+            raise ValueError(f"sample_size must be positive: {sample_size}")
+        if sample_size < len(apk_paths):
+            apk_paths = sorted(random.Random(sample_seed).sample(apk_paths, sample_size))
     if limit is not None:
         apk_paths = apk_paths[:limit]
     if not apk_paths:
         raise ValueError(f"no APK files found under: {root}")
     return apk_paths
+
+
+def _sha256_file(path: str | Path | None) -> str | None:
+    if path is None:
+        return None
+    candidate = Path(path)
+    if not candidate.is_file():
+        return None
+    digest = hashlib.sha256()
+    with candidate.open("rb") as fh:
+        for block in iter(lambda: fh.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _profile_file_count(path: str | Path | None) -> int:
+    if path is None:
+        return 0
+    candidate = Path(path)
+    if not candidate.is_dir():
+        return 0
+    return sum(1 for child in candidate.rglob("*") if child.is_file())
+
+
+def _runtime_artifact_metadata(runtime: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "libloom_jar_sha": _sha256_file(runtime.get("jar_path")),
+        "libs_profile_size": _profile_file_count(runtime.get("libs_profile_dir")),
+    }
 
 
 def _decoded_root_for_corpus(
@@ -217,6 +314,8 @@ def _source_payload(
     corpus_dir: Path,
     decoded_root: str | Path | None,
     runtime: dict[str, Any],
+    sample_size: int | None = None,
+    sample_seed: int = 42,
 ) -> dict[str, Any]:
     return {
         "script": SOURCE_PATH,
@@ -226,6 +325,8 @@ def _source_payload(
         "jar_path": runtime.get("jar_path"),
         "libs_profile_dir": runtime.get("libs_profile_dir"),
         "version": runtime.get("version"),
+        "sample_size": sample_size,
+        "sample_seed": sample_seed if sample_size is not None else None,
     }
 
 
@@ -234,6 +335,8 @@ def _blocked_report(
     corpus_dir: Path,
     decoded_root: str | Path | None,
     runtime: dict[str, Any],
+    sample_size: int | None = None,
+    sample_seed: int = 42,
 ) -> dict[str, Any]:
     reason = str(runtime.get("reason") or "LIBLOOM is unavailable")
     per_apk_results = [
@@ -270,7 +373,14 @@ def _blocked_report(
         "top_detected_tpl": [],
         "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
         "warnings": [reason],
-        "source": _source_payload(corpus_dir, decoded_root, runtime),
+        **_runtime_artifact_metadata(runtime),
+        "source": _source_payload(
+            corpus_dir,
+            decoded_root,
+            runtime,
+            sample_size=sample_size,
+            sample_seed=sample_seed,
+        ),
     }
 
 
@@ -288,12 +398,33 @@ def run_quality(
     timeout_sec: int = libloom_adapter.DEFAULT_TIMEOUT_SEC,
     java_heap_mb: int = libloom_adapter.DEFAULT_JAVA_HEAP_MB,
     limit: int | None = None,
+    sample_size: int | None = None,
+    sample_seed: int = 42,
+    jar_path: str | Path | None = None,
+    libs_profile_dir: str | Path | None = None,
 ) -> dict[str, Any]:
-    apk_paths = discover_apks(corpus_dir, limit=limit)
+    apk_paths = discover_apks(
+        corpus_dir,
+        limit=limit,
+        sample_size=sample_size,
+        sample_seed=sample_seed,
+    )
     resolved_corpus_dir = Path(corpus_dir).expanduser().resolve()
-    runtime = libloom_adapter.verify_libloom_setup()
+    verify_kwargs: dict[str, str] = {}
+    if jar_path is not None:
+        verify_kwargs["jar_path"] = str(jar_path)
+    if libs_profile_dir is not None:
+        verify_kwargs["libs_profile_dir"] = str(libs_profile_dir)
+    runtime = libloom_adapter.verify_libloom_setup(**verify_kwargs)
     if not runtime.get("available"):
-        report = _blocked_report(apk_paths, resolved_corpus_dir, decoded_root, runtime)
+        report = _blocked_report(
+            apk_paths,
+            resolved_corpus_dir,
+            decoded_root,
+            runtime,
+            sample_size=sample_size,
+            sample_seed=sample_seed,
+        )
         _write_report(report, output_path)
         return report
 
@@ -361,7 +492,14 @@ def run_quality(
         "top_detected_tpl": _top_detected_tpl(detected_counter),
         "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
         "warnings": [],
-        "source": _source_payload(resolved_corpus_dir, decoded_root, runtime),
+        **_runtime_artifact_metadata(runtime),
+        "source": _source_payload(
+            resolved_corpus_dir,
+            decoded_root,
+            runtime,
+            sample_size=sample_size,
+            sample_seed=sample_seed,
+        ),
     }
     _write_report(report, output_path)
     return report
@@ -399,10 +537,32 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="JVM heap size for LIBLOOM",
     )
     parser.add_argument(
+        "--jar-path",
+        default=None,
+        help="optional explicit LIBLOOM.jar path",
+    )
+    parser.add_argument(
+        "--libs-profile-dir",
+        default=None,
+        help="optional explicit prebuilt LIBLOOM library profile directory",
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         default=None,
         help="optional APK limit for mini-corpus/debug runs",
+    )
+    parser.add_argument(
+        "--sample-size",
+        type=int,
+        default=None,
+        help="optional deterministic random sample size (fallback uses 50)",
+    )
+    parser.add_argument(
+        "--sample-seed",
+        type=int,
+        default=42,
+        help="random seed for --sample-size",
     )
     return parser
 
@@ -418,6 +578,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             timeout_sec=args.timeout_sec,
             java_heap_mb=args.java_heap_mb,
             limit=args.limit,
+            sample_size=args.sample_size,
+            sample_seed=args.sample_seed,
+            jar_path=args.jar_path,
+            libs_profile_dir=args.libs_profile_dir,
         )
     except ValueError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
