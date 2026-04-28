@@ -1,6 +1,7 @@
 """Tests for per-channel split of hint faithfulness metrics.
 
-Канон каналов: ``code``, ``component``, ``library``, ``resource``, ``signing``.
+Канон каналов (после EXEC-HINT-30-OBFUSCATION-WRITER): ``code``, ``component``,
+``library``, ``resource``, ``signing``, ``obfuscation`` — шесть каналов.
 Тесты проверяют, что ``compute_channel_faithfulness`` возвращает три метрики
 (faithfulness/sufficiency/comprehensiveness) на каждый канал, корректно
 обрабатывает «нет данных по каналу» (None, не 0.0) и согласуется со старой
@@ -33,10 +34,18 @@ def _evidence(signal_type: str, ref: str, magnitude: float, source_stage: str = 
     }
 
 
-def test_evidence_channels_canon_set_is_exactly_five():
-    """Канон каналов фиксирован: code/component/library/resource/signing."""
+def test_evidence_channels_canon_set_is_exactly_six():
+    """Канон каналов после EXEC-HINT-30-OBFUSCATION-WRITER:
+    code/component/library/resource/signing/obfuscation — шесть каналов."""
 
-    assert set(EVIDENCE_CHANNELS) == {"code", "component", "library", "resource", "signing"}
+    assert set(EVIDENCE_CHANNELS) == {
+        "code",
+        "component",
+        "library",
+        "resource",
+        "signing",
+        "obfuscation",
+    }
 
 
 def test_classify_evidence_channel_maps_layer_score_and_signing():
@@ -58,9 +67,10 @@ def test_classify_evidence_channel_maps_layer_score_and_signing():
     assert classify_evidence_channel(_evidence("resource_overlap", "drawable/icon", 0.8)) == "resource"
 
 
-def test_compute_channel_faithfulness_returns_dict_with_all_five_channels():
-    """(a) compute_channel_faithfulness возвращает dict с ключами 5 каналов;
-    для каждого канала — три метрики (faithfulness, sufficiency, comprehensiveness)."""
+def test_compute_channel_faithfulness_returns_dict_with_all_six_channels():
+    """(a) compute_channel_faithfulness возвращает dict с ключами 6 каналов
+    (включая ``obfuscation``); для каждого канала — три метрики
+    (faithfulness, sufficiency, comprehensiveness)."""
 
     pair = {
         "app_a": "alpha",
@@ -74,11 +84,19 @@ def test_compute_channel_faithfulness_returns_dict_with_all_five_channels():
         _evidence("layer_score", "library", 0.5),
         _evidence("layer_score", "resource", 0.3),
         _evidence("signature_match", "apk_signature", 1.0, "signing"),
+        _evidence("obfuscation_shift", "jaccard_v2_libmask", 0.5),
     ]
 
     result = compute_channel_faithfulness(pair, evidence)
 
-    assert set(result.keys()) == {"code", "component", "library", "resource", "signing"}
+    assert set(result.keys()) == {
+        "code",
+        "component",
+        "library",
+        "resource",
+        "signing",
+        "obfuscation",
+    }
     for channel_name, channel_metrics in result.items():
         assert set(channel_metrics.keys()) == {"faithfulness", "sufficiency", "comprehensiveness"}, (
             f"channel {channel_name} must have three metric keys"
@@ -97,7 +115,7 @@ def test_compute_channel_faithfulness_marks_empty_channels_as_none():
 
     result = compute_channel_faithfulness(pair, evidence)
 
-    for empty_channel in ("component", "library", "resource", "signing"):
+    for empty_channel in ("component", "library", "resource", "signing", "obfuscation"):
         channel_metrics = result[empty_channel]
         assert channel_metrics["faithfulness"] is None, (
             f"empty channel {empty_channel} faithfulness must be None, got {channel_metrics['faithfulness']!r}"
@@ -130,7 +148,7 @@ def test_compute_channel_faithfulness_average_differs_from_single_number_when_ch
     assert result["code"]["faithfulness"] is not None
     assert result["library"]["faithfulness"] is not None
     # Empty channels stay None.
-    for empty_channel in ("component", "resource", "signing"):
+    for empty_channel in ("component", "resource", "signing", "obfuscation"):
         assert result[empty_channel]["faithfulness"] is None
 
     # Среднее по непустым каналам — самостоятельная диагностика.
@@ -144,7 +162,7 @@ def test_compute_channel_faithfulness_average_differs_from_single_number_when_ch
 
 
 def test_compute_channel_faithfulness_uniform_evidence_is_consistent_with_single_number():
-    """(d) sanity-check: если evidence во всех 5 каналах полностью одинаковая
+    """(d) sanity-check: если evidence во всех 6 каналах полностью одинаковая
     (по структуре «одна запись на канал, magnitude=1.0»), среднее по каналам
     sufficiency воспроизводит single-channel sufficiency (1.0)."""
 
@@ -155,6 +173,7 @@ def test_compute_channel_faithfulness_uniform_evidence_is_consistent_with_single
         _evidence("layer_score", "library", 1.0),
         _evidence("layer_score", "resource", 1.0),
         _evidence("signature_match", "apk_signature", 1.0, "signing"),
+        _evidence("obfuscation_shift", "jaccard_v2_libmask", 1.0),
     ]
 
     result = compute_channel_faithfulness(pair, evidence)
@@ -177,5 +196,5 @@ def test_compute_channel_faithfulness_signing_isolated():
     result = compute_channel_faithfulness(pair, evidence)
 
     assert result["signing"]["faithfulness"] is not None
-    for empty_channel in ("code", "component", "library", "resource"):
+    for empty_channel in ("code", "component", "library", "resource", "obfuscation"):
         assert result[empty_channel]["faithfulness"] is None
