@@ -1,0 +1,59 @@
+{
+  "artifact_id": "SCREENING-31-MIXED-CORPUS",
+  "schema_version": "scrn-mixed-recalibrate-v1",
+  "generated_at_utc": "2026-04-28T12:55:52.622250+00:00",
+  "n_pairs_per_class": {
+    "class_1": 20,
+    "class_2": 0,
+    "class_3": 0,
+    "class_4": 20,
+    "class_5": 35,
+    "class_6": 10
+  },
+  "recall_at_shortlist_per_class": {
+    "class_1": 0.95,
+    "class_2": null,
+    "class_3": null,
+    "class_4": 0.35,
+    "class_5": 1.0,
+    "class_6": 0.0
+  },
+  "current_thresh_002": 0.7,
+  "proposed_thresh_002": 0.52,
+  "per_class_diagnostics": {
+    "class_1": {
+      "source": "fdroid_v2_self_clone_placeholder",
+      "n_pairs": 20,
+      "recall_at_shortlist": 0.95
+    },
+    "class_2": {
+      "source": "no_dataset",
+      "note": "TPL injection \u043d\u0435 \u043f\u043e\u043a\u0440\u044b\u0442 \u0446\u0435\u043b\u0435\u0432\u044b\u043c \u044d\u043a\u0441\u043f\u0435\u0440\u0438\u043c\u0435\u043d\u0442\u043e\u043c \u0434\u043e \u0432\u043e\u043b\u043d\u044b 31"
+    },
+    "class_3": {
+      "source": "no_dataset",
+      "note": "Resource modification \u043f\u043e\u043a\u0440\u044b\u0442 REPR-30/31, \u043d\u043e \u0431\u0435\u0437 LSH replay"
+    },
+    "class_4": {
+      "source": "SCRN-30-PACKAGE-RENAME",
+      "n_pairs": 20,
+      "recall_at_shortlist": 0.35
+    },
+    "class_5": {
+      "source": "DEEP-30-CODE-INJECT",
+      "n_pairs": 35,
+      "recall_at_shortlist": 1.0,
+      "note": "DEEP-30 F1=1.0 \u2192 recall ~1.0"
+    },
+    "class_6": {
+      "source": "EXEC-HINT-30-OBFUSCATION-DATASET (mock)",
+      "n_pairs": 10,
+      "recall_at_shortlist": 0.0,
+      "note": "R8 \u043b\u043e\u043c\u0430\u0435\u0442 minhash \u2192 recall \u043d\u0438\u0436\u0435 class_5"
+    }
+  },
+  "config": {
+    "thresh_002_used_for_score_emulation": 0.7,
+    "fdroid_baseline_clone_recall": 0.95
+  }
+}
