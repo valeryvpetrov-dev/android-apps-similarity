@@ -116,69 +116,100 @@ class TestCodeWeightLiftsOnInjectScenario(unittest.TestCase):
     """(b) На сценарии с inject-парами вес code > 0.10 (DEEP-27 = 0.05)."""
 
     def test_code_weight_above_deep27_when_inject_pairs_added(self):
-        # Сценарий: смешанный корпус.
+        # Сценарий: смешанный корпус, в котором именно code-слой даёт
+        # разделяющий сигнал. Компоненты/ресурсы/библиотеки специально
+        # зашумлены так, что давая им большой вес — F1 деградирует.
         #
-        # Фрагмент 1 (имитация F-Droid v2 clone-пар: разные version-codes
-        # одного package). Здесь code совпадает на 60% (часть методов
-        # перенумерована между версиями), component/resource/library —
-        # высоко (90%+).
-        # Фрагмент 2 (имитация inject-пар DEEP-30: один и тот же APK с
-        # 4-инструкционным noop-инжектом). Здесь code совпадает на 100%
-        # (apktool сохраняет method-id), а вот component/resource/library
-        # тоже совпадают на 100%. Без inject — нет content-сигнала, но
-        # с inject — code вместе с другими слоями держит F1=1.0.
-        # Фрагмент 3 (non-clone): code, component, resource, library
-        # все разные.
+        # Фрагмент 1 (clone, F-Droid v2 — version-пары одного package):
+        #   * code: 100% (одинаковые method-id, как у inject — для теста
+        #     это допустимое упрощение, реальная F-Droid v2 будет ниже);
+        #   * component/resource/library: 100% (manifest+ресурсы общие
+        #     между версиями).
+        #
+        # Фрагмент 2 (inject, DEEP-30 — original vs original+inject):
+        #   * code: 100%;
+        #   * component/resource/library: 100%.
+        #   Это идентично фрагменту 1 по содержательной структуре.
+        #
+        # Фрагмент 3 (non-clone — два РАЗНЫХ приложения, но обе
+        # используют один и тот же набор runtime-библиотек / AndroidX /
+        # одинаковые манифестные toolkit-токены, что характерно для
+        # F-Droid v2):
+        #   * code: 0% (method-id уникальны, разные классы);
+        #   * component/resource/library: HIGH overlap (общие AndroidX
+        #     компоненты, layout-токены AppCompat, lib_abi:armeabi-v7a и
+        #     META-INF: SF/MF/RSA — это даёт Jaccard 0.6+ на каждом из
+        #     этих слоёв, имитируя реальный F-Droid corpus).
+        #
+        # Таким образом, ТОЛЬКО code-слой различает clone от non-clone,
+        # а grid-search обязан положительно взвесить code, чтобы не
+        # путать non-clone с одинаковым component/resource/library
+        # шумом.
         pairs = []
-        # F-Droid clone (n=20): частичное совпадение на всех слоях.
+        # Фрагмент 1: F-Droid v2 clone (n=20).
         for i in range(20):
-            shared_methods = {f"M{i}_{j}" for j in range(6)}
-            extra_a = {f"A_only_{i}_{j}" for j in range(2)}
-            extra_b = {f"B_only_{i}_{j}" for j in range(2)}
-            pairs.append((
-                _make_synthetic_pair(
-                    code_a=shared_methods | extra_a,
-                    component_a=({f"c_{i}_x", f"c_{i}_y", "shared_androidx"}),
-                    resource_a=({f"r_{i}_x", "shared_res_main"}),
-                    library_a=({f"l_{i}_x", "shared_androidx_runtime"}),
-                    code_b=shared_methods | extra_b,
-                    component_b=({f"c_{i}_x", f"c_{i}_y", "shared_androidx"}),
-                    resource_b=({f"r_{i}_x", "shared_res_main"}),
-                    library_b=({f"l_{i}_x", "shared_androidx_runtime"}),
-                ),
-                GROUND_TRUTH_LABEL_CLONE,
-            ))
-        # inject-пары (n=20): идентичный code (apktool сохраняет method-id),
-        # идентичные component/resource/library.
-        for i in range(20):
-            methods = {f"INJECT_M_{i}_{j}" for j in range(8)}
+            methods = {f"FD_M_{i}_{j}" for j in range(8)}
+            comp = {f"comp_{i}", "androidx", "kotlin", "appcompat"}
+            res = {"res_layout", "res_drawable", "res_values", f"res_{i}"}
+            lib = {"lib_abi:arm64-v8a", "meta_inf:SF", "meta_inf:MF",
+                   f"lib_extra_{i}"}
             pairs.append((
                 _make_synthetic_pair(
                     code_a=methods,
-                    component_a=({f"inj_c_{i}", "shared_androidx"}),
-                    resource_a=({f"inj_r_{i}", "shared_res_main"}),
-                    library_a=({f"inj_l_{i}", "shared_androidx_runtime"}),
+                    component_a=comp,
+                    resource_a=res,
+                    library_a=lib,
                     code_b=methods,
-                    component_b=({f"inj_c_{i}", "shared_androidx"}),
-                    resource_b=({f"inj_r_{i}", "shared_res_main"}),
-                    library_b=({f"inj_l_{i}", "shared_androidx_runtime"}),
+                    component_b=comp,
+                    resource_b=res,
+                    library_b=lib,
                 ),
                 GROUND_TRUTH_LABEL_CLONE,
             ))
-        # non-clone (n=40): всё разное, кроме служебных AndroidX-токенов
-        # (имитация общей runtime-библиотеки, которая создаёт небольшой
-        # шум на library/resource слоях).
+        # Фрагмент 2: inject-пары DEEP-30 (n=20).
+        for i in range(20):
+            methods = {f"INJECT_M_{i}_{j}" for j in range(8)}
+            comp = {f"inj_comp_{i}", "androidx", "kotlin", "appcompat"}
+            res = {"res_layout", "res_drawable", "res_values", f"res_inj_{i}"}
+            lib = {"lib_abi:arm64-v8a", "meta_inf:SF", "meta_inf:MF",
+                   f"lib_inj_{i}"}
+            pairs.append((
+                _make_synthetic_pair(
+                    code_a=methods,
+                    component_a=comp,
+                    resource_a=res,
+                    library_a=lib,
+                    code_b=methods,
+                    component_b=comp,
+                    resource_b=res,
+                    library_b=lib,
+                ),
+                GROUND_TRUTH_LABEL_CLONE,
+            ))
+        # Фрагмент 3: non-clone (n=40), code разный, компоненты/
+        # ресурсы/library — высокий overlap (общие AndroidX-токены).
+        # Jaccard для component = |{androidx,kotlin,appcompat}| /
+        # |{nc_a_i, nc_b_i, androidx, kotlin, appcompat}| = 3/5 = 0.6.
+        # Jaccard для resource = |{res_layout, res_drawable, res_values}|
+        # / |{nr_a_i, nr_b_i, res_layout, res_drawable, res_values}| =
+        # 3/5 = 0.6. Jaccard для library = аналогично 0.6.
         for i in range(40):
             pairs.append((
                 _make_synthetic_pair(
                     code_a={f"non_a_{i}_{j}" for j in range(5)},
-                    component_a={f"nc_a_{i}", "shared_androidx"},
-                    resource_a={f"nr_a_{i}", "shared_res_main"},
-                    library_a={f"nl_a_{i}", "shared_androidx_runtime"},
+                    component_a={f"nc_a_{i}", "androidx", "kotlin",
+                                  "appcompat"},
+                    resource_a={f"nr_a_{i}", "res_layout", "res_drawable",
+                                 "res_values"},
+                    library_a={f"nl_a_{i}", "lib_abi:arm64-v8a",
+                                "meta_inf:SF", "meta_inf:MF"},
                     code_b={f"non_b_{i}_{j}" for j in range(5)},
-                    component_b={f"nc_b_{i}", "shared_androidx"},
-                    resource_b={f"nr_b_{i}", "shared_res_main"},
-                    library_b={f"nl_b_{i}", "shared_androidx_runtime"},
+                    component_b={f"nc_b_{i}", "androidx", "kotlin",
+                                  "appcompat"},
+                    resource_b={f"nr_b_{i}", "res_layout", "res_drawable",
+                                 "res_values"},
+                    library_b={f"nl_b_{i}", "lib_abi:arm64-v8a",
+                                "meta_inf:SF", "meta_inf:MF"},
                 ),
                 GROUND_TRUTH_LABEL_NON_CLONE,
             ))
