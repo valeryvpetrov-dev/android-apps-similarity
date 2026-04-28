@@ -99,7 +99,9 @@ MANIFEST_SOFTWARE_FEATURE_PATTERN = re.compile(
 DEX_MAGIC_PREFIX = b"dex\n"
 DEX_MAGIC_SUFFIX = b"\x00"
 DEX_VERSION_LENGTH = 3
-APK_SIG_V1_EXTENSIONS = (".RSA", ".DSA", ".EC")
+# APK_SIG_V1_EXTENSIONS удалена в ARCH-31: после переноса
+# _detect_signing_scheme на signing_view (ARCH-30) META-INF enum'ация
+# полностью делегирована signing_view._has_meta_inf_v1_signature.
 
 
 def strip_yaml_comment(line: str) -> str:
@@ -525,31 +527,55 @@ def _extract_dex_version_token(archive: zipfile.ZipFile) -> str | None:
     return "dex_version:{}".format(version)
 
 
-def _detect_signing_scheme(archive: zipfile.ZipFile) -> str | None:
-    """Return 'v1' if META-INF has .RSA/.DSA/.EC, 'v2' if APK Sig Block v2/v3 present.
+def _detect_signing_scheme(apk_path: Path, archive: zipfile.ZipFile) -> str | None:
+    """Определить схему подписи APK — делегат в ``signing_view._detect_signing_scheme``.
 
-    Returns None when neither is detected. Safe to call on any zip.
+    Возвращает одно из: ``'v1'``, ``'v2'``, ``'v3'``, ``'v3_with_rotation'``
+    или None если подпись отсутствует. Без conflate v2/v3 (в отличие от
+    исходной локальной реализации, см. ARCH-29 critic + ARCH-30 фикс
+    в ``signing_view``).
+
+    Параметр ``archive`` сохранён для совместимости вызывающей стороны
+    (``_extract_signing_tokens`` уже держит открытый zip) и для будущих
+    мест, где schema-detection ускоряется по namelist; основной разбор
+    выполняет ``signing_view`` по APK Signing Block.
     """
+    del archive  # подавляем unused-warning; см. docstring
     try:
-        for name in archive.namelist():
-            if not name.startswith("META-INF/"):
-                continue
-            upper = name.upper()
-            if upper.endswith(APK_SIG_V1_EXTENSIONS):
-                return "v1"
-    except (zipfile.BadZipFile, OSError) as exc:
-        logger.warning("screening_runner: cannot enumerate META-INF: %s", exc)
-    return None
+        try:
+            from signing_view import _detect_signing_scheme as _sv_detect_scheme
+        except ImportError:
+            from script.signing_view import (  # type: ignore
+                _detect_signing_scheme as _sv_detect_scheme,
+            )
+        return _sv_detect_scheme(apk_path)
+    except Exception as exc:  # pragma: no cover - defensive guard
+        logger.warning(
+            "screening_runner: scheme detection delegate failed for %s: %s",
+            apk_path,
+            exc,
+        )
+        return None
 
 
 def _extract_signing_tokens(apk_path: Path, archive: zipfile.ZipFile) -> set[str]:
     """Build signing_* tokens via signing_view module.
 
-    Produces up to three tokens:
+    Produces до пяти видов токенов:
       - signing_present:0|1
-      - signing_scheme:v1|v2  (omitted if no signature)
-      - signing_prefix:XXXXXXXX (first 8 hex chars; omitted if no signature)
-    Each lookup is wrapped so one failure cannot mask the others.
+      - signing_scheme:v1|v2|v3|v3_with_rotation  (omitted если нет подписи)
+      - signing_prefix:XXXXXXXX (first 8 hex chars; omitted если нет подписи)
+      - signing_lineage_fp:XXXXXXXX (по одному на каждый fingerprint
+        в rotation_lineage v3-блока; добавляются только при наличии
+        proof-of-rotation lineage)
+
+    ARCH-31-V3-SCREENING-INTEGRATION: схема подписи теперь различает
+    v3/v3_with_rotation, а rotation lineage экспонируется на screening-слой
+    отдельными токенами — это закрывает класс "official rotation"
+    (один разработчик, два билда после ротации ключа), где старая семантика
+    давала ложный mismatch на signing-сигнале (см. critic-ARCH-29).
+
+    Each lookup is wrapped так, чтобы один сбой не маскировал остальные.
     """
     tokens: set[str] = set()
     signing_hash: str | None = None
@@ -558,11 +584,13 @@ def _extract_signing_tokens(apk_path: Path, archive: zipfile.ZipFile) -> set[str
             from signing_view import (
                 extract_apk_signature_hash,
                 extract_apk_signatures_v2_fingerprint,
+                parse_signing_scheme_v3,
             )
         except ImportError:
             from script.signing_view import (  # type: ignore
                 extract_apk_signature_hash,
                 extract_apk_signatures_v2_fingerprint,
+                parse_signing_scheme_v3,
             )
         signing_hash = extract_apk_signature_hash(apk_path)
     except Exception as exc:  # pragma: no cover - defensive guard
@@ -576,9 +604,10 @@ def _extract_signing_tokens(apk_path: Path, archive: zipfile.ZipFile) -> set[str
         return tokens
 
     try:
-        scheme = _detect_signing_scheme(archive)
+        scheme = _detect_signing_scheme(apk_path, archive)
         if scheme is None:
-            # Fallback path via APK Sig Block 42 implies v2/v3 scheme
+            # Fallback: блок APK Sig Block 42 без identifiable v2/v3 ID
+            # (редкий случай — например, нестандартные exporter'ы).
             try:
                 v2_hash = extract_apk_signatures_v2_fingerprint(apk_path)
             except Exception:  # pragma: no cover
@@ -596,6 +625,30 @@ def _extract_signing_tokens(apk_path: Path, archive: zipfile.ZipFile) -> set[str
             tokens.add("signing_prefix:{}".format(prefix.lower()))
     except Exception as exc:  # pragma: no cover
         logger.warning("screening_runner: prefix extraction failed: %s", exc)
+
+    # ARCH-31: rotation_lineage fingerprints как отдельные токены.
+    # Берём первые 8 hex каждого fingerprint'а — стабильный, бюджетный
+    # сигнал, симметричный signing_prefix (8 hex). Поскольку в Жаккаре
+    # учитывается множество токенов, у пары APK с одинаковой rotation
+    # цепочкой множества будут пересекаться даже при разных текущих
+    # signer'ах.
+    try:
+        v3_info = parse_signing_scheme_v3(apk_path)
+        lineage = v3_info.get("rotation_lineage") if isinstance(v3_info, dict) else None
+        if isinstance(lineage, list):
+            for entry in lineage:
+                if not isinstance(entry, dict):
+                    continue
+                fp = entry.get("fingerprint")
+                if not isinstance(fp, str):
+                    continue
+                fp_prefix = fp[:8]
+                if len(fp_prefix) == 8 and all(
+                    ch in "0123456789abcdefABCDEF" for ch in fp_prefix
+                ):
+                    tokens.add("signing_lineage_fp:{}".format(fp_prefix.lower()))
+    except Exception as exc:  # pragma: no cover
+        logger.warning("screening_runner: lineage extraction failed: %s", exc)
 
     return tokens
 
