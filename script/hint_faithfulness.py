@@ -353,10 +353,21 @@ def _canonical_pair_feature_name(signal_type: str, ref: str) -> str:
 
 
 # Канон каналов evidence для per-channel faithfulness-диагностики.
-# Стабильный пятиэлементный набор: code/component/library/resource/signing.
+# EXEC-HINT-30-OBFUSCATION-WRITER: расширен до шести каналов добавлением
+# `obfuscation` — закрывает находку HINT-29 (OBFUSCATION_SHIFT декларирован
+# в hint_taxonomy, но writer не выдавал ни одной evidence-записи с
+# signal_type='obfuscation_shift').
+# Стабильный шестиэлементный набор: code/component/library/resource/signing/obfuscation.
 # Используется compute_channel_faithfulness для ответа на вопрос
 # «какой канал тянет faithfulness вниз».
-EVIDENCE_CHANNELS: tuple[str, ...] = ("code", "component", "library", "resource", "signing")
+EVIDENCE_CHANNELS: tuple[str, ...] = (
+    "code",
+    "component",
+    "library",
+    "resource",
+    "signing",
+    "obfuscation",
+)
 
 
 _COMPONENT_KEYWORDS = (
@@ -369,13 +380,28 @@ _COMPONENT_KEYWORDS = (
 _LIBRARY_KEYWORDS = ("library", "lib_", "library_match", "lib")
 _RESOURCE_KEYWORDS = ("resource", "drawable", "layout_xml", "string_res")
 _CODE_KEYWORDS = ("code", "dex", "method", "class_overlap", "tlsh")
+# EXEC-HINT-30-OBFUSCATION-WRITER: распознавание evidence-записей
+# obfuscation-канала. Главный признак — `signal_type='obfuscation_shift'`
+# (его эмитит writer pairwise_explainer), плюс fallback по ref-ключам,
+# чтобы любые будущие writer'ы (build_r8_pairs_dataset и т.п.) тоже
+# попадали в канал.
+_OBFUSCATION_KEYWORDS = (
+    "obfuscation_shift",
+    "obfuscation",
+    "jaccard_v2_libmask",
+    "short_method_names",
+)
 
 
 def classify_evidence_channel(evidence_record: Mapping[str, object]) -> Optional[str]:
-    """Map an evidence record to one of the five canonical channels.
+    """Map an evidence record to one of the six canonical channels.
 
     Маппинг:
     - ``signal_type=signature_match`` или ``source_stage=signing`` -> ``signing``;
+    - ``signal_type=obfuscation_shift`` или ref с ключами
+      `jaccard_v2_libmask`/`short_method_names` -> ``obfuscation``
+      (EXEC-HINT-30-OBFUSCATION-WRITER: проверяется ПЕРВЫМ из ref-веток,
+      потому что `jaccard_v2_libmask` содержит подстроку `lib`);
     - ref/signal с ключевыми словами `component/activity/service/...` -> ``component``;
     - ref/signal с ключевыми словами `library/lib_match/...` -> ``library``;
     - ref/signal с ключевыми словами `resource/drawable/...` -> ``resource``;
@@ -394,7 +420,13 @@ def classify_evidence_channel(evidence_record: Mapping[str, object]) -> Optional
     if signal_type == "signature_match" or source_stage == "signing":
         return "signing"
 
+    # EXEC-HINT-30-OBFUSCATION-WRITER: сначала проверяем obfuscation —
+    # ref `jaccard_v2_libmask` содержит подстроку `lib`, и без явного
+    # приоритета попал бы в канал `library`.
     haystack = f"{signal_type} {ref}"
+    for keyword in _OBFUSCATION_KEYWORDS:
+        if keyword in haystack:
+            return "obfuscation"
     for keyword in _LIBRARY_KEYWORDS:
         if keyword in haystack:
             return "library"

@@ -748,6 +748,119 @@ def build_explanation_hints(pair: dict) -> list[dict]:
     return hints
 
 
+# ---------------------------------------------------------------------------
+# EXEC-HINT-30-OBFUSCATION-WRITER: heuristic-детектор обфускации.
+#
+# Закрывает находку HINT-29: typed taxonomy `OBFUSCATION_SHIFT` была
+# объявлена в `hint_taxonomy.HINT_TAXONOMY_CLASSES`, но ни один writer
+# не выдавал evidence-записи с `signal_type='obfuscation_shift'`.
+# Heuristic строится на двух источниках сигнала, доступных в pair_row:
+#
+#   1. ``library_view_v2.detected_via == 'jaccard_v2'`` — детектор библиотек
+#      v2 пометил пару как «совпало через расширенный Jaccard»: типичный
+#      признак обфускации, при которой имена пакетов изменены, но набор
+#      зависимостей всё ещё распознаётся через альтернативные сигнатуры;
+#   2. ``code_view_v4.method_signatures`` имеет ≥50% коротких имён вида
+#      ``a()``, ``b$c()`` (regex `^[a-z]\$?[a-z\$]?\(`) — типичный признак
+#      R8/ProGuard rename'а методов.
+#
+# Каждый сработавший сигнал даёт отдельную evidence-запись с фиксированной
+# `magnitude` (0.5 для libmask, 0.6 для short-names), `ref` указывает
+# источник (`jaccard_v2_libmask` либо `short_method_names`).
+# ---------------------------------------------------------------------------
+
+
+# Regex короткого имени метода: одна-две буквы латиницы (строчные),
+# опционально с одним `$`, далее открывающая скобка. Пример: `a(`, `b$c(`.
+# Не покрывает имена с цифрами, длинные идентификаторы, имена смешанного
+# регистра — это намеренно, чтобы не давать ложные срабатывания на чистом
+# коде (например, `for(int i=0; i<n; i++)` — это не имя метода, regex
+# матчит только перед открывающей скобкой имени).
+_OBFUSCATION_SHORT_NAME_PATTERN = re.compile(r"^[a-z]\$?[a-z\$]?\(")
+_OBFUSCATION_SHORT_NAME_THRESHOLD = 0.5
+_OBFUSCATION_LIBMASK_MAGNITUDE = 0.5
+_OBFUSCATION_SHORT_NAMES_MAGNITUDE = 0.6
+
+
+def _detect_jaccard_v2_libmask(pair: dict) -> dict | None:
+    """Эмитит evidence-запись obfuscation_shift, если library_view_v2
+    пометил пару `detected_via='jaccard_v2'`. Возвращает None если сигнала нет.
+    """
+    library_view_v2 = pair.get("library_view_v2")
+    if not isinstance(library_view_v2, dict):
+        return None
+    detected_via = library_view_v2.get("detected_via")
+    if not isinstance(detected_via, str):
+        return None
+    if detected_via.strip().lower() != "jaccard_v2":
+        return None
+    return {
+        "source_stage": "pairwise",
+        "signal_type": "obfuscation_shift",
+        "magnitude": _OBFUSCATION_LIBMASK_MAGNITUDE,
+        "ref": "jaccard_v2_libmask",
+    }
+
+
+def _detect_short_method_names(pair: dict) -> dict | None:
+    """Эмитит evidence-запись obfuscation_shift, если ≥50% method_signatures
+    в `code_view_v4` имеют форму `^[a-z]\\$?[a-z\\$]?\\(` (regex короткого
+    имени). Возвращает None если сигнала нет либо если method_signatures
+    отсутствует/пустой.
+    """
+    code_view_v4 = pair.get("code_view_v4")
+    if not isinstance(code_view_v4, dict):
+        return None
+    method_signatures = code_view_v4.get("method_signatures")
+    if not isinstance(method_signatures, list) or len(method_signatures) == 0:
+        return None
+    short_count = 0
+    total = 0
+    for signature in method_signatures:
+        if not isinstance(signature, str):
+            continue
+        total += 1
+        if _OBFUSCATION_SHORT_NAME_PATTERN.match(signature.strip()):
+            short_count += 1
+    if total == 0:
+        return None
+    short_ratio = short_count / total
+    if short_ratio < _OBFUSCATION_SHORT_NAME_THRESHOLD:
+        return None
+    return {
+        "source_stage": "pairwise",
+        "signal_type": "obfuscation_shift",
+        "magnitude": _OBFUSCATION_SHORT_NAMES_MAGNITUDE,
+        "ref": "short_method_names",
+    }
+
+
+def detect_obfuscation_evidence(pair: dict) -> list[dict]:
+    """Прогнать оба heuristic-детектора и вернуть найденные evidence-записи.
+
+    Контракт:
+    - Каждая запись — dict с `source_stage='pairwise'`,
+      `signal_type='obfuscation_shift'`, числовой `magnitude` в [0, 1] и
+      строковым `ref` (`jaccard_v2_libmask` либо `short_method_names`).
+    - Если сработали оба детектора, возвращаются обе записи.
+    - На некорректных входах (не-dict pair) возвращается `[]`.
+    - Дубликатов между этой функцией и существующим evidence pair_row нет:
+      detector работает по полям `library_view_v2.detected_via` и
+      `code_view_v4.method_signatures`, которые не пишутся в evidence
+      штатными writer'ами (screening/pairwise/signing).
+    """
+    if not isinstance(pair, dict):
+        return []
+    records: list[dict] = []
+    libmask = _detect_jaccard_v2_libmask(pair)
+    if libmask is not None:
+        records.append(libmask)
+    short_names = _detect_short_method_names(pair)
+    if short_names is not None:
+        records.append(short_names)
+    return records
+
+
 def _hints_from_evidence(evidence_list: list[dict]) -> list[dict]:
     """EXEC-DESCRIBE-PAIR-EVIDENCE-CONTRACT-ALIGN: построить hints напрямую из
     evidence-записей как из единого источника правды.
@@ -853,6 +966,20 @@ def build_output_rows(pair_rows: list[dict]) -> list[dict]:
         filtered_evidence: list[dict] = []
         if isinstance(raw_evidence, list):
             filtered_evidence = [item for item in raw_evidence if isinstance(item, dict)]
+
+        # EXEC-HINT-30-OBFUSCATION-WRITER: добавляем heuristic
+        # obfuscation_shift поверх существующего evidence. Закрывает
+        # находку HINT-29 (typed `OBFUSCATION_SHIFT` без писательского
+        # сигнала). Детектор смотрит на `library_view_v2.detected_via` и
+        # `code_view_v4.method_signatures` в pair_row — эти поля не пишутся
+        # в evidence штатными writer'ами, поэтому дубликатов не возникает.
+        # Сигналы добавляются ТОЛЬКО когда canonical-ветка уже сработала
+        # (filtered_evidence непустой), чтобы не плодить evidence на полностью
+        # пустых legacy-pair_row.
+        if filtered_evidence:
+            obfuscation_signals = detect_obfuscation_evidence(pair)
+            if obfuscation_signals:
+                filtered_evidence = filtered_evidence + obfuscation_signals
 
         # EXEC-HINT-28-TYPED-TAXONOMY: типизированная taxonomy (9 классов
         # DeYoung ACL 2020) строится как СЛОЙ ПОВЕРХ Evidence. Canonical
