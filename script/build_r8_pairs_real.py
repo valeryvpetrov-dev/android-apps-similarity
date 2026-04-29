@@ -241,14 +241,51 @@ def fqcn(package_name: str | None, activity_name: str | None) -> str:
 def write_keep_rules(decoded_dir: Path, rules_path: Path) -> list[str]:
     package_name, activity_name = manifest_package_and_launcher(decoded_dir)
     main_activity = fqcn(package_name, activity_name)
+    # Permissive keep rules: launcher Activity + любые подклассы Android-компонентов
+    # (Activity/Service/Receiver/Provider/Application). `-ignorewarnings` нужно для
+    # APK с references на классы, которых нет в android.jar (например AndroidX без
+    # подключения support-libs в --lib).
     rules = [
         f"-keep class {main_activity} {{ *; }}",
         "-keep class **.MainActivity { *; }",
+        "-keep public class * extends android.app.Activity { public *; }",
+        "-keep public class * extends android.app.Service { public *; }",
+        "-keep public class * extends android.content.BroadcastReceiver { public *; }",
+        "-keep public class * extends android.content.ContentProvider { public *; }",
+        "-keep public class * extends android.app.Application { public *; }",
         "-keepattributes Signature,*Annotation*,InnerClasses,EnclosingMethod",
         "-dontwarn **",
+        "-ignorewarnings",
     ]
     rules_path.write_text("\n".join(rules) + "\n", encoding="utf-8")
     return rules
+
+
+def find_dex2jar() -> Path | None:
+    """Locate dex2jar binary (`d2j-dex2jar`) in PATH.
+
+    R8 не принимает DEX-input напрямую (он сам компилятор Java→DEX). Чтобы
+    получить R8-обфусцированный APK из готового, сначала конвертируем
+    `classes.dex` в `classes.jar` через dex2jar, скармливаем R8, а его DEX-вывод
+    подменяет старый DEX внутри apktool-decoded дерева.
+    """
+    for name in ("d2j-dex2jar", "d2j-dex2jar.sh", "dex2jar"):
+        path = shutil.which(name)
+        if path:
+            return Path(path)
+    return None
+
+
+def dex_to_jar(dex2jar: Path, dex_path: Path, jar_path: Path) -> str | None:
+    if jar_path.exists():
+        jar_path.unlink()
+    rc, _stdout, stderr = run_cmd(
+        [str(dex2jar), "-f", "-o", str(jar_path), str(dex_path)],
+        timeout=300,
+    )
+    if rc != 0:
+        return f"dex2jar_exit_{rc}: {stderr[-400:]}"
+    return None if jar_path.exists() else "dex2jar_output_missing"
 
 
 def evidence_record(signal_type: str, ref: str, magnitude: float, source_stage: str = "pairwise") -> MappingLike:
@@ -425,6 +462,7 @@ def build_one_real_pair(
     apktool: Path,
     java_bin: Path,
     r8_jar: Path,
+    dex2jar: Path | None,
     android_jar: Path | None,
     min_api: int,
 ) -> tuple[MappingLike | None, MappingLike | None]:
@@ -446,12 +484,25 @@ def build_one_real_pair(
     if not dex_inputs:
         return None, failure(apk_path, pair_id, "dex_extract", "classes.dex_missing", original_class_count)
 
+    # R8 не принимает DEX-input — конвертируем DEX→JAR через dex2jar.
+    if dex2jar is None:
+        return None, failure(apk_path, pair_id, "dex2jar", "dex2jar_unavailable", original_class_count)
+    jar_inputs: list[Path] = []
+    jar_dir = work_dir / "dex-as-jar"
+    jar_dir.mkdir(parents=True, exist_ok=True)
+    for dex_path in dex_inputs:
+        jar_path = jar_dir / (dex_path.stem + ".jar")
+        error = dex_to_jar(dex2jar, dex_path, jar_path)
+        if error:
+            return None, failure(apk_path, pair_id, "dex2jar", error, original_class_count)
+        jar_inputs.append(jar_path)
+
     r8_out = work_dir / "r8-out"
     error = run_r8(
         java_bin=java_bin,
         r8_jar=r8_jar,
         android_jar=android_jar,
-        dex_inputs=dex_inputs,
+        dex_inputs=jar_inputs,  # JAR-input для R8 (после dex2jar)
         rules_path=rules_path,
         output_dir=r8_out,
         min_api=min_api,
@@ -570,6 +621,7 @@ def main(argv: list[str] | None = None) -> int:
     android_jar = find_android_jar()
     dx = find_build_tool("dx")
     d8 = find_build_tool("d8")
+    dex2jar = find_dex2jar()
 
     toolchain_missing = []
     if not apktool.exists():
@@ -578,6 +630,8 @@ def main(argv: list[str] | None = None) -> int:
         toolchain_missing.append("java")
     if r8_jar is None:
         toolchain_missing.append("r8.jar")
+    if dex2jar is None:
+        toolchain_missing.append("dex2jar")
     if not apks:
         toolchain_missing.append("fdroid_apks_with_classes.dex")
 
@@ -593,6 +647,7 @@ def main(argv: list[str] | None = None) -> int:
                 apktool=apktool,
                 java_bin=java_bin,
                 r8_jar=r8_jar,
+                dex2jar=dex2jar,
                 android_jar=android_jar,
                 min_api=args.min_api,
             )

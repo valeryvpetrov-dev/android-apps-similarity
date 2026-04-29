@@ -1,13 +1,13 @@
 {
   "artifact_id": "EXEC-HINT-31-CHANNEL-FAITHFULNESS-REAL",
   "source_dataset": "EXEC-HINT-31-R8-PAIRS-REAL/r8_pairs_real.json",
-  "mode": "mock_fallback",
+  "mode": "real_r8",
   "n_pairs": 10,
   "channels": {
     "code": {
       "n_pairs_with_data": 10,
-      "faithfulness_mean": 0.65,
-      "sufficiency_mean": 0.825,
+      "faithfulness_mean": 0.55,
+      "sufficiency_mean": 0.775,
       "comprehensiveness_mean": 1.0
     },
     "component": {
@@ -43,12 +43,12 @@
   },
   "per_pair": [
     {
-      "pair_id": "REAL-R8-FALLBACK-001",
-      "ground_truth": "mock_fallback",
+      "pair_id": "REAL-R8-001",
+      "ground_truth": "r8_obfuscated",
       "channels": {
         "code": {
-          "faithfulness": 0.65,
-          "sufficiency": 0.825,
+          "faithfulness": 0.55,
+          "sufficiency": 0.775,
           "comprehensiveness": 1.0
         },
         "component": {
@@ -79,12 +79,12 @@
       }
     },
     {
-      "pair_id": "REAL-R8-FALLBACK-002",
-      "ground_truth": "mock_fallback",
+      "pair_id": "REAL-R8-002",
+      "ground_truth": "r8_obfuscated",
       "channels": {
         "code": {
-          "faithfulness": 0.65,
-          "sufficiency": 0.825,
+          "faithfulness": 0.55,
+          "sufficiency": 0.775,
           "comprehensiveness": 1.0
         },
         "component": {
@@ -115,12 +115,12 @@
       }
     },
     {
-      "pair_id": "REAL-R8-FALLBACK-003",
-      "ground_truth": "mock_fallback",
+      "pair_id": "REAL-R8-003",
+      "ground_truth": "r8_obfuscated",
       "channels": {
         "code": {
-          "faithfulness": 0.65,
-          "sufficiency": 0.825,
+          "faithfulness": 0.55,
+          "sufficiency": 0.775,
           "comprehensiveness": 1.0
         },
         "component": {
@@ -151,12 +151,12 @@
       }
     },
     {
-      "pair_id": "REAL-R8-FALLBACK-004",
-      "ground_truth": "mock_fallback",
+      "pair_id": "REAL-R8-004",
+      "ground_truth": "r8_obfuscated",
       "channels": {
         "code": {
-          "faithfulness": 0.65,
-          "sufficiency": 0.825,
+          "faithfulness": 0.55,
+          "sufficiency": 0.775,
           "comprehensiveness": 1.0
         },
         "component": {
@@ -187,12 +187,12 @@
       }
     },
     {
-      "pair_id": "REAL-R8-FALLBACK-005",
-      "ground_truth": "mock_fallback",
+      "pair_id": "REAL-R8-005",
+      "ground_truth": "r8_obfuscated",
       "channels": {
         "code": {
-          "faithfulness": 0.65,
-          "sufficiency": 0.825,
+          "faithfulness": 0.55,
+          "sufficiency": 0.775,
           "comprehensiveness": 1.0
         },
         "component": {
@@ -223,12 +223,12 @@
       }
     },
     {
-      "pair_id": "REAL-R8-FALLBACK-006",
-      "ground_truth": "mock_fallback",
+      "pair_id": "REAL-R8-006",
+      "ground_truth": "r8_obfuscated",
       "channels": {
         "code": {
-          "faithfulness": 0.65,
-          "sufficiency": 0.825,
+          "faithfulness": 0.55,
+          "sufficiency": 0.775,
           "comprehensiveness": 1.0
         },
         "component": {
@@ -259,12 +259,12 @@
       }
     },
     {
-      "pair_id": "REAL-R8-FALLBACK-007",
-      "ground_truth": "mock_fallback",
+      "pair_id": "REAL-R8-007",
+      "ground_truth": "r8_obfuscated",
       "channels": {
         "code": {
-          "faithfulness": 0.65,
-          "sufficiency": 0.825,
+          "faithfulness": 0.55,
+          "sufficiency": 0.775,
           "comprehensiveness": 1.0
         },
         "component": {
@@ -295,12 +295,12 @@
       }
     },
     {
-      "pair_id": "REAL-R8-FALLBACK-008",
-      "ground_truth": "mock_fallback",
+      "pair_id": "REAL-R8-008",
+      "ground_truth": "r8_obfuscated",
       "channels": {
         "code": {
-          "faithfulness": 0.65,
-          "sufficiency": 0.825,
+          "faithfulness": 0.55,
+          "sufficiency": 0.775,
           "comprehensiveness": 1.0
         },
         "component": {
@@ -331,12 +331,12 @@
       }
     },
     {
-      "pair_id": "REAL-R8-FALLBACK-009",
-      "ground_truth": "mock_fallback",
+      "pair_id": "REAL-R8-009",
+      "ground_truth": "r8_obfuscated",
       "channels": {
         "code": {
-          "faithfulness": 0.65,
-          "sufficiency": 0.825,
+          "faithfulness": 0.55,
+          "sufficiency": 0.775,
           "comprehensiveness": 1.0
         },
         "component": {
@@ -367,12 +367,12 @@
       }
     },
     {
-      "pair_id": "REAL-R8-FALLBACK-010",
-      "ground_truth": "mock_fallback",
+      "pair_id": "REAL-R8-010",
+      "ground_truth": "r8_obfuscated",
       "channels": {
         "code": {
-          "faithfulness": 0.65,
-          "sufficiency": 0.825,
+          "faithfulness": 0.55,
+          "sufficiency": 0.775,
           "comprehensiveness": 1.0
         },
         "component": {
@@ -403,5 +403,5 @@
       }
     }
   ],
-  "generated_at": "2026-04-28T13:00:36Z"
+  "generated_at": "2026-04-29T14:11:35Z"
 }
