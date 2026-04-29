@@ -1,12 +1,12 @@
 {
   "artifact_id": "EXEC-HINT-31-CHANNEL-FAITHFULNESS-REAL",
-  "source_pairs_artifact": "/private/tmp/wave31-hint-submodule/experiments/artifacts/EXEC-HINT-31-R8-PAIRS-REAL/r8_pairs_real.json",
-  "mode": "mock_fallback",
-  "n_pairs_real": 0,
-  "n_pairs_failed": 10,
+  "source_pairs_artifact": "/Users/valeryvpetrov/phd/prototypes/submodules/android-apps-similarity/experiments/artifacts/EXEC-HINT-31-R8-PAIRS-REAL/r8_pairs_real.json",
+  "mode": "real_r8",
+  "n_pairs_real": 10,
+  "n_pairs_failed": 0,
   "n_pairs_replayed": 10,
   "faithfulness_per_channel": {
-    "code_view_v4": 0.65,
+    "code_view_v4": 0.55,
     "component_view": 1.0,
     "library_view_v2": 1.0,
     "resource_view_v2": 1.0,
@@ -14,14 +14,14 @@
     "obfuscation_shift": 1.0
   },
   "faithfulness_per_canonical_channel": {
-    "code": 0.65,
+    "code": 0.55,
     "component": 1.0,
     "library": 1.0,
     "resource": 1.0,
     "signing": 1.0,
     "obfuscation": 1.0
   },
-  "mean_faithfulness": 0.941667,
-  "claim_supported": false,
-  "generated_at": "2026-04-28T13:00:36Z"
+  "mean_faithfulness": 0.925,
+  "claim_supported": true,
+  "generated_at": "2026-04-29T14:11:35Z"
 }

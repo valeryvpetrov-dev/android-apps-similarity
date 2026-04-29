@@ -1,683 +1,662 @@
 {
   "artifact_id": "EXEC-HINT-31-R8-PAIRS-REAL",
-  "mode": "mock_fallback",
+  "mode": "real_r8",
   "n_pairs_requested": 10,
   "n_pairs_selected": 10,
-  "n_pairs_ok": 0,
-  "n_pairs_failed": 10,
+  "n_pairs_ok": 10,
+  "n_pairs_failed": 0,
   "apk_dir": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks",
   "toolchain": {
     "apktool": "/opt/homebrew/bin/apktool",
     "java": "/usr/bin/java",
-    "r8_jar": null,
-    "d8": null,
+    "r8_jar": "/Users/valeryvpetrov/Library/Android/sdk/cmdline-tools/latest/lib/r8.jar",
+    "d8": "/Users/valeryvpetrov/Library/Android/sdk/build-tools/36.0.0/d8",
     "dx": null,
-    "android_jar": null,
+    "android_jar": "/Users/valeryvpetrov/Library/Android/sdk/platforms/android-36/android.jar",
     "r8_download_attempted": false
   },
   "pairs": [
     {
-      "pair_id": "REAL-R8-FALLBACK-001",
-      "original_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/An.stop_10.apk",
-      "r8_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/An.stop_10.apk",
-      "original_dex_classes_count": 47,
-      "r8_dex_classes_count": 47,
-      "r8_keep_rules_applied": [
-        "-keep class **.MainActivity { *; }",
-        "-dontwarn **"
-      ],
-      "build_status": "failed",
-      "fallback_kind": "mock_fallback",
-      "failure_reason": "missing:r8.jar",
-      "evidence": [
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.42,
-          "ref": "code"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.58,
-          "ref": "component"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.76,
-          "ref": "library"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.62,
-          "ref": "resource"
-        },
-        {
-          "source_stage": "signing",
-          "signal_type": "signature_match",
-          "magnitude": 0.51,
-          "ref": "apk_signature"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "obfuscation_shift",
-          "magnitude": 0.5,
-          "ref": "jaccard_v2_libmask"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "obfuscation_shift",
-          "magnitude": 0.6,
-          "ref": "short_method_names"
-        }
-      ]
-    },
-    {
-      "pair_id": "REAL-R8-FALLBACK-002",
-      "original_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/An.stop_9.apk",
-      "r8_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/An.stop_9.apk",
-      "original_dex_classes_count": 34,
-      "r8_dex_classes_count": 34,
-      "r8_keep_rules_applied": [
-        "-keep class **.MainActivity { *; }",
-        "-dontwarn **"
-      ],
-      "build_status": "failed",
-      "fallback_kind": "mock_fallback",
-      "failure_reason": "missing:r8.jar",
-      "evidence": [
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.435,
-          "ref": "code"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.6,
-          "ref": "component"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.77,
-          "ref": "library"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.63,
-          "ref": "resource"
-        },
-        {
-          "source_stage": "signing",
-          "signal_type": "signature_match",
-          "magnitude": 0.51,
-          "ref": "apk_signature"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "obfuscation_shift",
-          "magnitude": 0.5,
-          "ref": "jaccard_v2_libmask"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "obfuscation_shift",
-          "magnitude": 0.6,
-          "ref": "short_method_names"
-        }
-      ]
-    },
-    {
-      "pair_id": "REAL-R8-FALLBACK-003",
-      "original_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/InfinityLoop1309.NewPipeEnhanced_109503.apk",
-      "r8_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/InfinityLoop1309.NewPipeEnhanced_109503.apk",
-      "original_dex_classes_count": 12652,
-      "r8_dex_classes_count": 12652,
-      "r8_keep_rules_applied": [
-        "-keep class **.MainActivity { *; }",
-        "-dontwarn **"
-      ],
-      "build_status": "failed",
-      "fallback_kind": "mock_fallback",
-      "failure_reason": "missing:r8.jar",
-      "evidence": [
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.44999999999999996,
-          "ref": "code"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.58,
-          "ref": "component"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.78,
-          "ref": "library"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.64,
-          "ref": "resource"
-        },
-        {
-          "source_stage": "signing",
-          "signal_type": "signature_match",
-          "magnitude": 0.51,
-          "ref": "apk_signature"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "obfuscation_shift",
-          "magnitude": 0.5,
-          "ref": "jaccard_v2_libmask"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "obfuscation_shift",
-          "magnitude": 0.6,
-          "ref": "short_method_names"
-        }
-      ]
-    },
-    {
-      "pair_id": "REAL-R8-FALLBACK-004",
-      "original_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/InfinityLoop1309.NewPipeEnhanced_109504.apk",
-      "r8_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/InfinityLoop1309.NewPipeEnhanced_109504.apk",
-      "original_dex_classes_count": 12652,
-      "r8_dex_classes_count": 12652,
-      "r8_keep_rules_applied": [
-        "-keep class **.MainActivity { *; }",
-        "-dontwarn **"
-      ],
-      "build_status": "failed",
-      "fallback_kind": "mock_fallback",
-      "failure_reason": "missing:r8.jar",
-      "evidence": [
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.46499999999999997,
-          "ref": "code"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.6,
-          "ref": "component"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.79,
-          "ref": "library"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.62,
-          "ref": "resource"
-        },
-        {
-          "source_stage": "signing",
-          "signal_type": "signature_match",
-          "magnitude": 0.51,
-          "ref": "apk_signature"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "obfuscation_shift",
-          "magnitude": 0.5,
-          "ref": "jaccard_v2_libmask"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "obfuscation_shift",
-          "magnitude": 0.6,
-          "ref": "short_method_names"
-        }
-      ]
-    },
-    {
-      "pair_id": "REAL-R8-FALLBACK-005",
-      "original_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/a2dp.Vol_137.apk",
-      "r8_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/a2dp.Vol_137.apk",
-      "original_dex_classes_count": 1353,
-      "r8_dex_classes_count": 1353,
-      "r8_keep_rules_applied": [
-        "-keep class **.MainActivity { *; }",
-        "-dontwarn **"
-      ],
-      "build_status": "failed",
-      "fallback_kind": "mock_fallback",
-      "failure_reason": "missing:r8.jar",
-      "evidence": [
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.42,
-          "ref": "code"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.58,
-          "ref": "component"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.8,
-          "ref": "library"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.63,
-          "ref": "resource"
-        },
-        {
-          "source_stage": "signing",
-          "signal_type": "signature_match",
-          "magnitude": 0.51,
-          "ref": "apk_signature"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "obfuscation_shift",
-          "magnitude": 0.5,
-          "ref": "jaccard_v2_libmask"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "obfuscation_shift",
-          "magnitude": 0.6,
-          "ref": "short_method_names"
-        }
-      ]
-    },
-    {
-      "pair_id": "REAL-R8-FALLBACK-006",
-      "original_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/a2dp.Vol_169.apk",
-      "r8_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/a2dp.Vol_169.apk",
-      "original_dex_classes_count": 2447,
-      "r8_dex_classes_count": 2447,
-      "r8_keep_rules_applied": [
-        "-keep class **.MainActivity { *; }",
-        "-dontwarn **"
-      ],
-      "build_status": "failed",
-      "fallback_kind": "mock_fallback",
-      "failure_reason": "missing:r8.jar",
-      "evidence": [
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.435,
-          "ref": "code"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.6,
-          "ref": "component"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.76,
-          "ref": "library"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.64,
-          "ref": "resource"
-        },
-        {
-          "source_stage": "signing",
-          "signal_type": "signature_match",
-          "magnitude": 0.51,
-          "ref": "apk_signature"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "obfuscation_shift",
-          "magnitude": 0.5,
-          "ref": "jaccard_v2_libmask"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "obfuscation_shift",
-          "magnitude": 0.6,
-          "ref": "short_method_names"
-        }
-      ]
-    },
-    {
-      "pair_id": "REAL-R8-FALLBACK-007",
-      "original_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/ac.robinson.mediaphone_64.apk",
-      "r8_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/ac.robinson.mediaphone_64.apk",
-      "original_dex_classes_count": 1742,
-      "r8_dex_classes_count": 1742,
-      "r8_keep_rules_applied": [
-        "-keep class **.MainActivity { *; }",
-        "-dontwarn **"
-      ],
-      "build_status": "failed",
-      "fallback_kind": "mock_fallback",
-      "failure_reason": "missing:r8.jar",
-      "evidence": [
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.44999999999999996,
-          "ref": "code"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.58,
-          "ref": "component"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.77,
-          "ref": "library"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.62,
-          "ref": "resource"
-        },
-        {
-          "source_stage": "signing",
-          "signal_type": "signature_match",
-          "magnitude": 0.51,
-          "ref": "apk_signature"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "obfuscation_shift",
-          "magnitude": 0.5,
-          "ref": "jaccard_v2_libmask"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "obfuscation_shift",
-          "magnitude": 0.6,
-          "ref": "short_method_names"
-        }
-      ]
-    },
-    {
-      "pair_id": "REAL-R8-FALLBACK-008",
-      "original_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/ac.robinson.mediaphone_65.apk",
-      "r8_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/ac.robinson.mediaphone_65.apk",
-      "original_dex_classes_count": 1374,
-      "r8_dex_classes_count": 1374,
-      "r8_keep_rules_applied": [
-        "-keep class **.MainActivity { *; }",
-        "-dontwarn **"
-      ],
-      "build_status": "failed",
-      "fallback_kind": "mock_fallback",
-      "failure_reason": "missing:r8.jar",
-      "evidence": [
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.46499999999999997,
-          "ref": "code"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.6,
-          "ref": "component"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.78,
-          "ref": "library"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.63,
-          "ref": "resource"
-        },
-        {
-          "source_stage": "signing",
-          "signal_type": "signature_match",
-          "magnitude": 0.51,
-          "ref": "apk_signature"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "obfuscation_shift",
-          "magnitude": 0.5,
-          "ref": "jaccard_v2_libmask"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "obfuscation_shift",
-          "magnitude": 0.6,
-          "ref": "short_method_names"
-        }
-      ]
-    },
-    {
-      "pair_id": "REAL-R8-FALLBACK-009",
-      "original_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/acr.browser.lightning_100.apk",
-      "r8_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/acr.browser.lightning_100.apk",
-      "original_dex_classes_count": 3031,
-      "r8_dex_classes_count": 3031,
-      "r8_keep_rules_applied": [
-        "-keep class **.MainActivity { *; }",
-        "-dontwarn **"
-      ],
-      "build_status": "failed",
-      "fallback_kind": "mock_fallback",
-      "failure_reason": "missing:r8.jar",
-      "evidence": [
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.42,
-          "ref": "code"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.58,
-          "ref": "component"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.79,
-          "ref": "library"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.64,
-          "ref": "resource"
-        },
-        {
-          "source_stage": "signing",
-          "signal_type": "signature_match",
-          "magnitude": 0.51,
-          "ref": "apk_signature"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "obfuscation_shift",
-          "magnitude": 0.5,
-          "ref": "jaccard_v2_libmask"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "obfuscation_shift",
-          "magnitude": 0.6,
-          "ref": "short_method_names"
-        }
-      ]
-    },
-    {
-      "pair_id": "REAL-R8-FALLBACK-010",
-      "original_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/acr.browser.lightning_101.apk",
-      "r8_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/acr.browser.lightning_101.apk",
-      "original_dex_classes_count": 3040,
-      "r8_dex_classes_count": 3040,
-      "r8_keep_rules_applied": [
-        "-keep class **.MainActivity { *; }",
-        "-dontwarn **"
-      ],
-      "build_status": "failed",
-      "fallback_kind": "mock_fallback",
-      "failure_reason": "missing:r8.jar",
-      "evidence": [
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.435,
-          "ref": "code"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.6,
-          "ref": "component"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.8,
-          "ref": "library"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "layer_score",
-          "magnitude": 0.62,
-          "ref": "resource"
-        },
-        {
-          "source_stage": "signing",
-          "signal_type": "signature_match",
-          "magnitude": 0.51,
-          "ref": "apk_signature"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "obfuscation_shift",
-          "magnitude": 0.5,
-          "ref": "jaccard_v2_libmask"
-        },
-        {
-          "source_stage": "pairwise",
-          "signal_type": "obfuscation_shift",
-          "magnitude": 0.6,
-          "ref": "short_method_names"
-        }
-      ]
-    }
-  ],
-  "failed_apks": [
-    {
       "pair_id": "REAL-R8-001",
-      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/An.stop_10.apk",
-      "stage": "toolchain",
-      "error": "missing:r8.jar",
+      "original_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/An.stop_10.apk",
+      "r8_apk_path": "/tmp/wave31-hint-r8-real/built-apks/An.stop_10-r8-signed.apk",
       "original_dex_classes_count": 47,
-      "build_status": "failed"
+      "r8_dex_classes_count": 20,
+      "r8_keep_rules_applied": [
+        "-keep class An.stop.Anstop { *; }",
+        "-keep class **.MainActivity { *; }",
+        "-keep public class * extends android.app.Activity { public *; }",
+        "-keep public class * extends android.app.Service { public *; }",
+        "-keep public class * extends android.content.BroadcastReceiver { public *; }",
+        "-keep public class * extends android.content.ContentProvider { public *; }",
+        "-keep public class * extends android.app.Application { public *; }",
+        "-keepattributes Signature,*Annotation*,InnerClasses,EnclosingMethod",
+        "-dontwarn **",
+        "-ignorewarnings"
+      ],
+      "build_status": "ok",
+      "evidence": [
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.52,
+          "ref": "code"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.58,
+          "ref": "component"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.82,
+          "ref": "library"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.62,
+          "ref": "resource"
+        },
+        {
+          "source_stage": "signing",
+          "signal_type": "signature_match",
+          "magnitude": 0.51,
+          "ref": "apk_signature"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.5,
+          "ref": "jaccard_v2_libmask"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.6,
+          "ref": "short_method_names"
+        }
+      ]
     },
     {
       "pair_id": "REAL-R8-002",
-      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/An.stop_9.apk",
-      "stage": "toolchain",
-      "error": "missing:r8.jar",
+      "original_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/An.stop_9.apk",
+      "r8_apk_path": "/tmp/wave31-hint-r8-real/built-apks/An.stop_9-r8-signed.apk",
       "original_dex_classes_count": 34,
-      "build_status": "failed"
+      "r8_dex_classes_count": 16,
+      "r8_keep_rules_applied": [
+        "-keep class An.stop.Anstop { *; }",
+        "-keep class **.MainActivity { *; }",
+        "-keep public class * extends android.app.Activity { public *; }",
+        "-keep public class * extends android.app.Service { public *; }",
+        "-keep public class * extends android.content.BroadcastReceiver { public *; }",
+        "-keep public class * extends android.content.ContentProvider { public *; }",
+        "-keep public class * extends android.app.Application { public *; }",
+        "-keepattributes Signature,*Annotation*,InnerClasses,EnclosingMethod",
+        "-dontwarn **",
+        "-ignorewarnings"
+      ],
+      "build_status": "ok",
+      "evidence": [
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.52,
+          "ref": "code"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.6,
+          "ref": "component"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.82,
+          "ref": "library"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.63,
+          "ref": "resource"
+        },
+        {
+          "source_stage": "signing",
+          "signal_type": "signature_match",
+          "magnitude": 0.51,
+          "ref": "apk_signature"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.5,
+          "ref": "jaccard_v2_libmask"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.6,
+          "ref": "short_method_names"
+        }
+      ]
     },
     {
       "pair_id": "REAL-R8-003",
-      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/InfinityLoop1309.NewPipeEnhanced_109503.apk",
-      "stage": "toolchain",
-      "error": "missing:r8.jar",
+      "original_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/InfinityLoop1309.NewPipeEnhanced_109503.apk",
+      "r8_apk_path": "/tmp/wave31-hint-r8-real/built-apks/InfinityLoop1309.NewPipeEnhanced_109503-r8-signed.apk",
       "original_dex_classes_count": 12652,
-      "build_status": "failed"
+      "r8_dex_classes_count": 6098,
+      "r8_keep_rules_applied": [
+        "-keep class org.schabi.newpipe.MainActivity { *; }",
+        "-keep class **.MainActivity { *; }",
+        "-keep public class * extends android.app.Activity { public *; }",
+        "-keep public class * extends android.app.Service { public *; }",
+        "-keep public class * extends android.content.BroadcastReceiver { public *; }",
+        "-keep public class * extends android.content.ContentProvider { public *; }",
+        "-keep public class * extends android.app.Application { public *; }",
+        "-keepattributes Signature,*Annotation*,InnerClasses,EnclosingMethod",
+        "-dontwarn **",
+        "-ignorewarnings"
+      ],
+      "build_status": "ok",
+      "evidence": [
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.52,
+          "ref": "code"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.58,
+          "ref": "component"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.82,
+          "ref": "library"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.64,
+          "ref": "resource"
+        },
+        {
+          "source_stage": "signing",
+          "signal_type": "signature_match",
+          "magnitude": 0.51,
+          "ref": "apk_signature"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.5,
+          "ref": "jaccard_v2_libmask"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.6,
+          "ref": "short_method_names"
+        }
+      ]
     },
     {
       "pair_id": "REAL-R8-004",
-      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/InfinityLoop1309.NewPipeEnhanced_109504.apk",
-      "stage": "toolchain",
-      "error": "missing:r8.jar",
+      "original_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/InfinityLoop1309.NewPipeEnhanced_109504.apk",
+      "r8_apk_path": "/tmp/wave31-hint-r8-real/built-apks/InfinityLoop1309.NewPipeEnhanced_109504-r8-signed.apk",
       "original_dex_classes_count": 12652,
-      "build_status": "failed"
+      "r8_dex_classes_count": 6098,
+      "r8_keep_rules_applied": [
+        "-keep class org.schabi.newpipe.MainActivity { *; }",
+        "-keep class **.MainActivity { *; }",
+        "-keep public class * extends android.app.Activity { public *; }",
+        "-keep public class * extends android.app.Service { public *; }",
+        "-keep public class * extends android.content.BroadcastReceiver { public *; }",
+        "-keep public class * extends android.content.ContentProvider { public *; }",
+        "-keep public class * extends android.app.Application { public *; }",
+        "-keepattributes Signature,*Annotation*,InnerClasses,EnclosingMethod",
+        "-dontwarn **",
+        "-ignorewarnings"
+      ],
+      "build_status": "ok",
+      "evidence": [
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.52,
+          "ref": "code"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.6,
+          "ref": "component"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.82,
+          "ref": "library"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.62,
+          "ref": "resource"
+        },
+        {
+          "source_stage": "signing",
+          "signal_type": "signature_match",
+          "magnitude": 0.51,
+          "ref": "apk_signature"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.5,
+          "ref": "jaccard_v2_libmask"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.6,
+          "ref": "short_method_names"
+        }
+      ]
     },
     {
       "pair_id": "REAL-R8-005",
-      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/a2dp.Vol_137.apk",
-      "stage": "toolchain",
-      "error": "missing:r8.jar",
+      "original_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/a2dp.Vol_137.apk",
+      "r8_apk_path": "/tmp/wave31-hint-r8-real/built-apks/a2dp.Vol_137-r8-signed.apk",
       "original_dex_classes_count": 1353,
-      "build_status": "failed"
+      "r8_dex_classes_count": 131,
+      "r8_keep_rules_applied": [
+        "-keep class a2dp.Vol.main { *; }",
+        "-keep class **.MainActivity { *; }",
+        "-keep public class * extends android.app.Activity { public *; }",
+        "-keep public class * extends android.app.Service { public *; }",
+        "-keep public class * extends android.content.BroadcastReceiver { public *; }",
+        "-keep public class * extends android.content.ContentProvider { public *; }",
+        "-keep public class * extends android.app.Application { public *; }",
+        "-keepattributes Signature,*Annotation*,InnerClasses,EnclosingMethod",
+        "-dontwarn **",
+        "-ignorewarnings"
+      ],
+      "build_status": "ok",
+      "evidence": [
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.52,
+          "ref": "code"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.58,
+          "ref": "component"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.82,
+          "ref": "library"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.63,
+          "ref": "resource"
+        },
+        {
+          "source_stage": "signing",
+          "signal_type": "signature_match",
+          "magnitude": 0.51,
+          "ref": "apk_signature"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.5,
+          "ref": "jaccard_v2_libmask"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.6,
+          "ref": "short_method_names"
+        }
+      ]
     },
     {
       "pair_id": "REAL-R8-006",
-      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/a2dp.Vol_169.apk",
-      "stage": "toolchain",
-      "error": "missing:r8.jar",
+      "original_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/a2dp.Vol_169.apk",
+      "r8_apk_path": "/tmp/wave31-hint-r8-real/built-apks/a2dp.Vol_169-r8-signed.apk",
       "original_dex_classes_count": 2447,
-      "build_status": "failed"
+      "r8_dex_classes_count": 360,
+      "r8_keep_rules_applied": [
+        "-keep class a2dp.Vol.main { *; }",
+        "-keep class **.MainActivity { *; }",
+        "-keep public class * extends android.app.Activity { public *; }",
+        "-keep public class * extends android.app.Service { public *; }",
+        "-keep public class * extends android.content.BroadcastReceiver { public *; }",
+        "-keep public class * extends android.content.ContentProvider { public *; }",
+        "-keep public class * extends android.app.Application { public *; }",
+        "-keepattributes Signature,*Annotation*,InnerClasses,EnclosingMethod",
+        "-dontwarn **",
+        "-ignorewarnings"
+      ],
+      "build_status": "ok",
+      "evidence": [
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.52,
+          "ref": "code"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.6,
+          "ref": "component"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.82,
+          "ref": "library"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.64,
+          "ref": "resource"
+        },
+        {
+          "source_stage": "signing",
+          "signal_type": "signature_match",
+          "magnitude": 0.51,
+          "ref": "apk_signature"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.5,
+          "ref": "jaccard_v2_libmask"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.6,
+          "ref": "short_method_names"
+        }
+      ]
     },
     {
       "pair_id": "REAL-R8-007",
-      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/ac.robinson.mediaphone_64.apk",
-      "stage": "toolchain",
-      "error": "missing:r8.jar",
+      "original_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/ac.robinson.mediaphone_64.apk",
+      "r8_apk_path": "/tmp/wave31-hint-r8-real/built-apks/ac.robinson.mediaphone_64-r8-signed.apk",
       "original_dex_classes_count": 1742,
-      "build_status": "failed"
+      "r8_dex_classes_count": 816,
+      "r8_keep_rules_applied": [
+        "-keep class ac.robinson.mediaphone.activity.NarrativeBrowserActivity { *; }",
+        "-keep class **.MainActivity { *; }",
+        "-keep public class * extends android.app.Activity { public *; }",
+        "-keep public class * extends android.app.Service { public *; }",
+        "-keep public class * extends android.content.BroadcastReceiver { public *; }",
+        "-keep public class * extends android.content.ContentProvider { public *; }",
+        "-keep public class * extends android.app.Application { public *; }",
+        "-keepattributes Signature,*Annotation*,InnerClasses,EnclosingMethod",
+        "-dontwarn **",
+        "-ignorewarnings"
+      ],
+      "build_status": "ok",
+      "evidence": [
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.52,
+          "ref": "code"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.58,
+          "ref": "component"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.82,
+          "ref": "library"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.62,
+          "ref": "resource"
+        },
+        {
+          "source_stage": "signing",
+          "signal_type": "signature_match",
+          "magnitude": 0.51,
+          "ref": "apk_signature"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.5,
+          "ref": "jaccard_v2_libmask"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.6,
+          "ref": "short_method_names"
+        }
+      ]
     },
     {
       "pair_id": "REAL-R8-008",
-      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/ac.robinson.mediaphone_65.apk",
-      "stage": "toolchain",
-      "error": "missing:r8.jar",
+      "original_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/ac.robinson.mediaphone_65.apk",
+      "r8_apk_path": "/tmp/wave31-hint-r8-real/built-apks/ac.robinson.mediaphone_65-r8-signed.apk",
       "original_dex_classes_count": 1374,
-      "build_status": "failed"
+      "r8_dex_classes_count": 788,
+      "r8_keep_rules_applied": [
+        "-keep class ac.robinson.mediaphone.activity.NarrativeBrowserActivity { *; }",
+        "-keep class **.MainActivity { *; }",
+        "-keep public class * extends android.app.Activity { public *; }",
+        "-keep public class * extends android.app.Service { public *; }",
+        "-keep public class * extends android.content.BroadcastReceiver { public *; }",
+        "-keep public class * extends android.content.ContentProvider { public *; }",
+        "-keep public class * extends android.app.Application { public *; }",
+        "-keepattributes Signature,*Annotation*,InnerClasses,EnclosingMethod",
+        "-dontwarn **",
+        "-ignorewarnings"
+      ],
+      "build_status": "ok",
+      "evidence": [
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.52,
+          "ref": "code"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.6,
+          "ref": "component"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.82,
+          "ref": "library"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.63,
+          "ref": "resource"
+        },
+        {
+          "source_stage": "signing",
+          "signal_type": "signature_match",
+          "magnitude": 0.51,
+          "ref": "apk_signature"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.5,
+          "ref": "jaccard_v2_libmask"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.6,
+          "ref": "short_method_names"
+        }
+      ]
     },
     {
       "pair_id": "REAL-R8-009",
-      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/acr.browser.lightning_100.apk",
-      "stage": "toolchain",
-      "error": "missing:r8.jar",
+      "original_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/acr.browser.lightning_100.apk",
+      "r8_apk_path": "/tmp/wave31-hint-r8-real/built-apks/acr.browser.lightning_100-r8-signed.apk",
       "original_dex_classes_count": 3031,
-      "build_status": "failed"
+      "r8_dex_classes_count": 978,
+      "r8_keep_rules_applied": [
+        "-keep class acr.browser.lightning.MainActivity { *; }",
+        "-keep class **.MainActivity { *; }",
+        "-keep public class * extends android.app.Activity { public *; }",
+        "-keep public class * extends android.app.Service { public *; }",
+        "-keep public class * extends android.content.BroadcastReceiver { public *; }",
+        "-keep public class * extends android.content.ContentProvider { public *; }",
+        "-keep public class * extends android.app.Application { public *; }",
+        "-keepattributes Signature,*Annotation*,InnerClasses,EnclosingMethod",
+        "-dontwarn **",
+        "-ignorewarnings"
+      ],
+      "build_status": "ok",
+      "evidence": [
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.52,
+          "ref": "code"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.58,
+          "ref": "component"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.82,
+          "ref": "library"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.64,
+          "ref": "resource"
+        },
+        {
+          "source_stage": "signing",
+          "signal_type": "signature_match",
+          "magnitude": 0.51,
+          "ref": "apk_signature"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.5,
+          "ref": "jaccard_v2_libmask"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.6,
+          "ref": "short_method_names"
+        }
+      ]
     },
     {
       "pair_id": "REAL-R8-010",
-      "apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/acr.browser.lightning_101.apk",
-      "stage": "toolchain",
-      "error": "missing:r8.jar",
+      "original_apk_path": "/Users/valeryvpetrov/Library/Caches/phd-shared/datasets/fdroid-corpus-v2-apks/acr.browser.lightning_101.apk",
+      "r8_apk_path": "/tmp/wave31-hint-r8-real/built-apks/acr.browser.lightning_101-r8-signed.apk",
       "original_dex_classes_count": 3040,
-      "build_status": "failed"
+      "r8_dex_classes_count": 978,
+      "r8_keep_rules_applied": [
+        "-keep class acr.browser.lightning.MainActivity { *; }",
+        "-keep class **.MainActivity { *; }",
+        "-keep public class * extends android.app.Activity { public *; }",
+        "-keep public class * extends android.app.Service { public *; }",
+        "-keep public class * extends android.content.BroadcastReceiver { public *; }",
+        "-keep public class * extends android.content.ContentProvider { public *; }",
+        "-keep public class * extends android.app.Application { public *; }",
+        "-keepattributes Signature,*Annotation*,InnerClasses,EnclosingMethod",
+        "-dontwarn **",
+        "-ignorewarnings"
+      ],
+      "build_status": "ok",
+      "evidence": [
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.52,
+          "ref": "code"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.6,
+          "ref": "component"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.82,
+          "ref": "library"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "layer_score",
+          "magnitude": 0.62,
+          "ref": "resource"
+        },
+        {
+          "source_stage": "signing",
+          "signal_type": "signature_match",
+          "magnitude": 0.51,
+          "ref": "apk_signature"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.5,
+          "ref": "jaccard_v2_libmask"
+        },
+        {
+          "source_stage": "pairwise",
+          "signal_type": "obfuscation_shift",
+          "magnitude": 0.6,
+          "ref": "short_method_names"
+        }
+      ]
     }
   ],
-  "generated_at": "2026-04-28T13:00:30Z"
+  "failed_apks": [],
+  "generated_at": "2026-04-29T14:11:13Z"
 }
