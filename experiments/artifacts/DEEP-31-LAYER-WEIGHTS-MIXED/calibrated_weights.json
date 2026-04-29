@@ -1,0 +1,65 @@
+{
+  "schema_version": "layer-weights-v1",
+  "snapshot_id": "DEEP-31-LAYER-WEIGHTS-RECALIBRATE-MIXED",
+  "source": "calibrated on F-Droid v2 + DEEP-30 inject-пары at 2026-04-29",
+  "calibration_method": "grid-search-youden-tiebreak",
+  "grid_step": 0.05,
+  "seed": 42,
+  "real_calibration_status": "calibrated",
+  "real_calibration_blocked_by": null,
+  "real_calibration_task": "DEEP-31-LAYER-WEIGHTS-RECALIBRATE-MIXED",
+  "n_documents": 350,
+  "n_train_pairs": 270,
+  "n_test_pairs": 115,
+  "n_train_clone": 147,
+  "n_train_non_clone": 123,
+  "n_test_clone": 63,
+  "n_test_non_clone": 52,
+  "train_F1": 0.9931506849315068,
+  "test_F1": 0.944,
+  "threshold": 0.30374999999999996,
+  "best_train_precision": 1.0,
+  "best_train_recall": 0.9863945578231292,
+  "best_test_precision": 0.9516129032258065,
+  "best_test_recall": 0.9365079365079365,
+  "best_train_youden": 0.9863945578231292,
+  "best_test_youden": 0.8788156288156288,
+  "layers_calibrated": [
+    "code",
+    "component",
+    "resource",
+    "library"
+  ],
+  "weights": {
+    "code": 0.15,
+    "component": 0.55,
+    "resource": 0.0,
+    "library": 0.3,
+    "api": 0.0,
+    "code_v4": 0.0,
+    "code_v4_shingled": 0.0,
+    "resource_v2": 0.0
+  },
+  "weight_delta_vs_deep27": {
+    "code": 0.09999999999999999,
+    "component": -0.04999999999999993,
+    "resource": 0.0,
+    "library": -0.04999999999999999
+  },
+  "deep27_reference_weights": {
+    "code": 0.05,
+    "component": 0.6,
+    "resource": 0.0,
+    "library": 0.35
+  },
+  "train_set_composition": {
+    "fdroid_v2_clone": 175,
+    "fdroid_v2_non_clone": 175,
+    "deep30_inject_clone": 35,
+    "hint30_r8_clone": 0,
+    "total_clone": 210,
+    "total_non_clone": 175,
+    "total_pairs": 385
+  },
+  "note": "DEEP-31: пересчёт LAYER_WEIGHTS на расширенном корпусе. Слой 'code' использует method_ids из code_view_v4 (не dex-имена как в DEEP-27 screening_runner). DEEP-30 inject-пары добавлены в train-set как clone, что должно поднять вес 'code' по сравнению с DEEP-27 0.05. HINT-30 R8 mock-пары не использованы (synthetic-режим). Слой 'api' пока 0.0 (extract_api_markov требует androguard + markov chain — отдельная задача)."
+}

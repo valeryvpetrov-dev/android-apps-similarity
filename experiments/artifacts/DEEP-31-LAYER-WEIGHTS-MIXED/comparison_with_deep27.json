@@ -1,0 +1,36 @@
+{
+  "compared_at": "2026-04-29T14:30:24Z",
+  "deep27_snapshot_id": "DEEP-27-LAYER-WEIGHTS-FDROID-CALIBRATE",
+  "deep31_snapshot_id": "DEEP-31-LAYER-WEIGHTS-RECALIBRATE-MIXED",
+  "deep27_n_train_pairs": 246,
+  "deep27_n_test_pairs": 104,
+  "deep31_n_train_pairs": 270,
+  "deep31_n_test_pairs": 115,
+  "deep27_train_F1": 0.9795918367346939,
+  "deep27_test_F1": 0.9433962264150944,
+  "deep31_train_F1": 0.9931506849315068,
+  "deep31_test_F1": 0.944,
+  "deep27_weights": {
+    "code": 0.05,
+    "component": 0.6,
+    "resource": 0.0,
+    "library": 0.35,
+    "api": 0.0,
+    "code_v4": 0.0,
+    "code_v4_shingled": 0.0,
+    "resource_v2": 0.0
+  },
+  "deep31_weights": {
+    "code": 0.15,
+    "component": 0.55,
+    "resource": 0.0,
+    "library": 0.3
+  },
+  "weight_delta_per_layer": {
+    "code": 0.09999999999999999,
+    "component": -0.04999999999999993,
+    "resource": 0.0,
+    "library": -0.04999999999999999
+  },
+  "interpretation": "DEEP-27 калибровался только на F-Droid v2 version-парах, где code-слой не различает clone от non-clone (DEX-имена одинаковы). DEEP-31 добавил DEEP-30 inject-пары и сменил code-feature на method_ids — это даёт code-слою реальный сигнал и должно поднять его вес выше 0.05."
+}
