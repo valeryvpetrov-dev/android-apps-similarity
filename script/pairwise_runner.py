@@ -108,6 +108,11 @@ except Exception:
     from evidence_formatter import collect_evidence_from_pairwise  # type: ignore[no-redef]
 
 try:
+    from script.v3_4_contracts import build_pair_similarity_result
+except Exception:
+    from v3_4_contracts import build_pair_similarity_result  # type: ignore[no-redef]
+
+try:
     from script.timeout_incident_registry import record_timeout_incident
 except Exception:
     try:
@@ -2226,6 +2231,10 @@ def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str,
             item[key] = value
 
     item["schema_version"] = DETAILED_JSON_SCHEMA_VERSION
+    pair_similarity_result = build_pair_similarity_result(item, pair_id=item["pair_id"])
+    item["pair_evidence_record"] = pair_similarity_result["evidence_record"]
+    item["compatibility_check"] = pair_similarity_result["compatibility_check"]
+    item["pair_similarity_result"] = pair_similarity_result
     return item
 
 
