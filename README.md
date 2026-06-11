@@ -1,5 +1,18 @@
 # android-apps-similarity
 
+## Datasets
+
+Публичные metadata-only датасеты лежат в [`datasets/`](datasets/).
+
+Текущий release:
+
+- [`datasets/android-similarity-cube-v1`](datasets/android-similarity-cube-v1/) —
+  пары APK для сценариев `repack` и `code_injection`, SHA-256, split, метки и
+  ограничения использования.
+
+Сырые APK в git не публикуются. Для воспроизведения нужно материализовать APK
+по SHA-256 из `manifest.csv` через доступный пользователю источник.
+
 ## LIBLOOM dependency policy
 
 `NOISE-21-DEPENDENCY-POLICY` вводит единое правило для рабочих сценариев шума:
