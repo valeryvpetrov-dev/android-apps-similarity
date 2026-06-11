@@ -19,7 +19,10 @@ import v3_4_contracts
 from v3_4_contracts import (
     V3_4_SCHEMA_VERSION,
     build_compatibility_check_record,
+    build_explanation_render_record,
+    build_pair_aggregation_policy,
     build_pair_evidence_record,
+    build_pair_check_run,
     build_pair_similarity_result,
 )
 
@@ -132,6 +135,43 @@ class TestV34CompatibilityCheckRecord(unittest.TestCase):
         self.assertEqual(record["status"], "incompatible_inputs")
         self.assertIn("missing_app_b", record["reasons"])
 
+    def test_compatibility_check_requires_profile_refs_when_requested(self) -> None:
+        record = build_compatibility_check_record(
+            pair_id="PAIR-REQ-REFS",
+            app_a="A",
+            app_b="B",
+            require_profile_refs=True,
+        )
+
+        self.assertEqual(record["record_type"], "CompatibilityCheckRecord")
+        self.assertEqual(record["status"], "incompatible_inputs")
+        self.assertIn("missing_profile_ref", record["reasons"])
+        self.assertIn("missing_representation_spec_ref", record["reasons"])
+
+    def test_compatibility_check_records_profile_and_representation_versions(self) -> None:
+        record = build_compatibility_check_record(
+            pair_id="PAIR-COMPATIBLE",
+            app_a="A",
+            app_b="B",
+            profile_ref="system/architecture/profiles/v3_4_service_current.yaml",
+            representation_spec_ref="system/architecture/profiles/v3_4_service_current.yaml#representation_spec",
+            representation_spec_hash="sha256:abc",
+            view_schema_versions={"code": "code-light-v1"},
+            require_profile_refs=True,
+        )
+
+        self.assertEqual(record["status"], "compatible")
+        self.assertEqual(
+            record["profile_ref"],
+            "system/architecture/profiles/v3_4_service_current.yaml",
+        )
+        self.assertEqual(
+            record["representation_spec_ref"],
+            "system/architecture/profiles/v3_4_service_current.yaml#representation_spec",
+        )
+        self.assertEqual(record["representation_spec_hash"], "sha256:abc")
+        self.assertEqual(record["view_schema_versions"], {"code": "code-light-v1"})
+
 
 class TestV34PairSimilarityResult(unittest.TestCase):
     def test_low_similarity_is_successful_comparison_with_low_score(self) -> None:
@@ -173,6 +213,58 @@ class TestV34PairSimilarityResult(unittest.TestCase):
         self.assertIsNone(result["scores"]["similarity_score"])
         self.assertIn("view_build_failed", result["limitations"])
 
+    def test_pair_similarity_result_carries_profile_check_runs_and_aggregation(self) -> None:
+        pair_check_run = build_pair_check_run(
+            pair_id="PAIR-005",
+            check_id="pairwise_static_similarity",
+            status="success",
+            duration_ms=11,
+            inputs={"views_used": ["code"]},
+            outputs={"library_reduced_score": 0.84},
+            profile_ref="profiles/current.yaml",
+            representation_spec_ref="profiles/current.yaml#representation_spec",
+        )
+        aggregation_policy = build_pair_aggregation_policy(
+            policy_id="library_reduced_preferred_v1",
+            strategy="prefer_library_reduced_score",
+            weights={"library_reduced_score": 1.0},
+            selected_score_field="library_reduced_score",
+        )
+
+        result = build_pair_similarity_result(
+            {
+                "pair_id": "PAIR-005",
+                "app_a": "A",
+                "app_b": "B",
+                "status": "success",
+                "full_similarity_score": 0.91,
+                "library_reduced_score": 0.84,
+                "views_used": ["code"],
+                "evidence": [],
+                "profile_ref": "profiles/current.yaml",
+                "representation_spec_ref": "profiles/current.yaml#representation_spec",
+                "representation_spec_hash": "sha256:abc",
+                "view_schema_versions": {"code": "code-light-v1"},
+                "pair_check_runs": [pair_check_run],
+                "aggregation_policy": aggregation_policy,
+            }
+        )
+
+        self.assertEqual(result["profile_ref"], "profiles/current.yaml")
+        self.assertEqual(
+            result["representation_spec_ref"],
+            "profiles/current.yaml#representation_spec",
+        )
+        self.assertEqual(result["pair_check_runs"][0]["record_type"], "PairCheckRun")
+        self.assertEqual(
+            result["aggregation_policy"]["record_type"],
+            "PairAggregationPolicy",
+        )
+        self.assertEqual(
+            result["aggregation_policy"]["selected_score_field"],
+            "library_reduced_score",
+        )
+
 
 class TestV34DetailedJsonIntegration(unittest.TestCase):
     def test_export_pairwise_detailed_json_adds_v3_4_records(self) -> None:
@@ -210,6 +302,16 @@ class TestV34DetailedJsonIntegration(unittest.TestCase):
         self.assertEqual(item["pair_similarity_result"]["status"], "success")
         self.assertEqual(item["pair_evidence_record"]["record_type"], "PairEvidenceRecord")
         self.assertEqual(item["compatibility_check"]["record_type"], "CompatibilityCheckRecord")
+        self.assertEqual(item["pair_check_runs"][0]["record_type"], "PairCheckRun")
+        self.assertEqual(
+            item["pair_similarity_result"]["pair_check_runs"][0]["record_type"],
+            "PairCheckRun",
+        )
+        self.assertEqual(item["aggregation_policy"]["record_type"], "PairAggregationPolicy")
+        self.assertEqual(
+            item["pair_similarity_result"]["aggregation_policy"]["record_type"],
+            "PairAggregationPolicy",
+        )
 
 
 class TestV34CandidateSelectionRecord(unittest.TestCase):
@@ -427,6 +529,28 @@ class TestV34SearchSimilarityResult(unittest.TestCase):
         self.assertEqual(result["candidate_count"], 1)
         self.assertEqual(result["candidates"][0]["record_type"], "CandidateSelectionRecord")
 
+    def test_build_search_similarity_result_carries_profile_refs_and_limitations(self) -> None:
+        builder = getattr(v3_4_contracts, "build_search_similarity_result", None)
+        self.assertIsNotNone(builder, "build_search_similarity_result must exist")
+
+        result = builder(
+            query_app_id="APP-A",
+            candidate_list=[],
+            profile_ref="profiles/current.yaml",
+            representation_spec_ref="profiles/current.yaml#representation_spec",
+            representation_spec_hash="sha256:abc",
+            limitations=["pair_checks_not_run"],
+        )
+
+        self.assertEqual(result["record_type"], "SearchSimilarityResult")
+        self.assertEqual(result["profile_ref"], "profiles/current.yaml")
+        self.assertEqual(
+            result["representation_spec_ref"],
+            "profiles/current.yaml#representation_spec",
+        )
+        self.assertEqual(result["representation_spec_hash"], "sha256:abc")
+        self.assertIn("pair_checks_not_run", result["limitations"])
+
     def test_run_screening_search_result_returns_v3_4_result(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -484,6 +608,31 @@ stages:
         self.assertEqual(result["query_app_id"], "APP-A")
         self.assertEqual(result["candidate_count"], 1)
         self.assertEqual(result["candidates"][0]["record_type"], "CandidateSelectionRecord")
+
+
+class TestV34ExplanationRenderRecord(unittest.TestCase):
+    def test_explanation_render_record_links_text_to_evidence_and_profile(self) -> None:
+        evidence_record = build_pair_evidence_record(
+            pair_id="PAIR-EXPL",
+            evidence=[],
+            status="success",
+        )
+
+        record = build_explanation_render_record(
+            pair_id="PAIR-EXPL",
+            evidence_record=evidence_record,
+            text="## Доказательства\n",
+            profile_ref="profiles/current.yaml",
+            representation_spec_ref="profiles/current.yaml#representation_spec",
+        )
+
+        self.assertEqual(record["record_type"], "ExplanationRenderRecord")
+        self.assertEqual(record["evidence_record"]["record_type"], "PairEvidenceRecord")
+        self.assertEqual(record["profile_ref"], "profiles/current.yaml")
+        self.assertEqual(
+            record["representation_spec_ref"],
+            "profiles/current.yaml#representation_spec",
+        )
 
 
 if __name__ == "__main__":

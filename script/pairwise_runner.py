@@ -108,8 +108,12 @@ except Exception:
     from evidence_formatter import collect_evidence_from_pairwise  # type: ignore[no-redef]
 
 try:
+    from script.v3_4_contracts import build_pair_aggregation_policy
+    from script.v3_4_contracts import build_pair_check_run
     from script.v3_4_contracts import build_pair_similarity_result
 except Exception:
+    from v3_4_contracts import build_pair_aggregation_policy  # type: ignore[no-redef]
+    from v3_4_contracts import build_pair_check_run  # type: ignore[no-redef]
     from v3_4_contracts import build_pair_similarity_result  # type: ignore[no-redef]
 
 try:
@@ -2231,6 +2235,37 @@ def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str,
             item[key] = value
 
     item["schema_version"] = DETAILED_JSON_SCHEMA_VERSION
+    views_used = item.get("views_used")
+    if not isinstance(views_used, list):
+        views_used = []
+    scores = {
+        "full_similarity_score": item.get("full_similarity_score"),
+        "library_reduced_score": item.get("library_reduced_score"),
+    }
+    pair_check_run = build_pair_check_run(
+        pair_id=item["pair_id"],
+        check_id="pairwise_static_similarity",
+        status=str(item.get("status") or "analysis_failed"),
+        duration_ms=item.get("elapsed_ms_deep") or item.get("duration_ms"),
+        inputs={
+            "app_a": item.get("app_a"),
+            "app_b": item.get("app_b"),
+            "views_used": list(views_used),
+        },
+        outputs=scores,
+        profile_ref=item.get("profile_ref"),
+        representation_spec_ref=item.get("representation_spec_ref"),
+        representation_spec_hash=item.get("representation_spec_hash"),
+        view_schema_versions=item.get("view_schema_versions"),
+    )
+    aggregation_policy = build_pair_aggregation_policy(
+        policy_id="library_reduced_preferred_v1",
+        strategy="prefer_library_reduced_score",
+        weights={"library_reduced_score": 1.0},
+        selected_score_field="library_reduced_score",
+    )
+    item["pair_check_runs"] = [pair_check_run]
+    item["aggregation_policy"] = aggregation_policy
     pair_similarity_result = build_pair_similarity_result(item, pair_id=item["pair_id"])
     item["pair_evidence_record"] = pair_similarity_result["evidence_record"]
     item["compatibility_check"] = pair_similarity_result["compatibility_check"]

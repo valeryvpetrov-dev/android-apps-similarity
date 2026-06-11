@@ -268,6 +268,10 @@ def build_pair_check_run(
     duration_ms: object = None,
     inputs: object = None,
     outputs: object = None,
+    profile_ref: object = None,
+    representation_spec_ref: object = None,
+    representation_spec_hash: object = None,
+    view_schema_versions: object = None,
 ) -> dict[str, Any]:
     record = _base_record(PAIR_CHECK_RUN)
     record.update(
@@ -278,6 +282,10 @@ def build_pair_check_run(
             "duration_ms": duration_ms,
             "inputs": _as_dict(inputs),
             "outputs": _as_dict(outputs),
+            "profile_ref": profile_ref,
+            "representation_spec_ref": representation_spec_ref,
+            "representation_spec_hash": representation_spec_hash,
+            "view_schema_versions": _as_dict(view_schema_versions),
         }
     )
     return record
@@ -288,6 +296,9 @@ def build_pair_aggregation_policy(
     policy_id: str,
     strategy: str,
     weights: object = None,
+    selected_score_field: object = None,
+    threshold: object = None,
+    limitations: object = None,
 ) -> dict[str, Any]:
     record = _base_record(PAIR_AGGREGATION_POLICY)
     record.update(
@@ -295,6 +306,9 @@ def build_pair_aggregation_policy(
             "policy_id": _as_non_empty_string(policy_id, "default_pair_aggregation"),
             "strategy": _as_non_empty_string(strategy, "single_score"),
             "weights": _as_dict(weights),
+            "selected_score_field": selected_score_field,
+            "threshold": threshold,
+            "limitations": _as_list(limitations),
         }
     )
     return record
@@ -350,9 +364,13 @@ def build_compatibility_check_record(
     app_a: object = None,
     app_b: object = None,
     profile_ref: object = None,
+    representation_spec_ref: object = None,
+    representation_spec_hash: object = None,
+    view_schema_versions: object = None,
     index_ref: object = None,
     warnings: object = None,
     explicit_status: object = None,
+    require_profile_refs: bool = False,
 ) -> dict[str, Any]:
     """Собрать CompatibilityCheckRecord для пары или результата поиска."""
     reasons: list[str] = []
@@ -367,9 +385,20 @@ def build_compatibility_check_record(
         reasons.append("missing_app_a")
     if not app_b:
         reasons.append("missing_app_b")
+    if require_profile_refs:
+        if not profile_ref:
+            reasons.append("missing_profile_ref")
+        if not representation_spec_ref:
+            reasons.append("missing_representation_spec_ref")
+        if not representation_spec_hash:
+            reasons.append("missing_representation_spec_hash")
 
     if reasons:
-        status = STATUS_INCOMPATIBLE_INDEX if STATUS_INCOMPATIBLE_INDEX in reasons else STATUS_INCOMPATIBLE_INPUTS
+        status = (
+            STATUS_INCOMPATIBLE_INDEX
+            if STATUS_INCOMPATIBLE_INDEX in reasons
+            else STATUS_INCOMPATIBLE_INPUTS
+        )
     else:
         status = "compatible"
 
@@ -379,6 +408,9 @@ def build_compatibility_check_record(
         "pair_id": _as_non_empty_string(pair_id, "PAIR-UNKNOWN"),
         "status": status,
         "profile_ref": profile_ref,
+        "representation_spec_ref": representation_spec_ref,
+        "representation_spec_hash": representation_spec_hash,
+        "view_schema_versions": _as_dict(view_schema_versions),
         "index_ref": index_ref,
         "warnings": _as_list(warnings),
         "reasons": reasons,
@@ -391,6 +423,9 @@ def build_pair_similarity_result(
     pair_id: str | None = None,
     profile_ref: object = None,
     index_ref: object = None,
+    representation_spec_ref: object = None,
+    representation_spec_hash: object = None,
+    view_schema_versions: object = None,
 ) -> dict[str, Any]:
     """Собрать PairSimilarityResult v3.4 поверх существующего pair_row."""
     if not isinstance(pair_row, dict):
@@ -399,6 +434,16 @@ def build_pair_similarity_result(
     resolved_pair_id = _as_non_empty_string(pair_id or pair_row.get("pair_id"), "PAIR-UNKNOWN")
     source_status = pair_row.get("status")
     result_status = _status_from_pair_row(pair_row)
+    resolved_profile_ref = profile_ref or pair_row.get("profile_ref")
+    resolved_representation_spec_ref = (
+        representation_spec_ref or pair_row.get("representation_spec_ref")
+    )
+    resolved_representation_spec_hash = (
+        representation_spec_hash or pair_row.get("representation_spec_hash")
+    )
+    resolved_view_schema_versions = (
+        view_schema_versions or pair_row.get("view_schema_versions")
+    )
     evidence_record = build_pair_evidence_record(
         pair_id=resolved_pair_id,
         evidence=pair_row.get("evidence"),
@@ -409,10 +454,14 @@ def build_pair_similarity_result(
         pair_id=resolved_pair_id,
         app_a=pair_row.get("app_a"),
         app_b=pair_row.get("app_b"),
-        profile_ref=profile_ref or pair_row.get("profile_ref"),
+        profile_ref=resolved_profile_ref,
+        representation_spec_ref=resolved_representation_spec_ref,
+        representation_spec_hash=resolved_representation_spec_hash,
+        view_schema_versions=resolved_view_schema_versions,
         index_ref=index_ref or pair_row.get("index_ref"),
         warnings=pair_row.get("warnings") or pair_row.get("screening_warnings"),
         explicit_status=source_status,
+        require_profile_refs=bool(pair_row.get("require_profile_refs")),
     )
 
     limitations: list[str] = []
@@ -424,12 +473,18 @@ def build_pair_similarity_result(
     if compatibility["status"] != "compatible":
         limitations.extend(str(reason) for reason in compatibility["reasons"])
 
+    pair_check_runs = _as_list(pair_row.get("pair_check_runs"))
+    aggregation_policy = pair_row.get("aggregation_policy")
+
     return {
         "schema_version": V3_4_SCHEMA_VERSION,
         "record_type": PAIR_SIMILARITY_RESULT,
         "pair_id": resolved_pair_id,
         "status": result_status,
         "source_status": source_status,
+        "profile_ref": resolved_profile_ref,
+        "representation_spec_ref": resolved_representation_spec_ref,
+        "representation_spec_hash": resolved_representation_spec_hash,
         "apps": {
             "app_a": pair_row.get("app_a"),
             "app_b": pair_row.get("app_b"),
@@ -443,6 +498,10 @@ def build_pair_similarity_result(
         "signature_match": pair_row.get("signature_match"),
         "evidence_record": evidence_record,
         "compatibility_check": compatibility,
+        "pair_check_runs": pair_check_runs,
+        "aggregation_policy": (
+            aggregation_policy if isinstance(aggregation_policy, dict) else None
+        ),
         "limitations": limitations,
     }
 
@@ -471,6 +530,9 @@ def build_candidate_selection_record(candidate_row: dict[str, Any]) -> dict[str,
         "status": STATUS_SUCCESS,
         "query_app_id": query_app_id,
         "candidate_app_id": candidate_app_id,
+        "profile_ref": candidate_row.get("profile_ref"),
+        "representation_spec_ref": candidate_row.get("representation_spec_ref"),
+        "representation_spec_hash": candidate_row.get("representation_spec_hash"),
         "screening_status": candidate_row.get("screening_status"),
         "retrieval_score": candidate_row.get("retrieval_score"),
         "retrieval_rank": candidate_row.get("retrieval_rank"),
@@ -513,6 +575,9 @@ def build_candidate_index_snapshot(
     *,
     candidate_index_params: object,
     corpus_size: int | None = None,
+    profile_ref: object = None,
+    representation_spec_ref: object = None,
+    representation_spec_hash: object = None,
 ) -> dict[str, Any] | None:
     """Собрать CandidateIndexSnapshot из параметров быстрого индекса."""
     if not isinstance(candidate_index_params, dict):
@@ -527,6 +592,9 @@ def build_candidate_index_snapshot(
         "seed": candidate_index_params.get("seed"),
         "features": _as_list(candidate_index_params.get("features")),
         "corpus_size": corpus_size,
+        "profile_ref": profile_ref,
+        "representation_spec_ref": representation_spec_ref,
+        "representation_spec_hash": representation_spec_hash,
     }
 
 
@@ -536,6 +604,11 @@ def build_search_similarity_result(
     candidate_list: object,
     pair_results: object = None,
     status: str = STATUS_SUCCESS,
+    profile_ref: object = None,
+    representation_spec_ref: object = None,
+    representation_spec_hash: object = None,
+    limitations: object = None,
+    compatibility_check: object = None,
 ) -> dict[str, Any]:
     """Собрать SearchSimilarityResult из списка кандидатов и результатов пар."""
     rows = _as_list(candidate_list)
@@ -545,19 +618,31 @@ def build_search_similarity_result(
             continue
         existing = row.get("candidate_selection_record")
         if isinstance(existing, dict):
-            candidates.append(existing)
+            record = dict(existing)
+            record.setdefault("profile_ref", profile_ref)
+            record.setdefault("representation_spec_ref", representation_spec_ref)
+            record.setdefault("representation_spec_hash", representation_spec_hash)
+            candidates.append(record)
         else:
-            candidates.append(build_candidate_selection_record(row))
+            enriched = dict(row)
+            enriched.setdefault("profile_ref", profile_ref)
+            enriched.setdefault("representation_spec_ref", representation_spec_ref)
+            enriched.setdefault("representation_spec_hash", representation_spec_hash)
+            candidates.append(build_candidate_selection_record(enriched))
 
     return {
         "schema_version": V3_4_SCHEMA_VERSION,
         "record_type": SEARCH_SIMILARITY_RESULT,
         "query_app_id": _as_non_empty_string(query_app_id, "APP-QUERY-UNKNOWN"),
         "status": status,
+        "profile_ref": profile_ref,
+        "representation_spec_ref": representation_spec_ref,
+        "representation_spec_hash": representation_spec_hash,
         "candidate_count": len(candidates),
         "candidates": candidates,
         "pair_results": _as_list(pair_results),
-        "limitations": [],
+        "compatibility_check": compatibility_check if isinstance(compatibility_check, dict) else None,
+        "limitations": _as_list(limitations),
     }
 
 
@@ -567,6 +652,8 @@ def build_explanation_render_record(
     evidence_record: object = None,
     text: object = None,
     status: str = STATUS_SUCCESS,
+    profile_ref: object = None,
+    representation_spec_ref: object = None,
 ) -> dict[str, Any]:
     """Зафиксировать текст объяснения как отображение фактов, а не факт."""
     record = _base_record(EXPLANATION_RENDER_RECORD)
@@ -576,6 +663,8 @@ def build_explanation_render_record(
             "status": status,
             "evidence_record": evidence_record if isinstance(evidence_record, dict) else None,
             "rendered_text": text,
+            "profile_ref": profile_ref,
+            "representation_spec_ref": representation_spec_ref,
         }
     )
     return record
