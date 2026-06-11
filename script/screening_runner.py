@@ -16,6 +16,10 @@ from tempfile import TemporaryDirectory
 try:
     from script.system_requirements import verify_required_dependencies
     from script.evidence_formatter import collect_evidence_from_screening_layers
+    from script.v3_4_contracts import build_candidate_index_snapshot
+    from script.v3_4_contracts import build_candidate_selection_record
+    from script.v3_4_contracts import build_noise_decision_record
+    from script.v3_4_contracts import build_search_similarity_result
     from script.library_view_v2 import (
         _load_idf_weights_for_layer,
         compute_idf_weighted_jaccard,
@@ -33,6 +37,10 @@ try:
 except Exception:
     from system_requirements import verify_required_dependencies  # type: ignore[no-redef]
     from evidence_formatter import collect_evidence_from_screening_layers  # type: ignore[no-redef]
+    from v3_4_contracts import build_candidate_index_snapshot  # type: ignore[no-redef]
+    from v3_4_contracts import build_candidate_selection_record  # type: ignore[no-redef]
+    from v3_4_contracts import build_noise_decision_record  # type: ignore[no-redef]
+    from v3_4_contracts import build_search_similarity_result  # type: ignore[no-redef]
     from library_view_v2 import (  # type: ignore[no-redef]
         _load_idf_weights_for_layer,
         compute_idf_weighted_jaccard,
@@ -102,6 +110,25 @@ DEX_VERSION_LENGTH = 3
 # APK_SIG_V1_EXTENSIONS удалена в ARCH-31: после переноса
 # _detect_signing_scheme на signing_view (ARCH-30) META-INF enum'ация
 # полностью делегирована signing_view._has_meta_inf_v1_signature.
+
+
+def attach_v3_4_candidate_selection_records(
+    candidate_list: list[dict],
+    candidate_index_snapshot: dict | None = None,
+) -> list[dict]:
+    """Добавить CandidateSelectionRecord после финального ранжирования."""
+    for row in candidate_list:
+        if candidate_index_snapshot is not None:
+            row["candidate_index_snapshot"] = candidate_index_snapshot
+        row["candidate_selection_record"] = build_candidate_selection_record(row)
+    return candidate_list
+
+
+def _noise_decision_from_app_record(app_record: dict) -> dict | None:
+    return build_noise_decision_record(
+        apk_id=str(app_record.get("app_id") or ""),
+        envelope=app_record.get("noise_profile_envelope"),
+    )
 
 
 def strip_yaml_comment(line: str) -> str:
@@ -1478,6 +1505,10 @@ def build_candidate_list(
     records = sorted(app_records, key=lambda item: item["app_id"])
 
     allowed_pairs: set[tuple[str, str]] | None = None
+    candidate_index_snapshot = build_candidate_index_snapshot(
+        candidate_index_params=candidate_index_params,
+        corpus_size=len(records),
+    )
     if candidate_index_params is not None and metric == "jaccard":
         allowed_pairs = _build_candidate_pairs_via_lsh(records, candidate_index_params)
 
@@ -1557,6 +1588,9 @@ def build_candidate_list(
             "shortcut_status": shortcut_status,
             },
         )
+        noise_decision_record = _noise_decision_from_app_record(app_a)
+        if noise_decision_record is not None:
+            row["noise_decision_record"] = noise_decision_record
         if per_view_scores is not None:
             row["per_view_scores"] = per_view_scores
             # EXEC-088-WRITERS: единый формат Evidence для первичного отбора.
@@ -1571,6 +1605,7 @@ def build_candidate_list(
     )
     for index, item in enumerate(candidate_list, start=1):
         item["retrieval_rank"] = index
+    attach_v3_4_candidate_selection_records(candidate_list, candidate_index_snapshot)
     return candidate_list
 
 
@@ -1635,6 +1670,9 @@ def _compose_candidate_row(
         "shortcut_status": shortcut_status,
         },
     )
+    noise_decision_record = _noise_decision_from_app_record(query_app)
+    if noise_decision_record is not None:
+        row["noise_decision_record"] = noise_decision_record
     if per_view_scores is not None:
         row["per_view_scores"] = per_view_scores
         row["evidence"] = collect_evidence_from_screening_layers(
@@ -1730,6 +1768,10 @@ def build_candidate_list_batch(
     index_features = candidate_index_params["features"]
 
     index = LSHIndex(num_perm=num_perm, bands=bands)
+    candidate_index_snapshot = build_candidate_index_snapshot(
+        candidate_index_params=candidate_index_params,
+        corpus_size=len(corpus_apps),
+    )
     corpus_by_id: dict[str, dict] = {}
     for record in corpus_apps:
         app_id = record["app_id"]
@@ -1784,6 +1826,7 @@ def build_candidate_list_batch(
         )
         for rank, item in enumerate(per_query_rows, start=1):
             item["retrieval_rank"] = rank
+        attach_v3_4_candidate_selection_records(per_query_rows, candidate_index_snapshot)
         results_batch.append(per_query_rows)
 
     return results_batch
@@ -2021,6 +2064,53 @@ def run_screening(
         processes_count=processes_count,
         threads_count=threads_count,
         candidate_index_params=candidate_index_params,
+    )
+
+
+def run_screening_search_result(
+    cascade_config_path: str | Path,
+    app_records: list[dict] | None = None,
+    apps_features_json_path: str | Path | None = None,
+    apk_root: str | Path | None = None,
+    ins_block_sim_threshold: float = 0.80,
+    ged_timeout_sec: int = 30,
+    processes_count: int = 1,
+    threads_count: int = 2,
+    artifact_dir: str | Path | None = None,
+    query_app_id: str | None = None,
+) -> dict:
+    """Вернуть результат первичного отбора как SearchSimilarityResult v3.4."""
+    candidate_list = run_screening(
+        cascade_config_path=cascade_config_path,
+        app_records=app_records,
+        apps_features_json_path=apps_features_json_path,
+        apk_root=apk_root,
+        ins_block_sim_threshold=ins_block_sim_threshold,
+        ged_timeout_sec=ged_timeout_sec,
+        processes_count=processes_count,
+        threads_count=threads_count,
+        artifact_dir=artifact_dir,
+    )
+
+    resolved_query_id = query_app_id
+    filtered_candidates = list(candidate_list)
+    if resolved_query_id:
+        filtered_candidates = [
+            row
+            for row in candidate_list
+            if row.get("query_app_id") == resolved_query_id
+            or row.get("candidate_app_id") == resolved_query_id
+        ]
+    elif candidate_list:
+        resolved_query_id = str(candidate_list[0].get("query_app_id") or "")
+    elif app_records:
+        resolved_query_id = str(app_records[0].get("app_id") or "")
+    else:
+        resolved_query_id = "APP-QUERY-UNKNOWN"
+
+    return build_search_similarity_result(
+        query_app_id=resolved_query_id,
+        candidate_list=filtered_candidates,
     )
 
 
