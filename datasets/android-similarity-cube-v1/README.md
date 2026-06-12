@@ -21,6 +21,7 @@
 | `M0 full cube` | все рабочие координаты `class x scenario x M0` | готовый канонический M0 | 92 строки: 46 координат по 2 строки |
 | `DC-C01-S01-M1` | `repack`, попарное сходство | готовый M1 diagnostic set | 40 пар |
 | `DC-C02-S01-M1` | `library_injection`, попарное сходство | готовый controlled synthetic M1 diagnostic set | 40 пар |
+| `DC-C03-S01-M1` | `resource_change`, попарное сходство | готовый controlled synthetic M1 diagnostic set | 40 пар |
 | `DC-C05-S01-M1` | `code_injection`, попарное сходство | готовый M1 diagnostic set | 40 пар |
 
 Каждый M1-набор состоит из 20 положительных пар и 20 отрицательных пар.
@@ -41,6 +42,8 @@
 | [`m1/DC-C01-S01-M1/manifest.csv`](m1/DC-C01-S01-M1/manifest.csv) | 20 `repack`-пар и 20 отрицательных пар |
 | [`m1/DC-C02-S01-M1/manifest.csv`](m1/DC-C02-S01-M1/manifest.csv) | 20 synthetic `library_injection`-пар и 20 отрицательных пар |
 | [`m1/DC-C02-S01-M1/generated-apks/`](m1/DC-C02-S01-M1/generated-apks/) | generated synthetic APK для `DC-C02-S01-M1` |
+| [`m1/DC-C03-S01-M1/manifest.csv`](m1/DC-C03-S01-M1/manifest.csv) | 20 synthetic `resource_change`-пар и 20 отрицательных пар |
+| [`m1/DC-C03-S01-M1/generated-apks/`](m1/DC-C03-S01-M1/generated-apks/) | generated synthetic APK для `DC-C03-S01-M1` |
 | [`m1/DC-C05-S01-M1/manifest.csv`](m1/DC-C05-S01-M1/manifest.csv) | 20 `code_injection`-пар и 20 отрицательных пар |
 
 ## Как использовать
@@ -70,6 +73,8 @@
 Synthetic APK для M0 опубликованы в `m0/generated-apks/`.
 Synthetic APK для `DC-C02-S01-M1` опубликованы в
 `m1/DC-C02-S01-M1/generated-apks/`.
+Synthetic APK для `DC-C03-S01-M1` опубликованы в
+`m1/DC-C03-S01-M1/generated-apks/`.
 
 ## Ограничения
 
@@ -92,5 +97,5 @@ Synthetic APK для `DC-C02-S01-M1` опубликованы в
 Пакет экспортирован из рабочего репозитория НКР `phd`:
 
 - дата экспорта: 2026-06-12;
-- source commit: `f5b91617df59e8640aea034435ed3a48c2676368`;
+- source commit: `d7774f79bda053f67610d376da94f22b3d4022a1`;
 - исходная директория: `experiments/datasets/cube`.
