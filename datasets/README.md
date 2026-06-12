@@ -7,7 +7,7 @@
 
 | Набор | Статус | Состав |
 |---|---|---|
-| [`android-similarity-cube-v1`](android-similarity-cube-v1/) | первый публичный release | координаты куба, SHA-256 APK, пары, метки, split, ограничения использования; synthetic APK для C02 |
+| [`android-similarity-cube-v1`](android-similarity-cube-v1/) | первый публичный release | полный M0-каркас, M1 diagnostic sets, SHA-256 APK, пары, метки, split, ограничения использования; synthetic APK для M0 и `DC-C02-S01-M1` |
 
 ## Что хранится в git
 
@@ -16,7 +16,7 @@
 - `manifest.csv`;
 - `pair_change_tags.csv`;
 - таблицы состояния;
-- README и правила использования.
-- generated synthetic APK для `DC-C02-S01-M1`.
+- README и правила использования;
+- generated synthetic APK для M0 и `DC-C02-S01-M1`.
 
 Сырые APK из внешних источников в этот репозиторий не добавляются.

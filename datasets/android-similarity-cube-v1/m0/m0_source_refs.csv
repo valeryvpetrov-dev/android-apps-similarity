@@ -1,0 +1,8 @@
+source_ref,source_type,path,reliability,limitations
+M0-CONTROLLED-GENERATED:materializer,controlled_generated_apk_pairs,experiments/datasets/tools/materialize_m0_controlled_apks.py,deterministic local generation with SHA-256 and apktool decode checks,Small synthetic M0 pairs only; not independent real-world quality evidence.
+AZ-PILOT-001:pairs.csv,external_label_sha_pairs,experiments/datasets/pilots/AZ-PILOT-001/pairs.csv,external labels with restored SHA rows,"Old AZ-PILOT name is historical, not cube coordinate; use cube-native manifests for experiments."
+submodule:apk/simple_app,local_apk_seed,apk/simple_app,local APK files with SHA-256 calculated during generation,Tiny synthetic app family; M0 only.
+DEEP-21-SHORTCUT-LIBRARY-REDUCED-CONTROL/report.json,report_backed_synthetic,experiments/artifacts/DEEP-21-SHORTCUT-LIBRARY-REDUCED-CONTROL/report.json,existing report with synthetic library shortcut controls,No concrete APK pair; not runnable as APK dataset.
+REPR-30-ICON-MOD-SYNTH/report.json,report_backed_resource_modification,experiments/artifacts/REPR-30-ICON-MOD-SYNTH/report.json,existing resource/icon modification report,Modified APK files are not stored in git.
+SYS-30-NATIVE-LIB-FINGERPRINT/report.json,report_backed_native_inventory,experiments/artifacts/SYS-30-NATIVE-LIB-FINGERPRINT/report.json,existing native library fingerprint report,App-level seed only; no native change pair yet.
+SYS-31-MULTIDEX-REGRESSION/report.json,report_backed_multidex_pairs,experiments/artifacts/SYS-31-MULTIDEX-REGRESSION/report.json,existing multidex regression report,Restructured APK files were temporary and must be regenerated for runtime experiments.

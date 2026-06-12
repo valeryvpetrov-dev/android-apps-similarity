@@ -34,6 +34,6 @@
 
 ## Связанные артефакты
 
-- `experiments/datasets/cube/m0/m0_seed_pairs.csv`
+- `m0/m0_seed_pairs.csv`
 - `experiments/datasets/pilots/AZ-PILOT-001/decode_sanity_summary.csv`
 - `experiments/datasets/pilots/AZ-PILOT-001/feature_extraction_smoke_summary.csv`
