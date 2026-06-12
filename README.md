@@ -2,16 +2,18 @@
 
 ## Datasets
 
-Публичные metadata-only датасеты лежат в [`datasets/`](datasets/).
+Публичные датасеты лежат в [`datasets/`](datasets/).
 
 Текущий release:
 
 - [`datasets/android-similarity-cube-v1`](datasets/android-similarity-cube-v1/) —
-  пары APK для сценариев `repack` и `code_injection`, SHA-256, split, метки и
-  ограничения использования.
+  пары APK для сценариев `repack`, `library_injection` и `code_injection`,
+  SHA-256, split, метки и ограничения использования.
 
-Сырые APK в git не публикуются. Для воспроизведения нужно материализовать APK
-по SHA-256 из `manifest.csv` через доступный пользователю источник.
+Сырые APK из внешних источников в git не публикуются. Для воспроизведения C01
+и C05 нужно материализовать APK по SHA-256 из `manifest.csv` через доступный
+пользователю источник. Synthetic APK для C02 опубликованы прямо в dataset
+package.
 
 ## LIBLOOM dependency policy
 
