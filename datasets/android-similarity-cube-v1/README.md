@@ -25,10 +25,13 @@
 | `DC-C04-S01-M1` | `package_rename`, попарное сходство | готовый controlled synthetic M1 diagnostic set | 40 пар |
 | `DC-C05-S01-M1` | `code_injection`, попарное сходство | готовый M1 diagnostic set | 40 пар |
 | `DC-C06-S01-M1` | `r8_obfuscation`, попарное сходство | готовый controlled synthetic M1 diagnostic set | 40 пар |
+| `DC-C07-S01-M1` | `native_lib_change`, попарное сходство | готовый controlled synthetic M1 diagnostic set | 40 пар |
 | `DC-C08-S01-M1` | `code_deletion`, попарное сходство | готовый controlled synthetic M1 diagnostic set | 40 пар |
 | `DC-C09-S01-M1` | `multidex_change`, попарное сходство | готовый controlled synthetic M1 diagnostic set | 40 пар |
+| `DC-F01-S06-M1` | `analysis_failure`, отказоустойчивость | готовый controlled synthetic M1 diagnostic set | 20 случаев |
 
-Каждый M1-набор состоит из 20 положительных пар и 20 отрицательных пар.
+Каждый pairwise M1-набор состоит из 20 положительных пар и 20 отрицательных пар.
+`DC-F01-S06-M1` состоит из 20 single-APK failure cases.
 Это диагностические M1-наборы, а не claim-ready benchmark.
 
 ## Файлы
@@ -53,10 +56,14 @@
 | [`m1/DC-C05-S01-M1/manifest.csv`](m1/DC-C05-S01-M1/manifest.csv) | 20 `code_injection`-пар и 20 отрицательных пар |
 | [`m1/DC-C06-S01-M1/manifest.csv`](m1/DC-C06-S01-M1/manifest.csv) | 20 synthetic `r8_obfuscation`-пар и 20 отрицательных пар |
 | [`m1/DC-C06-S01-M1/generated-apks/`](m1/DC-C06-S01-M1/generated-apks/) | generated synthetic APK для `DC-C06-S01-M1` |
+| [`m1/DC-C07-S01-M1/manifest.csv`](m1/DC-C07-S01-M1/manifest.csv) | 20 synthetic `native_lib_change`-пар и 20 отрицательных пар |
+| [`m1/DC-C07-S01-M1/generated-apks/`](m1/DC-C07-S01-M1/generated-apks/) | generated synthetic APK для `DC-C07-S01-M1` |
 | [`m1/DC-C08-S01-M1/manifest.csv`](m1/DC-C08-S01-M1/manifest.csv) | 20 synthetic `code_deletion`-пар и 20 отрицательных пар |
 | [`m1/DC-C08-S01-M1/generated-apks/`](m1/DC-C08-S01-M1/generated-apks/) | generated synthetic APK для `DC-C08-S01-M1` |
 | [`m1/DC-C09-S01-M1/manifest.csv`](m1/DC-C09-S01-M1/manifest.csv) | 20 synthetic `multidex_change`-пар и 20 отрицательных пар |
 | [`m1/DC-C09-S01-M1/generated-apks/`](m1/DC-C09-S01-M1/generated-apks/) | generated synthetic APK для `DC-C09-S01-M1` |
+| [`m1/DC-F01-S06-M1/manifest.csv`](m1/DC-F01-S06-M1/manifest.csv) | 20 synthetic failure cases |
+| [`m1/DC-F01-S06-M1/generated-apks/`](m1/DC-F01-S06-M1/generated-apks/) | generated synthetic failure inputs для `DC-F01-S06-M1` |
 
 ## Как использовать
 
@@ -88,7 +95,7 @@ Synthetic APK для `DC-C02-S01-M1` опубликованы в
 Synthetic APK для `DC-C03-S01-M1` опубликованы в
 `m1/DC-C03-S01-M1/generated-apks/`.
 Synthetic APK для `DC-C04-S01-M1`, `DC-C06-S01-M1`,
-`DC-C08-S01-M1` и `DC-C09-S01-M1` опубликованы в соответствующих
+`DC-C07-S01-M1`, `DC-C08-S01-M1`, `DC-C09-S01-M1` и `DC-F01-S06-M1` опубликованы в соответствующих
 `m1/<coordinate>/generated-apks/` каталогах.
 
 ## Ограничения
@@ -112,5 +119,5 @@ Synthetic APK для `DC-C04-S01-M1`, `DC-C06-S01-M1`,
 Пакет экспортирован из рабочего репозитория НКР `phd`:
 
 - дата экспорта: 2026-06-12;
-- source commit: `a6c995f2df74a99b5ed6f7761c8e8e86fd081a98`;
+- source commit: `30f22e6bbf5b10f9d9d468d97921ef1f169e72f3`;
 - исходная директория: `experiments/datasets/cube`.
