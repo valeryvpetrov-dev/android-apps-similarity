@@ -679,7 +679,7 @@ def materialize_decoded_dir(apk_path: str) -> str:
     shutil.rmtree(cache_dir, ignore_errors=True)
 
     process = subprocess.run(
-        [*command, "d", "-f", str(apk_file), "-o", str(partial_dir)],
+        [*command, "d", "-f", "-o", str(partial_dir), str(apk_file)],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,

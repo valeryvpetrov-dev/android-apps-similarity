@@ -162,6 +162,48 @@ stages:
         self.assertIn("decoded-cache", str(cache_dir))
         self.assertIn("app.alpha", cache_dir.name)
 
+    def test_materialize_decoded_dir_passes_output_option_before_apk_input(self) -> None:
+        """apktool должен получать `-o <dir>` до позиционного APK-входа.
+
+        Иначе часть версий apktool трактует `.partial` каталог как входной
+        APK и падает с NoSuchFileException по decoded-cache/*.partial.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            apk_path = root / "app.apk"
+            touch_apk(apk_path)
+            captured: dict[str, list[str]] = {}
+
+            def fake_run(cmd, **kwargs):
+                captured["cmd"] = list(cmd)
+                out_dir = Path(cmd[cmd.index("-o") + 1])
+                out_dir.mkdir(parents=True, exist_ok=True)
+                (out_dir / "AndroidManifest.xml").write_text(
+                    "<manifest />",
+                    encoding="utf-8",
+                )
+                return mock.Mock(returncode=0, stdout="", stderr="")
+
+            with mock.patch.dict(
+                "os.environ",
+                {"PHD_SHARED_DATA_ROOT": str(root / "shared")},
+            ), mock.patch.object(
+                deepening_runner,
+                "resolve_apktool_command",
+                return_value=["apktool"],
+            ), mock.patch.object(
+                deepening_runner.subprocess,
+                "run",
+                side_effect=fake_run,
+            ):
+                decoded_dir = deepening_runner.materialize_decoded_dir(str(apk_path))
+
+            cmd = captured["cmd"]
+            self.assertEqual(cmd[:3], ["apktool", "d", "-f"])
+            self.assertLess(cmd.index("-o"), cmd.index(str(apk_path.resolve())))
+            self.assertEqual(cmd[-1], str(apk_path.resolve()))
+            self.assertTrue(deepening_runner.looks_like_decoded_dir(Path(decoded_dir)))
+
 
 if __name__ == "__main__":
     unittest.main()
