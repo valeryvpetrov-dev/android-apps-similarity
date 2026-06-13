@@ -265,6 +265,34 @@ class TestV34PairSimilarityResult(unittest.TestCase):
             "library_reduced_score",
         )
 
+    def test_pair_similarity_result_respects_selected_score_field_from_policy(self) -> None:
+        aggregation_policy = build_pair_aggregation_policy(
+            policy_id="m1_code_policy_candidate_v0",
+            strategy="select_declared_score_field",
+            weights={"code_policy_score": 1.0},
+            selected_score_field="code_policy_score",
+            limitations=["experimental_m1_gate_only"],
+        )
+
+        result = build_pair_similarity_result(
+            {
+                "pair_id": "PAIR-CODE-POLICY",
+                "app_a": "A",
+                "app_b": "B",
+                "status": "success",
+                "full_similarity_score": 0.50,
+                "library_reduced_score": 0.50,
+                "code_policy_score": 0.90,
+                "views_used": ["code", "resource"],
+                "evidence": [],
+                "aggregation_policy": aggregation_policy,
+            }
+        )
+
+        self.assertEqual(result["scores"]["similarity_score"], 0.90)
+        self.assertEqual(result["scores"]["selected_score_field"], "code_policy_score")
+        self.assertIn("experimental_m1_gate_only", result["aggregation_policy"]["limitations"])
+
 
 class TestV34DetailedJsonIntegration(unittest.TestCase):
     def test_export_pairwise_detailed_json_adds_v3_4_records(self) -> None:

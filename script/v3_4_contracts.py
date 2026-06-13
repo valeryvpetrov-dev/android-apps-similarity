@@ -331,11 +331,22 @@ def _status_from_pair_row(pair_row: dict[str, Any]) -> str:
     return STATUS_COMPARISON_FAILED
 
 
-def _selected_similarity_score(pair_row: dict[str, Any]) -> object:
+def _selected_score_field(pair_row: dict[str, Any]) -> str:
+    aggregation_policy = pair_row.get("aggregation_policy")
+    if isinstance(aggregation_policy, dict):
+        selected = aggregation_policy.get("selected_score_field")
+        if isinstance(selected, str) and selected.strip():
+            field = selected.strip()
+            if pair_row.get(field) is not None:
+                return field
     reduced = pair_row.get("library_reduced_score")
     if reduced is not None:
-        return reduced
-    return pair_row.get("full_similarity_score")
+        return "library_reduced_score"
+    return "full_similarity_score"
+
+
+def _selected_similarity_score(pair_row: dict[str, Any]) -> object:
+    return pair_row.get(_selected_score_field(pair_row))
 
 
 def build_pair_evidence_record(
@@ -491,6 +502,7 @@ def build_pair_similarity_result(
         },
         "scores": {
             "similarity_score": _selected_similarity_score(pair_row),
+            "selected_score_field": _selected_score_field(pair_row),
             "full_similarity_score": pair_row.get("full_similarity_score"),
             "library_reduced_score": pair_row.get("library_reduced_score"),
         },

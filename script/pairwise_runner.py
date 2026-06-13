@@ -2070,18 +2070,71 @@ def build_detailed_views(
     return views
 
 
-def build_detailed_explanation(scores: dict[str, Any], analysis_status: str) -> dict[str, Any]:
+def _resource_change_total(summary: dict[str, Any]) -> int:
+    total = 0
+    for key in ("modified_count", "added_count", "removed_count"):
+        try:
+            total += int(summary.get(key) or 0)
+        except (TypeError, ValueError):
+            continue
+    return total
+
+
+def _resource_change_hint(pair_row: dict[str, Any]) -> dict[str, Any] | None:
+    summary = pair_row.get("resource_change_summary")
+    if not isinstance(summary, dict) or _resource_change_total(summary) <= 0:
+        return None
+
+    supporting_score_field = None
+    supporting_score = None
+    for field in ("code_policy_score", "code_multiview_score", "code_similarity_score"):
+        value = pair_row.get(field)
+        if value is None:
+            continue
+        try:
+            score = float(value)
+        except (TypeError, ValueError):
+            continue
+        if score >= 0.70:
+            supporting_score_field = field
+            supporting_score = score
+            break
+
+    if supporting_score_field is None:
+        return None
+
+    return {
+        "hint_type": "ResourceChangeWithCodeSupport",
+        "severity": "medium",
+        "summary": "resource files changed while code evidence still supports application relation",
+        "resource_change_summary": dict(summary),
+        "supporting_score_field": supporting_score_field,
+        "supporting_score": supporting_score,
+    }
+
+
+def build_detailed_explanation(
+    scores: dict[str, Any],
+    analysis_status: str,
+    pair_row: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     full_score = scores.get("full_similarity_score")
     reduced_score = scores.get("library_reduced_score")
     library_impact_flag = False
     if full_score is not None and reduced_score is not None:
         library_impact_flag = bool(abs(float(full_score) - float(reduced_score)) >= 0.05)
 
+    hints = []
+    if analysis_status != "analysis_failed" and isinstance(pair_row, dict):
+        resource_hint = _resource_change_hint(pair_row)
+        if resource_hint is not None:
+            hints.append(resource_hint)
+
     return {
-        "explanation_status": "not_available",
-        "hint_count": 0,
-        "top_hint_types": [],
-        "hints": [],
+        "explanation_status": "available" if hints else "not_available",
+        "hint_count": len(hints),
+        "top_hint_types": [str(hint.get("hint_type")) for hint in hints[:3]],
+        "hints": hints,
         "library_impact_flag": library_impact_flag if analysis_status != "analysis_failed" else False,
     }
 
@@ -2130,7 +2183,7 @@ def build_detailed_result(
             failure_reason=failure_reason,
         ),
         "scores": scores,
-        "explanation": build_detailed_explanation(scores, analysis_status),
+        "explanation": build_detailed_explanation(scores, analysis_status, summary_row),
         "artifacts": {
             "artifacts_path": candidate.get("artifacts_path") or "pairwise://{}".format(pair_id),
             "enriched_candidates_ref": str(enriched_path),
@@ -2246,6 +2299,8 @@ def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str,
         "full_similarity_score": item.get("full_similarity_score"),
         "library_reduced_score": item.get("library_reduced_score"),
     }
+    if not isinstance(item.get("explanation"), dict):
+        item["explanation"] = build_detailed_explanation(scores, item_status, item)
     content_check_run = build_pair_check_run(
         pair_id=item["pair_id"],
         check_id="set_based_multiview_similarity",
@@ -2292,12 +2347,16 @@ def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str,
         representation_spec_hash=item.get("representation_spec_hash"),
         view_schema_versions=item.get("view_schema_versions"),
     )
-    aggregation_policy = build_pair_aggregation_policy(
-        policy_id="library_reduced_preferred_v1",
-        strategy="prefer_library_reduced_score",
-        weights={"library_reduced_score": 1.0},
-        selected_score_field="library_reduced_score",
-    )
+    incoming_aggregation_policy = item.get("aggregation_policy")
+    if isinstance(incoming_aggregation_policy, dict):
+        aggregation_policy = incoming_aggregation_policy
+    else:
+        aggregation_policy = build_pair_aggregation_policy(
+            policy_id="library_reduced_preferred_v1",
+            strategy="prefer_library_reduced_score",
+            weights={"library_reduced_score": 1.0},
+            selected_score_field="library_reduced_score",
+        )
     item["pair_check_runs"] = [content_check_run, signature_check_run]
     item["aggregation_policy"] = aggregation_policy
     pair_similarity_result = build_pair_similarity_result(item, pair_id=item["pair_id"])

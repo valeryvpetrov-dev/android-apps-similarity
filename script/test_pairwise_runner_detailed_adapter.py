@@ -198,6 +198,114 @@ stages:
         self.assertEqual(result["explanation"]["explanation_status"], "not_available")
         self.assertFalse(result["explanation"]["library_impact_flag"])
 
+    def test_export_detailed_json_preserves_incoming_aggregation_policy(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "detailed.json"
+            pairwise_runner.export_pairwise_detailed_json(
+                results=[
+                    {
+                        "pair_id": "PAIR-CODE-POLICY",
+                        "app_a": "A",
+                        "app_b": "B",
+                        "full_similarity_score": 0.50,
+                        "library_reduced_score": 0.50,
+                        "code_policy_score": 0.90,
+                        "status": "success",
+                        "views_used": ["code", "resource"],
+                        "signature_match": {"score": 0.0, "status": "mismatch"},
+                        "evidence": [],
+                        "aggregation_policy": {
+                            "schema_version": "similarity-v3.4-minimal",
+                            "record_type": "PairAggregationPolicy",
+                            "policy_id": "m1_code_policy_candidate_v0",
+                            "strategy": "select_declared_score_field",
+                            "weights": {"code_policy_score": 1.0},
+                            "selected_score_field": "code_policy_score",
+                            "threshold": 0.70,
+                            "limitations": ["experimental_m1_gate_only"],
+                        },
+                    }
+                ],
+                output_path=output_path,
+            )
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+        item = payload["pairs"][0]
+        self.assertEqual(
+            item["aggregation_policy"]["policy_id"],
+            "m1_code_policy_candidate_v0",
+        )
+        self.assertEqual(
+            item["pair_similarity_result"]["scores"]["similarity_score"],
+            0.90,
+        )
+        self.assertEqual(
+            item["pair_similarity_result"]["scores"]["selected_score_field"],
+            "code_policy_score",
+        )
+
+    def test_build_detailed_explanation_describes_resource_change_with_code_support(self) -> None:
+        explanation = pairwise_runner.build_detailed_explanation(
+            {
+                "similarity_score": 0.50,
+                "full_similarity_score": 0.50,
+                "library_reduced_score": 0.50,
+            },
+            "success",
+            {
+                "code_policy_score": 0.90,
+                "resource_change_summary": {
+                    "modified_count": 4,
+                    "added_count": 1,
+                    "removed_count": 0,
+                },
+            },
+        )
+
+        self.assertEqual(explanation["explanation_status"], "available")
+        self.assertEqual(explanation["hint_count"], 1)
+        self.assertEqual(explanation["top_hint_types"], ["ResourceChangeWithCodeSupport"])
+        self.assertEqual(
+            explanation["hints"][0]["hint_type"],
+            "ResourceChangeWithCodeSupport",
+        )
+        self.assertEqual(explanation["hints"][0]["supporting_score_field"], "code_policy_score")
+
+    def test_export_detailed_json_adds_resource_change_explanation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "detailed.json"
+            pairwise_runner.export_pairwise_detailed_json(
+                results=[
+                    {
+                        "pair_id": "PAIR-RESOURCE-CHANGE",
+                        "app_a": "A",
+                        "app_b": "B",
+                        "full_similarity_score": 0.50,
+                        "library_reduced_score": 0.50,
+                        "code_policy_score": 0.90,
+                        "status": "success",
+                        "views_used": ["code", "resource"],
+                        "signature_match": {"score": 0.0, "status": "mismatch"},
+                        "evidence": [],
+                        "resource_change_summary": {
+                            "modified_count": 3,
+                            "added_count": 1,
+                            "removed_count": 0,
+                        },
+                    }
+                ],
+                output_path=output_path,
+            )
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+        explanation = payload["pairs"][0]["explanation"]
+        self.assertEqual(explanation["explanation_status"], "available")
+        self.assertEqual(explanation["hint_count"], 1)
+        self.assertEqual(
+            explanation["hints"][0]["hint_type"],
+            "ResourceChangeWithCodeSupport",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
