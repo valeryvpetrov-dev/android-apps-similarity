@@ -216,7 +216,7 @@ class TestV34PairSimilarityResult(unittest.TestCase):
     def test_pair_similarity_result_carries_profile_check_runs_and_aggregation(self) -> None:
         pair_check_run = build_pair_check_run(
             pair_id="PAIR-005",
-            check_id="pairwise_static_similarity",
+            check_id="set_based_multiview_similarity",
             status="success",
             duration_ms=11,
             inputs={"views_used": ["code"]},
@@ -304,6 +304,17 @@ class TestV34DetailedJsonIntegration(unittest.TestCase):
         self.assertEqual(item["compatibility_check"]["record_type"], "CompatibilityCheckRecord")
         self.assertEqual(item["pair_check_runs"][0]["record_type"], "PairCheckRun")
         self.assertEqual(
+            {check["check_id"] for check in item["pair_check_runs"]},
+            {"set_based_multiview_similarity", "apk_signature_match"},
+        )
+        signature_check = next(
+            check
+            for check in item["pair_check_runs"]
+            if check["check_id"] == "apk_signature_match"
+        )
+        self.assertEqual(signature_check["outputs"]["signature_status"], "match")
+        self.assertEqual(signature_check["outputs"]["signature_score"], 1.0)
+        self.assertEqual(
             item["pair_similarity_result"]["pair_check_runs"][0]["record_type"],
             "PairCheckRun",
         )
@@ -312,6 +323,38 @@ class TestV34DetailedJsonIntegration(unittest.TestCase):
             item["pair_similarity_result"]["aggregation_policy"]["record_type"],
             "PairAggregationPolicy",
         )
+
+    def test_export_pairwise_detailed_json_keeps_failed_scores_unknown(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "detailed.json"
+            pairwise_runner.export_pairwise_detailed_json(
+                results=[
+                    {
+                        "app_a": "A",
+                        "app_b": "B",
+                        "full_similarity_score": 0.42,
+                        "library_reduced_score": 0.41,
+                        "status": "analysis_failed",
+                        "analysis_failed_reason": "decode_failed",
+                        "views_used": ["component"],
+                        "signature_match": {"status": "unknown"},
+                        "evidence": [],
+                    }
+                ],
+                output_path=output_path,
+            )
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+        item = payload["pairs"][0]
+        self.assertIsNone(item["pair_similarity_result"]["scores"]["similarity_score"])
+        self.assertIsNone(item["pair_similarity_result"]["scores"]["full_similarity_score"])
+        self.assertIsNone(item["pair_similarity_result"]["scores"]["library_reduced_score"])
+        signature_check = next(
+            check
+            for check in item["pair_check_runs"]
+            if check["check_id"] == "apk_signature_match"
+        )
+        self.assertEqual(signature_check["status"], "partial_result")
 
 
 class TestV34CandidateSelectionRecord(unittest.TestCase):

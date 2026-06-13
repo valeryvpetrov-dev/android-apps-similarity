@@ -2238,14 +2238,18 @@ def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str,
     views_used = item.get("views_used")
     if not isinstance(views_used, list):
         views_used = []
+    item_status = str(item.get("status") or "analysis_failed")
+    if item_status == "analysis_failed":
+        item["full_similarity_score"] = None
+        item["library_reduced_score"] = None
     scores = {
         "full_similarity_score": item.get("full_similarity_score"),
         "library_reduced_score": item.get("library_reduced_score"),
     }
-    pair_check_run = build_pair_check_run(
+    content_check_run = build_pair_check_run(
         pair_id=item["pair_id"],
-        check_id="pairwise_static_similarity",
-        status=str(item.get("status") or "analysis_failed"),
+        check_id="set_based_multiview_similarity",
+        status=item_status,
         duration_ms=item.get("elapsed_ms_deep") or item.get("duration_ms"),
         inputs={
             "app_a": item.get("app_a"),
@@ -2258,13 +2262,43 @@ def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str,
         representation_spec_hash=item.get("representation_spec_hash"),
         view_schema_versions=item.get("view_schema_versions"),
     )
+    signature_match = item.get("signature_match")
+    if not isinstance(signature_match, dict):
+        signature_match = {}
+    signature_status = str(signature_match.get("status") or "unknown")
+    normalized_signature_status = signature_status.strip().lower()
+    if normalized_signature_status in {"match", "mismatch"}:
+        signature_check_status = "success"
+    elif normalized_signature_status in {"analysis_failed", "failed", "error"}:
+        signature_check_status = "analysis_failed"
+    else:
+        signature_check_status = "partial_result"
+    signature_check_run = build_pair_check_run(
+        pair_id=item["pair_id"],
+        check_id="apk_signature_match",
+        status=signature_check_status,
+        duration_ms=None,
+        inputs={
+            "app_a": item.get("app_a"),
+            "app_b": item.get("app_b"),
+        },
+        outputs={
+            "signature_status": signature_status,
+            "signature_score": signature_match.get("score"),
+            "signature_message": signature_match.get("message"),
+        },
+        profile_ref=item.get("profile_ref"),
+        representation_spec_ref=item.get("representation_spec_ref"),
+        representation_spec_hash=item.get("representation_spec_hash"),
+        view_schema_versions=item.get("view_schema_versions"),
+    )
     aggregation_policy = build_pair_aggregation_policy(
         policy_id="library_reduced_preferred_v1",
         strategy="prefer_library_reduced_score",
         weights={"library_reduced_score": 1.0},
         selected_score_field="library_reduced_score",
     )
-    item["pair_check_runs"] = [pair_check_run]
+    item["pair_check_runs"] = [content_check_run, signature_check_run]
     item["aggregation_policy"] = aggregation_policy
     pair_similarity_result = build_pair_similarity_result(item, pair_id=item["pair_id"])
     item["pair_evidence_record"] = pair_similarity_result["evidence_record"]
