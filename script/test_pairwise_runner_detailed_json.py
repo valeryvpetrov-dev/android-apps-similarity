@@ -289,5 +289,54 @@ class TestExportPairwiseDetailedJsonFieldPreservation(unittest.TestCase):
             self.assertTrue(output_path.exists())
 
 
+class TestExportPairwiseDetailedJsonSemanticMultiview(unittest.TestCase):
+    """semantic_multiview сохраняется как отдельный PairCheckRun v3.4."""
+
+    def test_semantic_multiview_becomes_pair_check_run(self) -> None:
+        row = _sample_success_row()
+        row["semantic_multiview"] = {
+            "profile_id": "R_semantic_multiview_decision_policy_v0",
+            "status": "success",
+            "semantic_band": "high",
+            "semantic_relation": "same_code_resource_changed",
+            "semantic_score": 0.75,
+            "scores": {
+                "R_code_identity": 1.0,
+                "R_code_stats": 1.0,
+                "R_code_packaging": 1.0,
+                "R_resource_identity": 0.0,
+                "R_resource_structure": 1.0,
+            },
+            "duration_ms": 17,
+            "inputs": {"app_a": "A", "app_b": "B"},
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "detailed.json"
+            pairwise_runner.export_pairwise_detailed_json(
+                results=[row],
+                output_path=output_path,
+            )
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+        item = payload["pairs"][0]
+        semantic_check = next(
+            check
+            for check in item["pair_check_runs"]
+            if check["check_id"] == "semantic_multiview_similarity"
+        )
+        self.assertEqual(semantic_check["record_type"], "PairCheckRun")
+        self.assertEqual(semantic_check["status"], "success")
+        self.assertEqual(semantic_check["duration_ms"], 17)
+        self.assertEqual(
+            semantic_check["profile_ref"],
+            "R_semantic_multiview_decision_policy_v0",
+        )
+        self.assertEqual(semantic_check["outputs"]["semantic_band"], "high")
+        self.assertEqual(
+            semantic_check["outputs"]["scores"]["R_resource_structure"],
+            1.0,
+        )
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

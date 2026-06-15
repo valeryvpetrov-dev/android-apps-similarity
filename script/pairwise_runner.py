@@ -35,6 +35,7 @@ SHORTCUT_REASON_HIGH_CONFIDENCE = "high_confidence_signature_match"
 SHORTCUT_STATUS_SUCCESS = "success_shortcut"
 DEEP_VERIFICATION_STATUS_SKIPPED = "skipped_shortcut"
 SHORTCUT_VERDICT_LIKELY_CLONE = "likely_clone_by_signature"
+SEMANTIC_MULTIVIEW_ENABLED_ENV = "ANDROID_SIM_SEMANTIC_MULTIVIEW"
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -115,6 +116,21 @@ except Exception:
     from v3_4_contracts import build_pair_aggregation_policy  # type: ignore[no-redef]
     from v3_4_contracts import build_pair_check_run  # type: ignore[no-redef]
     from v3_4_contracts import build_pair_similarity_result  # type: ignore[no-redef]
+
+try:
+    from script.semantic_multiview import (
+        PROFILE_ID as SEMANTIC_MULTIVIEW_PROFILE_ID,
+        run_semantic_multiview_check,
+    )
+except Exception:
+    try:
+        from semantic_multiview import (  # type: ignore[no-redef]
+            PROFILE_ID as SEMANTIC_MULTIVIEW_PROFILE_ID,
+            run_semantic_multiview_check,
+        )
+    except Exception:
+        SEMANTIC_MULTIVIEW_PROFILE_ID = "R_semantic_multiview_decision_policy_v0"
+        run_semantic_multiview_check = None  # type: ignore[assignment]
 
 try:
     from script.timeout_incident_registry import record_timeout_incident
@@ -1354,6 +1370,42 @@ def _build_shortcut_pair_row(
     return pair_row
 
 
+def _semantic_multiview_enabled() -> bool:
+    raw = os.environ.get(SEMANTIC_MULTIVIEW_ENABLED_ENV, "1")
+    return str(raw).strip().lower() not in {"0", "false", "no", "off"}
+
+
+def _attach_semantic_multiview_check(
+    *,
+    pair_row: dict[str, Any],
+    apk_a: str | None,
+    apk_b: str | None,
+    decoded_a: str | Path | None,
+    decoded_b: str | Path | None,
+) -> None:
+    """Best-effort semantic check; never changes final pairwise verdict."""
+    if not _semantic_multiview_enabled():
+        return
+    if run_semantic_multiview_check is None:
+        return
+    try:
+        pair_row["semantic_multiview"] = run_semantic_multiview_check(
+            apk_a=apk_a,
+            apk_b=apk_b,
+            decoded_a=decoded_a,
+            decoded_b=decoded_b,
+            app_a=pair_row.get("app_a"),
+            app_b=pair_row.get("app_b"),
+        )
+    except Exception as exc:
+        pair_row["semantic_multiview"] = {
+            "profile_id": SEMANTIC_MULTIVIEW_PROFILE_ID,
+            "status": "comparison_failed",
+            "error": "{}: {}".format(type(exc).__name__, exc),
+            "scores": {},
+        }
+
+
 def _compute_pair_row_with_caches(
     candidate: dict[str, Any],
     selected_layers: list[str],
@@ -1404,6 +1456,8 @@ def _compute_pair_row_with_caches(
 
     apk_a = None
     apk_b = None
+    decoded_a = None
+    decoded_b = None
     try:
         apk_a = resolve_apk_path(
             candidate=candidate,
@@ -1463,6 +1517,13 @@ def _compute_pair_row_with_caches(
             }
         )
 
+    _attach_semantic_multiview_check(
+        pair_row=pair_row,
+        apk_a=apk_a,
+        apk_b=apk_b,
+        decoded_a=decoded_a,
+        decoded_b=decoded_b,
+    )
     pair_row["signature_match"] = collect_signature_match(apk_a, apk_b)
     pair_row["elapsed_ms_deep"] = int(round((time.perf_counter() - deep_start) * 1000))
     pair_row["evidence"] = collect_evidence_from_pairwise(pair_row)
@@ -2347,6 +2408,38 @@ def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str,
         representation_spec_hash=item.get("representation_spec_hash"),
         view_schema_versions=item.get("view_schema_versions"),
     )
+    pair_check_runs = [content_check_run]
+    semantic_multiview = item.get("semantic_multiview")
+    if isinstance(semantic_multiview, dict):
+        semantic_inputs = semantic_multiview.get("inputs")
+        if not isinstance(semantic_inputs, dict):
+            semantic_inputs = {
+                "app_a": item.get("app_a"),
+                "app_b": item.get("app_b"),
+            }
+        semantic_status = str(semantic_multiview.get("status") or "partial_result")
+        pair_check_runs.append(
+            build_pair_check_run(
+                pair_id=item["pair_id"],
+                check_id="semantic_multiview_similarity",
+                status=semantic_status,
+                duration_ms=semantic_multiview.get("duration_ms"),
+                inputs=semantic_inputs,
+                outputs=semantic_multiview,
+                profile_ref=(
+                    semantic_multiview.get("profile_id")
+                    or item.get("profile_ref")
+                    or SEMANTIC_MULTIVIEW_PROFILE_ID
+                ),
+                representation_spec_ref=item.get("representation_spec_ref"),
+                representation_spec_hash=item.get("representation_spec_hash"),
+                view_schema_versions=(
+                    semantic_multiview.get("view_schema_versions")
+                    or item.get("view_schema_versions")
+                ),
+            )
+        )
+    pair_check_runs.append(signature_check_run)
     incoming_aggregation_policy = item.get("aggregation_policy")
     if isinstance(incoming_aggregation_policy, dict):
         aggregation_policy = incoming_aggregation_policy
@@ -2357,7 +2450,7 @@ def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str,
             weights={"library_reduced_score": 1.0},
             selected_score_field="library_reduced_score",
         )
-    item["pair_check_runs"] = [content_check_run, signature_check_run]
+    item["pair_check_runs"] = pair_check_runs
     item["aggregation_policy"] = aggregation_policy
     pair_similarity_result = build_pair_similarity_result(item, pair_id=item["pair_id"])
     item["pair_evidence_record"] = pair_similarity_result["evidence_record"]
