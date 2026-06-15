@@ -161,6 +161,40 @@ class TestSemanticDecisionPolicy(unittest.TestCase):
         self.assertEqual(result["semantic_band"], "review")
         self.assertEqual(result["semantic_relation"], "supporting_signals_without_identity")
 
+    def test_same_resources_and_code_stats_can_anchor_package_rename(self) -> None:
+        left = semantic_multiview.build_semantic_views_from_features(
+            apk_id="A",
+            code_v4=_code_v4({
+                "Lcom/old/Main;->onCreate()V": "S:aaaa",
+                "Lcom/old/Sync;->run()V": "S:bbbb",
+            }),
+            dex_packaging_tokens={"dex_name:classes.dex", "dex_count:1"},
+            resource=_resource({
+                "res/layout/main.xml": "layout-same",
+                "res/drawable/logo.png": "logo-same",
+            }),
+        )
+        right = semantic_multiview.build_semantic_views_from_features(
+            apk_id="B",
+            code_v4=_code_v4({
+                "Lcom/new/Main2;->a()V": "S:aaaa",
+                "Lcom/new/Sync2;->b()V": "S:bbbb",
+            }),
+            dex_packaging_tokens={"dex_name:classes.dex", "dex_count:1"},
+            resource=_resource({
+                "res/layout/main.xml": "layout-same",
+                "res/drawable/logo.png": "logo-same",
+            }),
+        )
+
+        result = semantic_multiview.compare_semantic_views(left, right)
+
+        self.assertEqual(result["scores"]["R_code_identity"], 0.0)
+        self.assertEqual(result["scores"]["R_code_stats"], 1.0)
+        self.assertEqual(result["scores"]["R_resource_identity"], 1.0)
+        self.assertEqual(result["semantic_band"], "high")
+        self.assertEqual(result["semantic_relation"], "same_resources_code_stats_match")
+
 
 class TestSemanticViewArtifacts(unittest.TestCase):
     def test_view_artifact_records_are_emitted_for_v3_4_audit(self) -> None:

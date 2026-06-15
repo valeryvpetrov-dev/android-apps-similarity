@@ -377,6 +377,8 @@ def _semantic_relation(scores: dict[str, float]) -> tuple[str, str]:
         return "high", "same_code_resource_changed"
     if has_code_identity and (has_code_stats or has_packaging):
         return "high", "same_code_supported"
+    if has_resource_identity and has_resource_structure and has_code_stats:
+        return "high", "same_resources_code_stats_match"
     if has_resource_identity and has_resource_structure:
         return "review", "same_resources_without_code_identity"
     if has_code_stats or has_resource_structure or has_packaging:
