@@ -214,6 +214,26 @@ def collect_evidence_from_pairwise(pair_row: dict) -> list[dict]:
                         )
                     )
 
+    if pair_row.get("code_stats_containment_policy_applied") is True:
+        evidence.append(
+            make_evidence(
+                source_stage="pairwise",
+                signal_type="code_stats_containment",
+                magnitude=_clamp_unit(pair_row.get("code_stats_containment_score")),
+                ref="R_code_stats_containment",
+            )
+        )
+        evidence.append(
+            make_evidence(
+                source_stage="pairwise",
+                signal_type="resource_corroboration",
+                magnitude=_clamp_unit(
+                    pair_row.get("code_stats_resource_corroboration_score")
+                ),
+                ref="resource_path_digest",
+            )
+        )
+
     signature_match = pair_row.get("signature_match")
     if isinstance(signature_match, dict) and "score" in signature_match:
         magnitude = _clamp_unit(signature_match.get("score"))

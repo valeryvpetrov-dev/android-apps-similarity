@@ -43,6 +43,11 @@ DEEP_M2_SCORE_DECISION_LIMITATIONS = (
     "packaging_and_signature_are_evidence_only",
     "analysis_failed_similarity_is_undefined_not_zero",
 )
+CODE_STATS_CONTAINMENT_POLICY_ID = "R_code_stats_containment_corroboration_policy_v1"
+CODE_STATS_CONTAINMENT_SCORE_SOURCE = "code_stats_containment_with_resource_corroboration"
+CODE_STATS_CONTAINMENT_THRESHOLD = 0.95
+CODE_STATS_RESOURCE_CORROBORATION_THRESHOLD = 0.80
+CODE_STATS_RESOURCE_CORROBORATION_SIGNAL = "resource_path_digest"
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -1153,6 +1158,146 @@ def calculate_set_scores(
     return float(full_similarity_score), float(library_reduced_score)
 
 
+def _coverage_of_larger(left: set[str], right: set[str]) -> float:
+    denominator = max(len(left), len(right))
+    if denominator == 0:
+        return 0.0
+    return len(left & right) / denominator
+
+
+def _containment_direction(left: set[str], right: set[str]) -> str:
+    if not left or not right:
+        return "none"
+    if left == right:
+        return "symmetric"
+    if len(left) < len(right):
+        return "a_in_b"
+    if len(right) < len(left):
+        return "b_in_a"
+    return "same_size_partial"
+
+
+def build_code_stats_containment_policy_fields(
+    layers_a: dict[str, set[str]],
+    layers_b: dict[str, set[str]],
+    selected_layers: list[str],
+) -> dict[str, Any]:
+    """Build R_code_stats containment diagnostics with resource corroboration.
+
+    This is not a class-specific rule for ``code_deletion``. It is a general
+    pairwise decision channel: if one code-token set is almost contained in the
+    other and strict resource path+digest tokens independently confirm the pair,
+    the selected content score may use the containment signal.
+    """
+    selected = set(selected_layers)
+    code_a = set(layers_a.get("code", set()))
+    code_b = set(layers_b.get("code", set()))
+    resource_a = set(layers_a.get("resource", set()))
+    resource_b = set(layers_b.get("resource", set()))
+
+    code_containment = float(containment_similarity(code_a, code_b))
+    resource_corroboration = float(containment_similarity(resource_a, resource_b))
+    larger_coverage = float(_coverage_of_larger(code_a, code_b))
+    active = "code" in selected and "resource" in selected
+    applied = (
+        active
+        and code_containment >= CODE_STATS_CONTAINMENT_THRESHOLD
+        and resource_corroboration >= CODE_STATS_RESOURCE_CORROBORATION_THRESHOLD
+    )
+
+    return {
+        "code_stats_containment_policy_id": CODE_STATS_CONTAINMENT_POLICY_ID,
+        "code_stats_containment_policy_applied": bool(applied),
+        "code_stats_containment_score": code_containment,
+        "code_stats_containment_larger_score": larger_coverage,
+        "code_stats_containment_direction": _containment_direction(code_a, code_b),
+        "code_stats_resource_corroboration_score": resource_corroboration,
+        "code_stats_resource_corroboration_signal": CODE_STATS_RESOURCE_CORROBORATION_SIGNAL,
+        "code_stats_containment_threshold": CODE_STATS_CONTAINMENT_THRESHOLD,
+        "code_stats_resource_corroboration_threshold": (
+            CODE_STATS_RESOURCE_CORROBORATION_THRESHOLD
+        ),
+        "method_id_inclusion_smaller": code_containment,
+        "method_id_inclusion_larger": larger_coverage,
+        # Backward-compatible aliases for experiment artifacts produced before
+        # the R_code_shape -> R_code_stats naming decision.
+        "code_containment_score": code_containment,
+        "code_containment_direction": _containment_direction(code_a, code_b),
+        "code_containment_resource_score": resource_corroboration,
+    }
+
+
+def build_code_stats_containment_policy_fields_for_pair(
+    apk_a: str,
+    apk_b: str,
+    decoded_a: str | None,
+    decoded_b: str | None,
+    selected_layers: list[str],
+    layer_cache: dict[tuple[str, str | None], dict[str, set[str]]],
+    feature_cache: Any | None = None,
+) -> dict[str, Any]:
+    layers_a = load_layers_for_pairwise(
+        apk_a,
+        decoded_a,
+        selected_layers,
+        layer_cache,
+        feature_cache=feature_cache,
+    )
+    layers_b = load_layers_for_pairwise(
+        apk_b,
+        decoded_b,
+        selected_layers,
+        layer_cache,
+        feature_cache=feature_cache,
+    )
+    return build_code_stats_containment_policy_fields(
+        layers_a=layers_a,
+        layers_b=layers_b,
+        selected_layers=selected_layers,
+    )
+
+
+def apply_code_stats_containment_score_policy(
+    pair_row: dict[str, Any],
+    threshold: float,
+) -> None:
+    base_score = pair_row.get("library_reduced_score")
+    base_source = "library_reduced_score"
+    if base_score is None:
+        base_score = pair_row.get("full_similarity_score")
+        base_source = "full_similarity_score"
+
+    selected_score = base_score
+    score_source = base_source
+    if pair_row.get("code_stats_containment_policy_applied") is True:
+        containment_score = pair_row.get("code_stats_containment_score")
+        try:
+            containment_value = float(containment_score)
+        except (TypeError, ValueError):
+            containment_value = None
+        if containment_value is not None:
+            selected_score = containment_value
+            score_source = CODE_STATS_CONTAINMENT_SCORE_SOURCE
+
+    pair_row["similarity_score"] = selected_score
+    pair_row["selected_similarity_score"] = selected_score
+    pair_row["similarity_score_source"] = score_source
+    pair_row["library_reduced_status"] = (
+        "computed" if pair_row.get("library_reduced_score") is not None else "not_computed"
+    )
+    pair_row["failure_similarity_semantics"] = None
+    pair_row["score_decision_policy_id"] = DEEP_M2_SCORE_DECISION_POLICY_ID
+    pair_row["packaging_evidence_role"] = "evidence_only"
+    pair_row["packaging_score_included"] = False
+
+    try:
+        decision_score = float(selected_score) if selected_score is not None else None
+    except (TypeError, ValueError):
+        decision_score = None
+    if decision_score is not None:
+        pair_row["status"] = "success" if decision_score >= threshold else "low_similarity"
+
+
 def calculate_pair_scores(
     apk_a: str,
     apk_b: str,
@@ -1515,6 +1660,37 @@ def _compute_pair_row_with_caches(
                 "views_used": layers_used,
             }
         )
+        if "code" in selected_layers and "resource" in selected_layers:
+            try:
+                pair_row.update(
+                    build_code_stats_containment_policy_fields_for_pair(
+                        apk_a=apk_a,
+                        apk_b=apk_b,
+                        decoded_a=decoded_a,
+                        decoded_b=decoded_b,
+                        selected_layers=selected_layers,
+                        layer_cache=layer_cache,
+                        feature_cache=feature_cache,
+                    )
+                )
+            except Exception as policy_error:
+                pair_row.update(
+                    {
+                        "code_stats_containment_policy_id": (
+                            CODE_STATS_CONTAINMENT_POLICY_ID
+                        ),
+                        "code_stats_containment_policy_applied": False,
+                        "code_stats_containment_policy_error": str(policy_error),
+                    }
+                )
+        else:
+            pair_row.update(
+                {
+                    "code_stats_containment_policy_id": CODE_STATS_CONTAINMENT_POLICY_ID,
+                    "code_stats_containment_policy_applied": False,
+                }
+            )
+        apply_code_stats_containment_score_policy(pair_row, threshold=threshold)
     except Exception:
         pair_row.update(
             {
@@ -2079,8 +2255,16 @@ def build_detailed_scores(summary_row: dict[str, Any], analysis_status: str) -> 
 
     full_score = summary_row.get("full_similarity_score")
     reduced_score = summary_row.get("library_reduced_score")
-    selected_score = reduced_score if reduced_score is not None else full_score
-    score_source = "library_reduced_score" if reduced_score is not None else "full_similarity_score"
+    explicit_score = summary_row.get("similarity_score")
+    if explicit_score is not None:
+        selected_score = explicit_score
+        score_source = str(summary_row.get("similarity_score_source") or "similarity_score")
+    elif reduced_score is not None:
+        selected_score = reduced_score
+        score_source = "library_reduced_score"
+    else:
+        selected_score = full_score
+        score_source = "full_similarity_score"
     return {
         "similarity_score": selected_score,
         "full_similarity_score": full_score,
