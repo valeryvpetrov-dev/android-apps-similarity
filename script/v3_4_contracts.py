@@ -337,7 +337,9 @@ def _selected_score_field(pair_row: dict[str, Any]) -> str:
         selected = aggregation_policy.get("selected_score_field")
         if isinstance(selected, str) and selected.strip():
             field = selected.strip()
-            if pair_row.get(field) is not None:
+            if pair_row.get(field) is not None or (
+                field in pair_row and _status_from_pair_row(pair_row) != STATUS_SUCCESS
+            ):
                 return field
     reduced = pair_row.get("library_reduced_score")
     if reduced is not None:
@@ -506,6 +508,15 @@ def build_pair_similarity_result(
             "full_similarity_score": pair_row.get("full_similarity_score"),
             "library_reduced_score": pair_row.get("library_reduced_score"),
         },
+        "selected_similarity_score": pair_row.get(
+            "selected_similarity_score", _selected_similarity_score(pair_row)
+        ),
+        "similarity_score_source": pair_row.get("similarity_score_source"),
+        "library_reduced_status": pair_row.get("library_reduced_status"),
+        "failure_similarity_semantics": pair_row.get("failure_similarity_semantics"),
+        "score_decision_policy_id": pair_row.get("score_decision_policy_id"),
+        "packaging_evidence_role": pair_row.get("packaging_evidence_role"),
+        "packaging_score_included": pair_row.get("packaging_score_included"),
         "views_used": _as_list(pair_row.get("views_used")),
         "signature_match": pair_row.get("signature_match"),
         "evidence_record": evidence_record,

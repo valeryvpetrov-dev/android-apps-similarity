@@ -295,6 +295,86 @@ class TestV34PairSimilarityResult(unittest.TestCase):
 
 
 class TestV34DetailedJsonIntegration(unittest.TestCase):
+    def test_export_pairwise_detailed_json_uses_m2_score_policy_without_fake_reduced_score(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "detailed.json"
+            pairwise_runner.export_pairwise_detailed_json(
+                results=[
+                    {
+                        "app_a": "A",
+                        "app_b": "B",
+                        "full_similarity_score": 0.76,
+                        "library_reduced_score": None,
+                        "status": "success",
+                        "views_used": ["code", "resource"],
+                        "signature_match": {"score": 0.0, "status": "mismatch"},
+                        "evidence": [],
+                        "current_dex_name_score": 1.0,
+                    }
+                ],
+                output_path=output_path,
+            )
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+        item = payload["pairs"][0]
+        self.assertEqual(item["similarity_score"], 0.76)
+        self.assertEqual(item["similarity_score_source"], "full_similarity_score")
+        self.assertEqual(item["library_reduced_status"], "not_computed")
+        self.assertEqual(item["packaging_evidence_role"], "evidence_only")
+        self.assertFalse(item["packaging_score_included"])
+        self.assertEqual(
+            item["aggregation_policy"]["policy_id"],
+            "deep_m2_score_decision_policy_v1",
+        )
+        self.assertEqual(
+            item["aggregation_policy"]["selected_score_field"],
+            "similarity_score",
+        )
+        self.assertEqual(
+            item["pair_similarity_result"]["scores"]["similarity_score"],
+            0.76,
+        )
+        self.assertEqual(
+            item["pair_similarity_result"]["scores"]["selected_score_field"],
+            "similarity_score",
+        )
+        self.assertIsNone(
+            item["pair_similarity_result"]["scores"]["library_reduced_score"]
+        )
+
+    def test_export_pairwise_detailed_json_selects_real_library_reduced_score_when_present(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "detailed.json"
+            pairwise_runner.export_pairwise_detailed_json(
+                results=[
+                    {
+                        "app_a": "A",
+                        "app_b": "B",
+                        "full_similarity_score": 0.95,
+                        "library_reduced_score": 0.61,
+                        "status": "success",
+                        "views_used": ["code", "library"],
+                        "signature_match": {"score": 1.0, "status": "match"},
+                        "evidence": [],
+                    }
+                ],
+                output_path=output_path,
+            )
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+        item = payload["pairs"][0]
+        self.assertEqual(item["similarity_score"], 0.61)
+        self.assertEqual(item["similarity_score_source"], "library_reduced_score")
+        self.assertEqual(item["library_reduced_status"], "computed")
+        self.assertEqual(
+            item["pair_similarity_result"]["scores"]["similarity_score"],
+            0.61,
+        )
+        self.assertEqual(
+            item["pair_similarity_result"]["scores"]["selected_score_field"],
+            "similarity_score",
+        )
+
     def test_export_pairwise_detailed_json_adds_v3_4_records(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = Path(tmpdir) / "detailed.json"
@@ -374,7 +454,13 @@ class TestV34DetailedJsonIntegration(unittest.TestCase):
             payload = json.loads(output_path.read_text(encoding="utf-8"))
 
         item = payload["pairs"][0]
+        self.assertEqual(item["failure_similarity_semantics"], "undefined_not_zero")
+        self.assertEqual(item["aggregation_policy"]["selected_score_field"], "similarity_score")
         self.assertIsNone(item["pair_similarity_result"]["scores"]["similarity_score"])
+        self.assertEqual(
+            item["pair_similarity_result"]["scores"]["selected_score_field"],
+            "similarity_score",
+        )
         self.assertIsNone(item["pair_similarity_result"]["scores"]["full_similarity_score"])
         self.assertIsNone(item["pair_similarity_result"]["scores"]["library_reduced_score"])
         signature_check = next(

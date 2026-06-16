@@ -36,6 +36,13 @@ SHORTCUT_STATUS_SUCCESS = "success_shortcut"
 DEEP_VERIFICATION_STATUS_SKIPPED = "skipped_shortcut"
 SHORTCUT_VERDICT_LIKELY_CLONE = "likely_clone_by_signature"
 SEMANTIC_MULTIVIEW_ENABLED_ENV = "ANDROID_SIM_SEMANTIC_MULTIVIEW"
+DEEP_M2_SCORE_DECISION_POLICY_ID = "deep_m2_score_decision_policy_v1"
+DEEP_M2_SCORE_DECISION_LIMITATIONS = (
+    "full_similarity_score_is_diagnostic_not_final_verdict",
+    "library_reduced_score_requires_real_computation",
+    "packaging_and_signature_are_evidence_only",
+    "analysis_failed_similarity_is_undefined_not_zero",
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -2065,16 +2072,23 @@ def build_detailed_scores(summary_row: dict[str, Any], analysis_status: str) -> 
             "full_similarity_score": None,
             "library_reduced_score": None,
             "selected_similarity_score": None,
+            "similarity_score_source": "analysis_failed",
+            "library_reduced_status": "not_applicable",
+            "failure_similarity_semantics": "undefined_not_zero",
         }
 
     full_score = summary_row.get("full_similarity_score")
     reduced_score = summary_row.get("library_reduced_score")
     selected_score = reduced_score if reduced_score is not None else full_score
+    score_source = "library_reduced_score" if reduced_score is not None else "full_similarity_score"
     return {
         "similarity_score": selected_score,
         "full_similarity_score": full_score,
         "library_reduced_score": reduced_score,
         "selected_similarity_score": selected_score,
+        "similarity_score_source": score_source,
+        "library_reduced_status": "computed" if reduced_score is not None else "not_computed",
+        "failure_similarity_semantics": None,
     }
 
 
@@ -2311,6 +2325,7 @@ _DETAILED_JSON_REQUIRED_FIELDS: tuple[str, ...] = (
     "app_b",
     "status",
     "analysis_failed_reason",
+    "similarity_score",
     "full_similarity_score",
     "library_reduced_score",
     "views_used",
@@ -2318,6 +2333,52 @@ _DETAILED_JSON_REQUIRED_FIELDS: tuple[str, ...] = (
     "evidence",
     "timeout_info",
 )
+
+
+def _nested_score_value(pair_row: dict[str, Any], field: str) -> Any:
+    value = pair_row.get(field)
+    if value is not None:
+        return value
+    nested_scores = pair_row.get("scores")
+    if isinstance(nested_scores, dict):
+        return nested_scores.get(field)
+    return None
+
+
+def _apply_deep_m2_score_decision(item: dict[str, Any], item_status: str) -> None:
+    if item_status == "analysis_failed":
+        item["similarity_score"] = None
+        item["full_similarity_score"] = None
+        item["library_reduced_score"] = None
+        item["selected_similarity_score"] = None
+        item["similarity_score_source"] = "analysis_failed"
+        item["library_reduced_status"] = "not_applicable"
+        item["failure_similarity_semantics"] = "undefined_not_zero"
+    else:
+        full_score = item.get("full_similarity_score")
+        reduced_score = item.get("library_reduced_score")
+        explicit_score = item.get("similarity_score")
+        if explicit_score is not None:
+            selected_score = explicit_score
+            score_source = str(item.get("similarity_score_source") or "similarity_score")
+        elif reduced_score is not None:
+            selected_score = reduced_score
+            score_source = "library_reduced_score"
+        else:
+            selected_score = full_score
+            score_source = "full_similarity_score"
+
+        item["similarity_score"] = selected_score
+        item["selected_similarity_score"] = selected_score
+        item["similarity_score_source"] = score_source
+        item["library_reduced_status"] = (
+            "computed" if reduced_score is not None else "not_computed"
+        )
+        item["failure_similarity_semantics"] = None
+
+    item["score_decision_policy_id"] = DEEP_M2_SCORE_DECISION_POLICY_ID
+    item["packaging_evidence_role"] = "evidence_only"
+    item["packaging_score_included"] = False
 
 
 def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str, Any]:
@@ -2353,12 +2414,20 @@ def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str,
     if not isinstance(views_used, list):
         views_used = []
     item_status = str(item.get("status") or "analysis_failed")
-    if item_status == "analysis_failed":
-        item["full_similarity_score"] = None
-        item["library_reduced_score"] = None
+    for score_field in (
+        "similarity_score",
+        "full_similarity_score",
+        "library_reduced_score",
+    ):
+        item[score_field] = _nested_score_value(item, score_field)
+    _apply_deep_m2_score_decision(item, item_status)
     scores = {
+        "similarity_score": item.get("similarity_score"),
         "full_similarity_score": item.get("full_similarity_score"),
         "library_reduced_score": item.get("library_reduced_score"),
+        "selected_similarity_score": item.get("selected_similarity_score"),
+        "similarity_score_source": item.get("similarity_score_source"),
+        "library_reduced_status": item.get("library_reduced_status"),
     }
     if not isinstance(item.get("explanation"), dict):
         item["explanation"] = build_detailed_explanation(scores, item_status, item)
@@ -2445,10 +2514,11 @@ def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str,
         aggregation_policy = incoming_aggregation_policy
     else:
         aggregation_policy = build_pair_aggregation_policy(
-            policy_id="library_reduced_preferred_v1",
-            strategy="prefer_library_reduced_score",
-            weights={"library_reduced_score": 1.0},
-            selected_score_field="library_reduced_score",
+            policy_id=DEEP_M2_SCORE_DECISION_POLICY_ID,
+            strategy="select_content_similarity_score_with_evidence_guards",
+            weights={"similarity_score": 1.0},
+            selected_score_field="similarity_score",
+            limitations=list(DEEP_M2_SCORE_DECISION_LIMITATIONS),
         )
     item["pair_check_runs"] = pair_check_runs
     item["aggregation_policy"] = aggregation_policy
