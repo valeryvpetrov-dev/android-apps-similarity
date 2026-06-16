@@ -48,6 +48,13 @@ CODE_STATS_CONTAINMENT_SCORE_SOURCE = "code_stats_containment_with_resource_corr
 CODE_STATS_CONTAINMENT_THRESHOLD = 0.95
 CODE_STATS_RESOURCE_CORROBORATION_THRESHOLD = 0.80
 CODE_STATS_RESOURCE_CORROBORATION_SIGNAL = "resource_path_digest"
+CODE_STATS_ADDED_CODE_POLICY_ID = "R_code_stats_added_code_corroboration_policy_v1"
+CODE_STATS_ADDED_CODE_SCORE_SOURCE = "code_stats_added_code_with_resource_support"
+CODE_STATS_ADDED_CODE_PRESERVED_CORE_THRESHOLD = 0.80
+CODE_STATS_ADDED_CODE_DELTA_THRESHOLD = 0.30
+CODE_STATS_ADDED_CODE_RESOURCE_SUPPORT_THRESHOLD = 0.75
+CODE_STATS_ADDED_CODE_MIN_PRESERVED_METHODS = 50
+CODE_STATS_ADDED_CODE_RESOURCE_SIGNAL = "resource_path_digest"
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -986,6 +993,20 @@ def flatten_library_features(features: dict[str, Any]) -> set[str]:
     return {"lib:{}".format(lib_id) for lib_id in libraries}
 
 
+def flatten_code_fingerprint_features(features: Any) -> set[str]:
+    if not isinstance(features, dict):
+        return set()
+    fingerprints = features.get("method_fingerprints")
+    if not isinstance(fingerprints, dict):
+        return set()
+    tokens: set[str] = set()
+    for method_id, fingerprint in fingerprints.items():
+        if not method_id or not fingerprint:
+            continue
+        tokens.add("method_fp:{}:{}".format(method_id, fingerprint))
+    return tokens
+
+
 def load_layers_for_pairwise(
     apk_path: str,
     decoded_dir: str | None,
@@ -1027,6 +1048,10 @@ def load_layers_for_pairwise(
 
     layers = {
         "code": normalize_pairwise_layer_tokens("code", feature_bundle.get("code", set())),
+        "code_fingerprint": flatten_code_fingerprint_features(
+            feature_bundle.get("code_v4_shingled")
+        )
+        or flatten_code_fingerprint_features(feature_bundle.get("code_v4")),
         "metadata": normalize_pairwise_layer_tokens("metadata", feature_bundle.get("metadata", set())),
         "component": normalize_pairwise_layer_tokens("component", feature_bundle.get("component", {})),
         "resource": normalize_pairwise_layer_tokens("resource", feature_bundle.get("resource", {})),
@@ -1177,6 +1202,23 @@ def _containment_direction(left: set[str], right: set[str]) -> str:
     return "same_size_partial"
 
 
+def _added_code_direction(left: set[str], right: set[str]) -> str:
+    if not left or not right:
+        return "none"
+    if len(right) > len(left):
+        return "a_to_b"
+    if len(left) > len(right):
+        return "b_to_a"
+    return "same_size_or_unknown"
+
+
+def _added_code_delta(left: set[str], right: set[str]) -> float:
+    denominator = max(len(left), len(right))
+    if denominator == 0:
+        return 0.0
+    return max(len(left - right), len(right - left)) / denominator
+
+
 def build_code_stats_containment_policy_fields(
     layers_a: dict[str, set[str]],
     layers_b: dict[str, set[str]],
@@ -1227,6 +1269,114 @@ def build_code_stats_containment_policy_fields(
     }
 
 
+def build_code_stats_added_code_policy_fields(
+    layers_a: dict[str, set[str]],
+    layers_b: dict[str, set[str]],
+    selected_layers: list[str],
+) -> dict[str, Any]:
+    """Build added-code diagnostics for the general R_code_stats policy.
+
+    This channel addresses injection-like cases without using dataset labels.
+    It can promote the selected content score only when a preserved code core
+    and independent resource support are both present.
+    """
+    selected = set(selected_layers)
+    fingerprint_a = set(layers_a.get("code_fingerprint", set()))
+    fingerprint_b = set(layers_b.get("code_fingerprint", set()))
+    if fingerprint_a or fingerprint_b:
+        code_a = fingerprint_a
+        code_b = fingerprint_b
+        code_representation = "code_fingerprint"
+    else:
+        code_a = set(layers_a.get("code", set()))
+        code_b = set(layers_b.get("code", set()))
+        code_representation = "code"
+    resource_a = set(layers_a.get("resource", set()))
+    resource_b = set(layers_b.get("resource", set()))
+
+    preserved_core = float(containment_similarity(code_a, code_b))
+    preserved_methods = len(code_a & code_b)
+    added_delta = float(_added_code_delta(code_a, code_b))
+    resource_support = float(containment_similarity(resource_a, resource_b))
+    evidence_score = min(preserved_core, resource_support)
+    active = "code" in selected and "resource" in selected
+    applied = (
+        active
+        and preserved_core >= CODE_STATS_ADDED_CODE_PRESERVED_CORE_THRESHOLD
+        and added_delta >= CODE_STATS_ADDED_CODE_DELTA_THRESHOLD
+        and resource_support >= CODE_STATS_ADDED_CODE_RESOURCE_SUPPORT_THRESHOLD
+        and preserved_methods >= CODE_STATS_ADDED_CODE_MIN_PRESERVED_METHODS
+    )
+
+    return {
+        "code_stats_added_code_policy_id": CODE_STATS_ADDED_CODE_POLICY_ID,
+        "code_stats_added_code_policy_applied": bool(applied),
+        "preserved_core_similarity": preserved_core,
+        "preserved_core_method_count": int(preserved_methods),
+        "preserved_core_threshold": CODE_STATS_ADDED_CODE_PRESERVED_CORE_THRESHOLD,
+        "added_code_delta": added_delta,
+        "added_code_delta_threshold": CODE_STATS_ADDED_CODE_DELTA_THRESHOLD,
+        "added_code_direction": _added_code_direction(code_a, code_b),
+        "added_code_resource_support_score": resource_support,
+        "added_code_resource_support_threshold": (
+            CODE_STATS_ADDED_CODE_RESOURCE_SUPPORT_THRESHOLD
+        ),
+        "added_code_resource_support_signal": CODE_STATS_ADDED_CODE_RESOURCE_SIGNAL,
+        "added_code_evidence_score": evidence_score,
+        "added_code_representation": code_representation,
+        "added_code_min_preserved_methods": (
+            CODE_STATS_ADDED_CODE_MIN_PRESERVED_METHODS
+        ),
+        "payload_or_hook_hint": (
+            "added_code_delta_candidate"
+            if added_delta >= CODE_STATS_ADDED_CODE_DELTA_THRESHOLD
+            else None
+        ),
+        "permission_or_component_delta": "not_extracted_current_profile",
+    }
+
+
+def build_code_stats_policy_fields_for_pair(
+    apk_a: str,
+    apk_b: str,
+    decoded_a: str | None,
+    decoded_b: str | None,
+    selected_layers: list[str],
+    layer_cache: dict[tuple[str, str | None], dict[str, set[str]]],
+    feature_cache: Any | None = None,
+) -> dict[str, Any]:
+    layers_a = load_layers_for_pairwise(
+        apk_a,
+        decoded_a,
+        selected_layers,
+        layer_cache,
+        feature_cache=feature_cache,
+    )
+    layers_b = load_layers_for_pairwise(
+        apk_b,
+        decoded_b,
+        selected_layers,
+        layer_cache,
+        feature_cache=feature_cache,
+    )
+    fields: dict[str, Any] = {}
+    fields.update(
+        build_code_stats_containment_policy_fields(
+            layers_a=layers_a,
+            layers_b=layers_b,
+            selected_layers=selected_layers,
+        )
+    )
+    fields.update(
+        build_code_stats_added_code_policy_fields(
+            layers_a=layers_a,
+            layers_b=layers_b,
+            selected_layers=selected_layers,
+        )
+    )
+    return fields
+
+
 def build_code_stats_containment_policy_fields_for_pair(
     apk_a: str,
     apk_b: str,
@@ -1257,7 +1407,7 @@ def build_code_stats_containment_policy_fields_for_pair(
     )
 
 
-def apply_code_stats_containment_score_policy(
+def apply_code_stats_score_policy(
     pair_row: dict[str, Any],
     threshold: float,
 ) -> None:
@@ -1269,15 +1419,40 @@ def apply_code_stats_containment_score_policy(
 
     selected_score = base_score
     score_source = base_source
-    if pair_row.get("code_stats_containment_policy_applied") is True:
-        containment_score = pair_row.get("code_stats_containment_score")
+    selected_score_numeric: float | None
+    try:
+        selected_score_numeric = (
+            float(selected_score) if selected_score is not None else None
+        )
+    except (TypeError, ValueError):
+        selected_score_numeric = None
+
+    score_candidates = (
+        (
+            pair_row.get("code_stats_containment_policy_applied") is True,
+            pair_row.get("code_stats_containment_score"),
+            CODE_STATS_CONTAINMENT_SCORE_SOURCE,
+        ),
+        (
+            pair_row.get("code_stats_added_code_policy_applied") is True,
+            pair_row.get("added_code_evidence_score"),
+            CODE_STATS_ADDED_CODE_SCORE_SOURCE,
+        ),
+    )
+    for is_applied, candidate_score, candidate_source in score_candidates:
+        if not is_applied:
+            continue
         try:
-            containment_value = float(containment_score)
+            candidate_value = float(candidate_score)
         except (TypeError, ValueError):
-            containment_value = None
-        if containment_value is not None:
-            selected_score = containment_value
-            score_source = CODE_STATS_CONTAINMENT_SCORE_SOURCE
+            continue
+        if (
+            selected_score_numeric is None
+            or candidate_value > selected_score_numeric
+        ):
+            selected_score = candidate_value
+            selected_score_numeric = candidate_value
+            score_source = candidate_source
 
     pair_row["similarity_score"] = selected_score
     pair_row["selected_similarity_score"] = selected_score
@@ -1296,6 +1471,13 @@ def apply_code_stats_containment_score_policy(
         decision_score = None
     if decision_score is not None:
         pair_row["status"] = "success" if decision_score >= threshold else "low_similarity"
+
+
+def apply_code_stats_containment_score_policy(
+    pair_row: dict[str, Any],
+    threshold: float,
+) -> None:
+    apply_code_stats_score_policy(pair_row, threshold=threshold)
 
 
 def calculate_pair_scores(
@@ -1663,7 +1845,7 @@ def _compute_pair_row_with_caches(
         if "code" in selected_layers and "resource" in selected_layers:
             try:
                 pair_row.update(
-                    build_code_stats_containment_policy_fields_for_pair(
+                    build_code_stats_policy_fields_for_pair(
                         apk_a=apk_a,
                         apk_b=apk_b,
                         decoded_a=decoded_a,
@@ -1681,6 +1863,11 @@ def _compute_pair_row_with_caches(
                         ),
                         "code_stats_containment_policy_applied": False,
                         "code_stats_containment_policy_error": str(policy_error),
+                        "code_stats_added_code_policy_id": (
+                            CODE_STATS_ADDED_CODE_POLICY_ID
+                        ),
+                        "code_stats_added_code_policy_applied": False,
+                        "code_stats_added_code_policy_error": str(policy_error),
                     }
                 )
         else:
@@ -1688,9 +1875,11 @@ def _compute_pair_row_with_caches(
                 {
                     "code_stats_containment_policy_id": CODE_STATS_CONTAINMENT_POLICY_ID,
                     "code_stats_containment_policy_applied": False,
+                    "code_stats_added_code_policy_id": CODE_STATS_ADDED_CODE_POLICY_ID,
+                    "code_stats_added_code_policy_applied": False,
                 }
             )
-        apply_code_stats_containment_score_policy(pair_row, threshold=threshold)
+        apply_code_stats_score_policy(pair_row, threshold=threshold)
     except Exception:
         pair_row.update(
             {
