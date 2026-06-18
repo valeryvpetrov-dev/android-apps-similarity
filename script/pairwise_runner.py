@@ -71,6 +71,15 @@ CODE_STATS_REPACK_CORE_SCORE_SOURCE = (
 CODE_STATS_REPACK_CORE_THRESHOLD = 0.85
 CODE_STATS_REPACK_CORE_MAX_ADDED_DELTA = 0.30
 CODE_STATS_REPACK_CORE_MIN_METHODS = 2000
+CODE_STATS_PAYLOAD_RESOURCE_POLICY_ID = (
+    "R_code_stats_payload_resource_support_policy_v1"
+)
+CODE_STATS_PAYLOAD_RESOURCE_SCORE_SOURCE = "code_stats_payload_resource_support"
+CODE_STATS_PAYLOAD_RESOURCE_CODE_THRESHOLD = 0.70
+CODE_STATS_PAYLOAD_RESOURCE_SUPPORT_THRESHOLD = 0.55
+CODE_STATS_PAYLOAD_RESOURCE_MIN_METHODS = 50
+CODE_STATS_PAYLOAD_RESOURCE_MAX_ADDED_DELTA = 0.90
+CODE_STATS_PAYLOAD_RESOURCE_SCORE_THRESHOLD = 0.70
 CODE_CONFLICT_GUARD_POLICY_ID = "score_conflict_guard_zero_code_fingerprint_v1"
 CODE_CONFLICT_GUARD_SCORE_SOURCE = "code_conflict_guarded_library_reduced_score"
 CODE_CONFLICT_GUARD_REVIEW_THRESHOLD = 0.30
@@ -1465,6 +1474,63 @@ def build_code_stats_repack_core_policy_fields(
     }
 
 
+def build_code_stats_payload_resource_policy_fields(
+    layers_a: dict[str, set[str]],
+    layers_b: dict[str, set[str]],
+    selected_layers: list[str],
+) -> dict[str, Any]:
+    """Build diagnostics for code/resource supported payload-like changes.
+
+    This channel does not use dataset labels. It requires independent evidence
+    from method fingerprints and resource digests, and limits the accepted code
+    delta so near-total replacement is not promoted.
+    """
+    selected = set(selected_layers)
+    fingerprint_a = set(layers_a.get("code_fingerprint", set()))
+    fingerprint_b = set(layers_b.get("code_fingerprint", set()))
+    resource_a = set(layers_a.get("resource", set()))
+    resource_b = set(layers_b.get("resource", set()))
+
+    code_similarity = float(containment_similarity(fingerprint_a, fingerprint_b))
+    preserved_methods = len(fingerprint_a & fingerprint_b)
+    added_delta = float(_added_code_delta(fingerprint_a, fingerprint_b))
+    resource_support = float(containment_similarity(resource_a, resource_b))
+    payload_score = (code_similarity + resource_support) / 2.0
+    active = "code" in selected and "resource" in selected
+    fingerprint_available = bool(fingerprint_a or fingerprint_b)
+    applied = (
+        active
+        and fingerprint_available
+        and code_similarity >= CODE_STATS_PAYLOAD_RESOURCE_CODE_THRESHOLD
+        and resource_support >= CODE_STATS_PAYLOAD_RESOURCE_SUPPORT_THRESHOLD
+        and preserved_methods >= CODE_STATS_PAYLOAD_RESOURCE_MIN_METHODS
+        and added_delta <= CODE_STATS_PAYLOAD_RESOURCE_MAX_ADDED_DELTA
+        and payload_score >= CODE_STATS_PAYLOAD_RESOURCE_SCORE_THRESHOLD
+    )
+
+    return {
+        "code_stats_payload_resource_policy_id": (
+            CODE_STATS_PAYLOAD_RESOURCE_POLICY_ID
+        ),
+        "code_stats_payload_resource_policy_applied": bool(applied),
+        "payload_resource_score": payload_score,
+        "payload_resource_code_similarity": code_similarity,
+        "payload_resource_code_threshold": CODE_STATS_PAYLOAD_RESOURCE_CODE_THRESHOLD,
+        "payload_resource_method_count": int(preserved_methods),
+        "payload_resource_min_methods": CODE_STATS_PAYLOAD_RESOURCE_MIN_METHODS,
+        "payload_resource_added_code_delta": added_delta,
+        "payload_resource_max_added_delta": (
+            CODE_STATS_PAYLOAD_RESOURCE_MAX_ADDED_DELTA
+        ),
+        "payload_resource_support_score": resource_support,
+        "payload_resource_support_threshold": (
+            CODE_STATS_PAYLOAD_RESOURCE_SUPPORT_THRESHOLD
+        ),
+        "payload_resource_score_threshold": CODE_STATS_PAYLOAD_RESOURCE_SCORE_THRESHOLD,
+        "payload_resource_representation": "code_fingerprint",
+    }
+
+
 def build_code_stats_policy_fields_for_pair(
     apk_a: str,
     apk_b: str,
@@ -1512,6 +1578,13 @@ def build_code_stats_policy_fields_for_pair(
     )
     fields.update(
         build_code_stats_repack_core_policy_fields(
+            layers_a=layers_a,
+            layers_b=layers_b,
+            selected_layers=selected_layers,
+        )
+    )
+    fields.update(
+        build_code_stats_payload_resource_policy_fields(
             layers_a=layers_a,
             layers_b=layers_b,
             selected_layers=selected_layers,
@@ -1590,6 +1663,16 @@ def apply_code_stats_score_policy(
             pair_row.get("code_stats_repack_core_policy_applied") is True,
             pair_row.get("repack_core_score"),
             CODE_STATS_REPACK_CORE_SCORE_SOURCE,
+        ),
+        (
+            pair_row.get("code_stats_payload_resource_policy_applied") is True
+            and pair_row.get("code_stats_containment_policy_applied") is not True
+            and pair_row.get("code_stats_added_code_policy_applied") is not True
+            and pair_row.get("code_stats_resource_change_identity_policy_applied")
+            is not True
+            and pair_row.get("code_stats_repack_core_policy_applied") is not True,
+            pair_row.get("payload_resource_score"),
+            CODE_STATS_PAYLOAD_RESOURCE_SCORE_SOURCE,
         ),
     )
     for is_applied, candidate_score, candidate_source in score_candidates:
