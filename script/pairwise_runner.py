@@ -64,6 +64,13 @@ CODE_STATS_RESOURCE_CHANGE_IDENTITY_SCORE_SOURCE = (
 CODE_STATS_RESOURCE_CHANGE_IDENTITY_THRESHOLD = 0.99
 CODE_STATS_RESOURCE_CHANGE_IDENTITY_MAX_ADDED_DELTA = 0.05
 CODE_STATS_RESOURCE_CHANGE_IDENTITY_MIN_METHODS = 10
+CODE_STATS_REPACK_CORE_POLICY_ID = "R_code_stats_repack_core_policy_v1"
+CODE_STATS_REPACK_CORE_SCORE_SOURCE = (
+    "code_stats_repack_core_with_bounded_code_delta"
+)
+CODE_STATS_REPACK_CORE_THRESHOLD = 0.85
+CODE_STATS_REPACK_CORE_MAX_ADDED_DELTA = 0.30
+CODE_STATS_REPACK_CORE_MIN_METHODS = 2000
 CODE_CONFLICT_GUARD_POLICY_ID = "score_conflict_guard_zero_code_fingerprint_v1"
 CODE_CONFLICT_GUARD_SCORE_SOURCE = "code_conflict_guarded_library_reduced_score"
 CODE_CONFLICT_GUARD_REVIEW_THRESHOLD = 0.30
@@ -1406,6 +1413,58 @@ def build_code_stats_resource_change_identity_policy_fields(
     }
 
 
+def build_code_stats_repack_core_policy_fields(
+    layers_a: dict[str, set[str]],
+    layers_b: dict[str, set[str]],
+    selected_layers: list[str],
+) -> dict[str, Any]:
+    """Build diagnostics for a large preserved code core.
+
+    This channel addresses repackaging-like cases without dataset labels: a
+    large method-fingerprint core remains, code delta is bounded, and resources
+    changed enough that ordinary resource corroboration is not expected.
+    """
+    selected = set(selected_layers)
+    fingerprint_a = set(layers_a.get("code_fingerprint", set()))
+    fingerprint_b = set(layers_b.get("code_fingerprint", set()))
+    resource_a = set(layers_a.get("resource", set()))
+    resource_b = set(layers_b.get("resource", set()))
+
+    preserved_core = float(containment_similarity(fingerprint_a, fingerprint_b))
+    preserved_methods = len(fingerprint_a & fingerprint_b)
+    added_delta = float(_added_code_delta(fingerprint_a, fingerprint_b))
+    repack_core_score = min(preserved_core, max(0.0, 1.0 - added_delta))
+    resource_support = float(containment_similarity(resource_a, resource_b))
+    active = "code" in selected and "resource" in selected
+    fingerprint_available = bool(fingerprint_a or fingerprint_b)
+    resource_changed = resource_support < CODE_STATS_RESOURCE_CORROBORATION_THRESHOLD
+    applied = (
+        active
+        and fingerprint_available
+        and preserved_core >= CODE_STATS_REPACK_CORE_THRESHOLD
+        and added_delta <= CODE_STATS_REPACK_CORE_MAX_ADDED_DELTA
+        and preserved_methods >= CODE_STATS_REPACK_CORE_MIN_METHODS
+        and resource_changed
+    )
+
+    return {
+        "code_stats_repack_core_policy_id": CODE_STATS_REPACK_CORE_POLICY_ID,
+        "code_stats_repack_core_policy_applied": bool(applied),
+        "repack_core_score": repack_core_score,
+        "repack_core_similarity": preserved_core,
+        "repack_core_threshold": CODE_STATS_REPACK_CORE_THRESHOLD,
+        "repack_core_method_count": int(preserved_methods),
+        "repack_core_min_methods": CODE_STATS_REPACK_CORE_MIN_METHODS,
+        "repack_core_added_code_delta": added_delta,
+        "repack_core_max_added_delta": CODE_STATS_REPACK_CORE_MAX_ADDED_DELTA,
+        "repack_core_resource_support_score": resource_support,
+        "repack_core_max_resource_support": (
+            CODE_STATS_RESOURCE_CORROBORATION_THRESHOLD
+        ),
+        "repack_core_representation": "code_fingerprint",
+    }
+
+
 def build_code_stats_policy_fields_for_pair(
     apk_a: str,
     apk_b: str,
@@ -1446,6 +1505,13 @@ def build_code_stats_policy_fields_for_pair(
     )
     fields.update(
         build_code_stats_resource_change_identity_policy_fields(
+            layers_a=layers_a,
+            layers_b=layers_b,
+            selected_layers=selected_layers,
+        )
+    )
+    fields.update(
+        build_code_stats_repack_core_policy_fields(
             layers_a=layers_a,
             layers_b=layers_b,
             selected_layers=selected_layers,
@@ -1519,6 +1585,11 @@ def apply_code_stats_score_policy(
             pair_row.get("code_stats_resource_change_identity_policy_applied") is True,
             pair_row.get("resource_change_identity_score"),
             CODE_STATS_RESOURCE_CHANGE_IDENTITY_SCORE_SOURCE,
+        ),
+        (
+            pair_row.get("code_stats_repack_core_policy_applied") is True,
+            pair_row.get("repack_core_score"),
+            CODE_STATS_REPACK_CORE_SCORE_SOURCE,
         ),
     )
     for is_applied, candidate_score, candidate_source in score_candidates:

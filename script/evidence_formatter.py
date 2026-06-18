@@ -282,6 +282,16 @@ def collect_evidence_from_pairwise(pair_row: dict) -> list[dict]:
             )
         )
 
+    if pair_row.get("code_stats_repack_core_policy_applied") is True:
+        evidence.append(
+            make_evidence(
+                source_stage="pairwise",
+                signal_type="large_preserved_code_core",
+                magnitude=_clamp_unit(pair_row.get("repack_core_score")),
+                ref="R_code_stats_repack_core",
+            )
+        )
+
     signature_match = pair_row.get("signature_match")
     if isinstance(signature_match, dict) and "score" in signature_match:
         magnitude = _clamp_unit(signature_match.get("score"))
