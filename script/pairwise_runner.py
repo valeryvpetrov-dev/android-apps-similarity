@@ -55,6 +55,15 @@ CODE_STATS_ADDED_CODE_DELTA_THRESHOLD = 0.30
 CODE_STATS_ADDED_CODE_RESOURCE_SUPPORT_THRESHOLD = 0.75
 CODE_STATS_ADDED_CODE_MIN_PRESERVED_METHODS = 50
 CODE_STATS_ADDED_CODE_RESOURCE_SIGNAL = "resource_path_digest"
+CODE_STATS_RESOURCE_CHANGE_IDENTITY_POLICY_ID = (
+    "R_code_stats_resource_change_identity_policy_v1"
+)
+CODE_STATS_RESOURCE_CHANGE_IDENTITY_SCORE_SOURCE = (
+    "code_stats_resource_change_tolerant_code_identity"
+)
+CODE_STATS_RESOURCE_CHANGE_IDENTITY_THRESHOLD = 0.99
+CODE_STATS_RESOURCE_CHANGE_IDENTITY_MAX_ADDED_DELTA = 0.05
+CODE_STATS_RESOURCE_CHANGE_IDENTITY_MIN_METHODS = 10
 CODE_CONFLICT_GUARD_POLICY_ID = "score_conflict_guard_zero_code_fingerprint_v1"
 CODE_CONFLICT_GUARD_SCORE_SOURCE = "code_conflict_guarded_library_reduced_score"
 CODE_CONFLICT_GUARD_REVIEW_THRESHOLD = 0.30
@@ -1344,6 +1353,59 @@ def build_code_stats_added_code_policy_fields(
     }
 
 
+def build_code_stats_resource_change_identity_policy_fields(
+    layers_a: dict[str, set[str]],
+    layers_b: dict[str, set[str]],
+    selected_layers: list[str],
+) -> dict[str, Any]:
+    selected = set(selected_layers)
+    fingerprint_a = set(layers_a.get("code_fingerprint", set()))
+    fingerprint_b = set(layers_b.get("code_fingerprint", set()))
+    resource_a = set(layers_a.get("resource", set()))
+    resource_b = set(layers_b.get("resource", set()))
+
+    preserved_core = float(containment_similarity(fingerprint_a, fingerprint_b))
+    preserved_methods = len(fingerprint_a & fingerprint_b)
+    added_delta = float(_added_code_delta(fingerprint_a, fingerprint_b))
+    resource_support = float(containment_similarity(resource_a, resource_b))
+    active = "code" in selected and "resource" in selected
+    fingerprint_available = bool(fingerprint_a or fingerprint_b)
+    resource_changed = resource_support < CODE_STATS_RESOURCE_CORROBORATION_THRESHOLD
+    applied = (
+        active
+        and fingerprint_available
+        and preserved_core >= CODE_STATS_RESOURCE_CHANGE_IDENTITY_THRESHOLD
+        and added_delta <= CODE_STATS_RESOURCE_CHANGE_IDENTITY_MAX_ADDED_DELTA
+        and preserved_methods >= CODE_STATS_RESOURCE_CHANGE_IDENTITY_MIN_METHODS
+        and resource_changed
+    )
+
+    return {
+        "code_stats_resource_change_identity_policy_id": (
+            CODE_STATS_RESOURCE_CHANGE_IDENTITY_POLICY_ID
+        ),
+        "code_stats_resource_change_identity_policy_applied": bool(applied),
+        "resource_change_identity_score": preserved_core,
+        "resource_change_identity_code_similarity": preserved_core,
+        "resource_change_identity_threshold": (
+            CODE_STATS_RESOURCE_CHANGE_IDENTITY_THRESHOLD
+        ),
+        "resource_change_identity_method_count": int(preserved_methods),
+        "resource_change_identity_min_methods": (
+            CODE_STATS_RESOURCE_CHANGE_IDENTITY_MIN_METHODS
+        ),
+        "resource_change_identity_added_code_delta": added_delta,
+        "resource_change_identity_max_added_delta": (
+            CODE_STATS_RESOURCE_CHANGE_IDENTITY_MAX_ADDED_DELTA
+        ),
+        "resource_change_identity_resource_support_score": resource_support,
+        "resource_change_identity_resource_change_threshold": (
+            CODE_STATS_RESOURCE_CORROBORATION_THRESHOLD
+        ),
+        "resource_change_identity_representation": "code_fingerprint",
+    }
+
+
 def build_code_stats_policy_fields_for_pair(
     apk_a: str,
     apk_b: str,
@@ -1377,6 +1439,13 @@ def build_code_stats_policy_fields_for_pair(
     )
     fields.update(
         build_code_stats_added_code_policy_fields(
+            layers_a=layers_a,
+            layers_b=layers_b,
+            selected_layers=selected_layers,
+        )
+    )
+    fields.update(
+        build_code_stats_resource_change_identity_policy_fields(
             layers_a=layers_a,
             layers_b=layers_b,
             selected_layers=selected_layers,
@@ -1445,6 +1514,11 @@ def apply_code_stats_score_policy(
             pair_row.get("code_stats_added_code_policy_applied") is True,
             pair_row.get("added_code_evidence_score"),
             CODE_STATS_ADDED_CODE_SCORE_SOURCE,
+        ),
+        (
+            pair_row.get("code_stats_resource_change_identity_policy_applied") is True,
+            pair_row.get("resource_change_identity_score"),
+            CODE_STATS_RESOURCE_CHANGE_IDENTITY_SCORE_SOURCE,
         ),
     )
     for is_applied, candidate_score, candidate_source in score_candidates:
