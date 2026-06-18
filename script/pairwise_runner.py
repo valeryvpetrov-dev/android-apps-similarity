@@ -55,6 +55,14 @@ CODE_STATS_ADDED_CODE_DELTA_THRESHOLD = 0.30
 CODE_STATS_ADDED_CODE_RESOURCE_SUPPORT_THRESHOLD = 0.75
 CODE_STATS_ADDED_CODE_MIN_PRESERVED_METHODS = 50
 CODE_STATS_ADDED_CODE_RESOURCE_SIGNAL = "resource_path_digest"
+CODE_CONFLICT_GUARD_POLICY_ID = "score_conflict_guard_zero_code_fingerprint_v1"
+CODE_CONFLICT_GUARD_SCORE_SOURCE = "code_conflict_guarded_library_reduced_score"
+CODE_CONFLICT_GUARD_REVIEW_THRESHOLD = 0.30
+CODE_CONFLICT_GUARD_HIGH_THRESHOLD = 0.70
+CODE_CONFLICT_GUARD_REVIEW_CAP = 0.29
+CODE_CONFLICT_GUARD_REASON = (
+    "zero_code_fingerprint_overlap_for_library_reduced_review_score"
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -1453,6 +1461,49 @@ def apply_code_stats_score_policy(
             selected_score = candidate_value
             selected_score_numeric = candidate_value
             score_source = candidate_source
+
+    pair_row["score_conflict_guard_policy_id"] = CODE_CONFLICT_GUARD_POLICY_ID
+    pair_row["score_conflict_guard_applied"] = False
+    pair_row["score_conflict_guard_reason"] = None
+    pair_row["score_conflict_guard_original_score"] = None
+    pair_row["score_conflict_guard_adjusted_score"] = None
+    pair_row["score_conflict_guard_review_threshold"] = (
+        CODE_CONFLICT_GUARD_REVIEW_THRESHOLD
+    )
+    pair_row["score_conflict_guard_high_threshold"] = (
+        CODE_CONFLICT_GUARD_HIGH_THRESHOLD
+    )
+    pair_row["score_conflict_guard_cap"] = CODE_CONFLICT_GUARD_REVIEW_CAP
+    if score_source == "library_reduced_score" and selected_score_numeric is not None:
+        try:
+            preserved_core = float(pair_row.get("preserved_core_similarity"))
+        except (TypeError, ValueError):
+            preserved_core = None
+        try:
+            preserved_methods = int(pair_row.get("preserved_core_method_count"))
+        except (TypeError, ValueError):
+            preserved_methods = None
+        has_code_fingerprint_conflict = (
+            pair_row.get("added_code_representation") == "code_fingerprint"
+            and preserved_core == 0.0
+            and preserved_methods == 0
+        )
+        is_review_score = (
+            selected_score_numeric >= CODE_CONFLICT_GUARD_REVIEW_THRESHOLD
+            and selected_score_numeric < CODE_CONFLICT_GUARD_HIGH_THRESHOLD
+        )
+        if has_code_fingerprint_conflict and is_review_score:
+            original_score = selected_score_numeric
+            selected_score = min(
+                selected_score_numeric,
+                CODE_CONFLICT_GUARD_REVIEW_CAP,
+            )
+            selected_score_numeric = float(selected_score)
+            score_source = CODE_CONFLICT_GUARD_SCORE_SOURCE
+            pair_row["score_conflict_guard_applied"] = True
+            pair_row["score_conflict_guard_reason"] = CODE_CONFLICT_GUARD_REASON
+            pair_row["score_conflict_guard_original_score"] = original_score
+            pair_row["score_conflict_guard_adjusted_score"] = selected_score_numeric
 
     pair_row["similarity_score"] = selected_score
     pair_row["selected_similarity_score"] = selected_score
