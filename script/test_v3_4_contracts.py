@@ -32,6 +32,10 @@ class TestV34PairEvidenceRecord(unittest.TestCase):
         required_builder_names = [
             "build_architecture_profile",
             "build_representation_spec",
+            "build_extractor_capability",
+            "build_extractor_context",
+            "build_extractor_registry",
+            "build_extractor_run_record",
             "build_view_registry",
             "build_view_type_field_policy",
             "build_measure_registry",
@@ -96,9 +100,103 @@ class TestV34PairEvidenceRecord(unittest.TestCase):
         self.assertEqual(spec["schema_version"], V3_4_SCHEMA_VERSION)
         self.assertEqual(spec["record_type"], "RepresentationSpec")
         self.assertEqual(spec["profile_id"], "demo-v3.4")
+        self.assertEqual(spec["extractor_registry"]["record_type"], "ExtractorRegistry")
         self.assertEqual(spec["view_registry"]["record_type"], "ViewRegistry")
         self.assertEqual(spec["measure_registry"]["record_type"], "MeasureRegistry")
         self.assertEqual(spec["noise_policy_registry"]["record_type"], "NoisePolicyRegistry")
+
+    def test_representation_spec_accepts_explicit_extractor_registry(self) -> None:
+        extractor = v3_4_contracts.build_extractor_capability(
+            extractor_id="zip_light_extractor",
+            supported_views=["code", "resource"],
+            supported_modes=["light"],
+            cost={"class": "low"},
+            tool_name="python-zipfile",
+            tool_version="stdlib",
+        )
+
+        spec = v3_4_contracts.build_representation_spec(
+            profile_id="service-v3.4",
+            views=["code", "resource"],
+            measures=["jaccard"],
+            extractor_registry=[extractor],
+        )
+
+        registry = spec["extractor_registry"]
+        self.assertEqual(registry["record_type"], "ExtractorRegistry")
+        self.assertEqual(registry["extractors"][0]["extractor_id"], "zip_light_extractor")
+        self.assertEqual(registry["extractors"][0]["supported_modes"], ["light"])
+
+    def test_extractor_run_record_keeps_status_cache_and_provenance(self) -> None:
+        record = v3_4_contracts.build_extractor_run_record(
+            extractor_id="zip_light_extractor",
+            extractor_version="zip-light-v1",
+            tool_name="python-zipfile",
+            tool_version="3.11",
+            mode="light",
+            apk_sha256="sha256:apk",
+            requested_views=["code", "resource"],
+            produced_views=["code"],
+            status="partial_result",
+            started_at="2026-06-19T10:00:00Z",
+            finished_at="2026-06-19T10:00:01Z",
+            duration_ms=1000,
+            cache_key="sha256:cache",
+            cache_status="miss",
+            profile_ref="profiles/current.yaml",
+            representation_spec_ref="profiles/current.yaml#representation_spec",
+            config_hash="sha256:config",
+            errors=["resource_decode_failed"],
+            warnings=["partial_resource_view"],
+        )
+
+        self.assertEqual(record["schema_version"], V3_4_SCHEMA_VERSION)
+        self.assertEqual(record["record_type"], "ExtractorRunRecord")
+        self.assertEqual(record["status"], "partial_result")
+        self.assertEqual(record["requested_views"], ["code", "resource"])
+        self.assertEqual(record["produced_views"], ["code"])
+        self.assertEqual(record["cache_key"], "sha256:cache")
+        self.assertEqual(record["tool_name"], "python-zipfile")
+        self.assertEqual(record["errors"], ["resource_decode_failed"])
+
+    def test_extractor_run_record_preserves_typed_failures(self) -> None:
+        record = v3_4_contracts.build_extractor_run_record(
+            extractor_id="androguard_extractor",
+            extractor_version="ag-v0",
+            mode="deep",
+            apk_sha256="sha256:apk",
+            requested_views=["R_api"],
+            status="tool_unavailable",
+            errors=["androguard_missing"],
+        )
+
+        self.assertEqual(record["status"], "tool_unavailable")
+        self.assertEqual(record["produced_views"], [])
+        self.assertEqual(record["errors"], ["androguard_missing"])
+
+    def test_view_artifact_record_can_link_to_extractor_run(self) -> None:
+        extractor_run = v3_4_contracts.build_extractor_run_record(
+            extractor_id="zip_light_extractor",
+            extractor_version="zip-light-v1",
+            mode="light",
+            apk_sha256="sha256:apk",
+            requested_views=["code"],
+            produced_views=["code"],
+            status="success",
+            cache_key="sha256:cache",
+        )
+
+        view = v3_4_contracts.build_view_artifact_record(
+            apk_id="APP-A",
+            view_type="code",
+            artifact_ref={"feature_count": 12},
+            extractor_run_ref=extractor_run["run_id"],
+            extractor_run_record=extractor_run,
+        )
+
+        self.assertEqual(view["record_type"], "ViewArtifactRecord")
+        self.assertEqual(view["extractor_run_ref"], extractor_run["run_id"])
+        self.assertEqual(view["extractor_run_record"]["record_type"], "ExtractorRunRecord")
 
     def test_pair_evidence_record_wraps_existing_evidence_without_rewriting(self) -> None:
         evidence = [

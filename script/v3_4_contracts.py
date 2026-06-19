@@ -21,6 +21,10 @@ VIEW_REGISTRY = "ViewRegistry"
 VIEW_TYPE_FIELD_POLICY = "ViewTypeFieldPolicy"
 MEASURE_REGISTRY = "MeasureRegistry"
 NOISE_POLICY_REGISTRY = "NoisePolicyRegistry"
+EXTRACTOR_REGISTRY = "ExtractorRegistry"
+EXTRACTOR_CAPABILITY = "ExtractorCapability"
+EXTRACTOR_CONTEXT = "ExtractorContext"
+EXTRACTOR_RUN_RECORD = "ExtractorRunRecord"
 CORPUS_MANIFEST = "CorpusManifest"
 APK_ANALYSIS_RECORD = "ApkAnalysisRecord"
 VIEW_ARTIFACT_RECORD = "ViewArtifactRecord"
@@ -44,6 +48,9 @@ STATUS_ANALYSIS_FAILED = "analysis_failed"
 STATUS_MODEL_FAILED = "model_failed"
 STATUS_COMPARISON_FAILED = "comparison_failed"
 STATUS_TIMEOUT = "timeout"
+STATUS_TOOL_UNAVAILABLE = "tool_unavailable"
+STATUS_UNSUPPORTED_INPUT = "unsupported_input"
+STATUS_CACHE_INCOMPATIBLE = "cache_incompatible"
 STATUS_INCOMPATIBLE_INPUTS = "incompatible_inputs"
 STATUS_INCOMPATIBLE_INDEX = "incompatible_index"
 STATUS_NOISE_UNKNOWN = "noise_unknown"
@@ -60,6 +67,9 @@ _KNOWN_V3_4_STATUSES = {
     STATUS_MODEL_FAILED,
     STATUS_COMPARISON_FAILED,
     STATUS_TIMEOUT,
+    STATUS_TOOL_UNAVAILABLE,
+    STATUS_UNSUPPORTED_INPUT,
+    STATUS_CACHE_INCOMPATIBLE,
     STATUS_INCOMPATIBLE_INPUTS,
     STATUS_INCOMPATIBLE_INDEX,
     STATUS_NOISE_UNKNOWN,
@@ -158,18 +168,166 @@ def build_noise_policy_registry(noise_policies: object) -> dict[str, Any]:
     return record
 
 
+def build_extractor_capability(
+    *,
+    extractor_id: str,
+    supported_views: object,
+    supported_modes: object,
+    extractor_version: object = None,
+    cost: object = None,
+    timeout_ms: object = None,
+    tool_name: object = None,
+    tool_version: object = None,
+    requires: object = None,
+    cache_key_fields: object = None,
+    status_set: object = None,
+) -> dict[str, Any]:
+    """Собрать описание возможностей реализации извлечения признаков APK."""
+    record = _base_record(EXTRACTOR_CAPABILITY)
+    record.update(
+        {
+            "extractor_id": _as_non_empty_string(extractor_id, "extractor-unknown"),
+            "extractor_version": extractor_version,
+            "supported_views": _as_list(supported_views),
+            "supported_modes": _as_list(supported_modes),
+            "cost": _as_dict(cost),
+            "timeout_ms": timeout_ms,
+            "tool_name": tool_name,
+            "tool_version": tool_version,
+            "requires": _as_list(requires),
+            "cache_key_fields": _as_list(cache_key_fields),
+            "status_set": _as_list(status_set)
+            or [
+                STATUS_SUCCESS,
+                STATUS_PARTIAL_RESULT,
+                STATUS_ANALYSIS_FAILED,
+                STATUS_TIMEOUT,
+                STATUS_TOOL_UNAVAILABLE,
+                STATUS_UNSUPPORTED_INPUT,
+                STATUS_CACHE_INCOMPATIBLE,
+            ],
+        }
+    )
+    return record
+
+
+def build_extractor_registry(extractors: object = None) -> dict[str, Any]:
+    """Собрать ExtractorRegistry для профиля реализации."""
+    if isinstance(extractors, dict) and extractors.get("record_type") == EXTRACTOR_REGISTRY:
+        return dict(extractors)
+    record = _base_record(EXTRACTOR_REGISTRY)
+    record["extractors"] = _as_list(extractors)
+    return record
+
+
+def build_extractor_context(
+    *,
+    apk_path: object = None,
+    apk_sha256: object = None,
+    profile_ref: object = None,
+    representation_spec_ref: object = None,
+    requested_views: object = None,
+    mode: str = "light",
+    budget: object = None,
+    cache_policy_ref: object = None,
+    decoded_dir: object = None,
+) -> dict[str, Any]:
+    """Собрать входной контекст запуска извлекателя признаков."""
+    record = _base_record(EXTRACTOR_CONTEXT)
+    record.update(
+        {
+            "apk_path": apk_path,
+            "apk_sha256": apk_sha256,
+            "profile_ref": profile_ref,
+            "representation_spec_ref": representation_spec_ref,
+            "requested_views": _as_list(requested_views),
+            "mode": _as_non_empty_string(mode, "light"),
+            "budget": _as_dict(budget),
+            "cache_policy_ref": cache_policy_ref,
+            "decoded_dir": decoded_dir,
+        }
+    )
+    return record
+
+
+def build_extractor_run_record(
+    *,
+    extractor_id: str,
+    extractor_version: str,
+    mode: str,
+    apk_sha256: object,
+    requested_views: object,
+    produced_views: object = None,
+    status: str = STATUS_SUCCESS,
+    tool_name: object = None,
+    tool_version: object = None,
+    started_at: object = None,
+    finished_at: object = None,
+    duration_ms: object = None,
+    cache_key: object = None,
+    cache_status: object = None,
+    profile_ref: object = None,
+    representation_spec_ref: object = None,
+    config_hash: object = None,
+    errors: object = None,
+    warnings: object = None,
+) -> dict[str, Any]:
+    """Собрать ExtractorRunRecord без подмены сбоя пустыми признаками."""
+    normalized_extractor_id = _as_non_empty_string(extractor_id, "extractor-unknown")
+    normalized_extractor_version = _as_non_empty_string(extractor_version, "unknown-version")
+    normalized_mode = _as_non_empty_string(mode, "light")
+    normalized_apk_sha256 = _as_non_empty_string(apk_sha256, "sha256:unknown")
+    run_identity = _as_non_empty_string(
+        cache_key,
+        "{}:{}:{}:{}".format(
+            normalized_extractor_id,
+            normalized_extractor_version,
+            normalized_mode,
+            normalized_apk_sha256,
+        ),
+    )
+    record = _base_record(EXTRACTOR_RUN_RECORD)
+    record.update(
+        {
+            "run_id": "ExtractorRun:{}".format(run_identity),
+            "extractor_id": normalized_extractor_id,
+            "extractor_version": normalized_extractor_version,
+            "tool_name": tool_name,
+            "tool_version": tool_version,
+            "mode": normalized_mode,
+            "apk_sha256": normalized_apk_sha256,
+            "requested_views": _as_list(requested_views),
+            "produced_views": _as_list(produced_views),
+            "status": _as_non_empty_string(status, STATUS_SUCCESS),
+            "started_at": started_at,
+            "finished_at": finished_at,
+            "duration_ms": duration_ms,
+            "cache_key": cache_key,
+            "cache_status": cache_status,
+            "profile_ref": profile_ref,
+            "representation_spec_ref": representation_spec_ref,
+            "config_hash": config_hash,
+            "errors": _as_list(errors),
+            "warnings": _as_list(warnings),
+        }
+    )
+    return record
+
+
 def build_representation_spec(
     *,
     profile_id: str,
     views: object,
     measures: object,
     noise_policies: object = None,
+    extractor_registry: object = None,
 ) -> dict[str, Any]:
     """Собрать RepresentationSpec: связь представлений, мер и шумовых политик."""
     return {
         "schema_version": V3_4_SCHEMA_VERSION,
         "record_type": REPRESENTATION_SPEC,
         "profile_id": _as_non_empty_string(profile_id, "default-v3.4"),
+        "extractor_registry": build_extractor_registry(extractor_registry),
         "view_registry": build_view_registry(views),
         "measure_registry": build_measure_registry(measures),
         "noise_policy_registry": build_noise_policy_registry(noise_policies),
@@ -221,6 +379,8 @@ def build_view_artifact_record(
     artifact_ref: object = None,
     status: str = STATUS_SUCCESS,
     view_schema_version: object = None,
+    extractor_run_ref: object = None,
+    extractor_run_record: object = None,
 ) -> dict[str, Any]:
     record = _base_record(VIEW_ARTIFACT_RECORD)
     record.update(
@@ -232,6 +392,10 @@ def build_view_artifact_record(
             "view_schema_version": view_schema_version,
         }
     )
+    if extractor_run_ref is not None:
+        record["extractor_run_ref"] = extractor_run_ref
+    if extractor_run_record is not None:
+        record["extractor_run_record"] = extractor_run_record
     return record
 
 
