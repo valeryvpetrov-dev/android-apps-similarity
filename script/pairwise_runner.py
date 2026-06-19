@@ -80,6 +80,72 @@ CODE_STATS_PAYLOAD_RESOURCE_SUPPORT_THRESHOLD = 0.55
 CODE_STATS_PAYLOAD_RESOURCE_MIN_METHODS = 50
 CODE_STATS_PAYLOAD_RESOURCE_MAX_ADDED_DELTA = 0.90
 CODE_STATS_PAYLOAD_RESOURCE_SCORE_THRESHOLD = 0.70
+FRAMEWORK_SHIFT_EVIDENCE_POLICY_ID = "R_framework_shift_anchor_evidence_policy_v1"
+FRAMEWORK_SHIFT_EVIDENCE_REF = "R_framework_shift_anchors"
+FRAMEWORK_SHIFT_MIN_ANCHOR_CONTAINMENT = 0.10
+FRAMEWORK_SHIFT_MIN_COMMON_ANCHORS = 50
+FRAMEWORK_SHIFT_TEXT_SUFFIXES = {
+    ".css",
+    ".html",
+    ".js",
+    ".json",
+    ".properties",
+    ".txt",
+    ".xml",
+}
+FRAMEWORK_SHIFT_STOPWORDS = {
+    "action",
+    "activity",
+    "android",
+    "application",
+    "button",
+    "category",
+    "class",
+    "color",
+    "content",
+    "drawable",
+    "false",
+    "final",
+    "function",
+    "height",
+    "html",
+    "icon",
+    "image",
+    "intent",
+    "java",
+    "layout",
+    "main",
+    "match",
+    "name",
+    "null",
+    "object",
+    "parent",
+    "private",
+    "protected",
+    "provider",
+    "public",
+    "receiver",
+    "return",
+    "service",
+    "static",
+    "string",
+    "style",
+    "super",
+    "theme",
+    "true",
+    "view",
+    "void",
+    "width",
+    "wrap",
+}
+FRAMEWORK_SHIFT_NOISE_PREFIXES = (
+    "android.",
+    "androidx.",
+    "com.google.",
+    "java.",
+    "javax.",
+    "org.apache.",
+)
 CODE_CONFLICT_GUARD_POLICY_ID = "score_conflict_guard_zero_code_fingerprint_v1"
 CODE_CONFLICT_GUARD_SCORE_SOURCE = "code_conflict_guarded_library_reduced_score"
 CODE_CONFLICT_GUARD_REVIEW_THRESHOLD = 0.30
@@ -1038,6 +1104,218 @@ def flatten_code_fingerprint_features(features: Any) -> set[str]:
             continue
         tokens.add("method_fp:{}:{}".format(method_id, fingerprint))
     return tokens
+
+
+def _framework_shift_default_fields(error: str | None = None) -> dict[str, Any]:
+    return {
+        "framework_shift_evidence_policy_id": FRAMEWORK_SHIFT_EVIDENCE_POLICY_ID,
+        "framework_shift_evidence_applied": False,
+        "framework_shift_evidence_role": "evidence_only",
+        "framework_shift_left_package": "",
+        "framework_shift_right_package": "",
+        "framework_shift_package_equal": False,
+        "framework_shift_left_hybrid_hint": False,
+        "framework_shift_right_hybrid_hint": False,
+        "framework_shift_hybrid_to_native": False,
+        "framework_shift_left_layout_count": 0,
+        "framework_shift_right_layout_count": 0,
+        "framework_shift_left_anchor_count": 0,
+        "framework_shift_right_anchor_count": 0,
+        "framework_shift_common_anchor_count": 0,
+        "framework_shift_anchor_containment": 0.0,
+        "framework_shift_anchor_jaccard": 0.0,
+        "framework_shift_common_anchor_sample": [],
+        "framework_shift_min_anchor_containment": (
+            FRAMEWORK_SHIFT_MIN_ANCHOR_CONTAINMENT
+        ),
+        "framework_shift_min_common_anchors": FRAMEWORK_SHIFT_MIN_COMMON_ANCHORS,
+        "framework_shift_error": error,
+    }
+
+
+def _framework_shift_safe_read_text(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return ""
+
+
+def _framework_shift_is_useful_token(token: str) -> bool:
+    if len(token) < 4 or token in FRAMEWORK_SHIFT_STOPWORDS:
+        return False
+    return not token.startswith(FRAMEWORK_SHIFT_NOISE_PREFIXES)
+
+
+def _framework_shift_tokenize(text: str) -> set[str]:
+    tokens: set[str] = set()
+    pattern = re.compile(r"https?://([^/\s\"']+)|[A-Za-z][A-Za-z0-9_\-.]{3,}")
+    for match in pattern.finditer(text):
+        token = (match.group(1) or match.group(0)).lower().strip("._-")
+        if _framework_shift_is_useful_token(token):
+            tokens.add(token)
+        for part in re.split(r"[._\-]+", token):
+            if _framework_shift_is_useful_token(part):
+                tokens.add(part)
+    return tokens
+
+
+def _framework_shift_package_name(decoded_dir: Path) -> str:
+    manifest = decoded_dir / "AndroidManifest.xml"
+    match = re.search(
+        r'package="([^"]+)"',
+        _framework_shift_safe_read_text(manifest),
+    )
+    return match.group(1) if match else ""
+
+
+def _framework_shift_has_cordova(decoded_dir: Path) -> bool:
+    smali_dir = decoded_dir / "smali"
+    if not smali_dir.exists():
+        return False
+    return (smali_dir / "org/apache/cordova").exists()
+
+
+def _framework_shift_layout_count(decoded_dir: Path) -> int:
+    res_dir = decoded_dir / "res"
+    if not res_dir.exists():
+        return 0
+    return sum(1 for _ in res_dir.rglob("layout*/*.xml"))
+
+
+def _framework_shift_extract_const_strings(smali_text: str) -> list[str]:
+    pattern = re.compile(r'const-string(?:/jumbo)?\s+[^,]+,\s+"(.*?)"')
+    return [match.group(1) for match in pattern.finditer(smali_text)]
+
+
+def _framework_shift_extract_anchors(decoded_dir_raw: str | Path | None) -> dict[str, Any]:
+    if not decoded_dir_raw:
+        return {
+            "all": set(),
+            "assets": set(),
+            "res": set(),
+            "smali": set(),
+            "names": set(),
+            "package": "",
+            "has_assets_www": False,
+            "has_cordova": False,
+            "hybrid_hint": False,
+            "layout_count": 0,
+        }
+
+    decoded_dir = Path(decoded_dir_raw)
+    assets_tokens: set[str] = set()
+    res_tokens: set[str] = set()
+    smali_tokens: set[str] = set()
+    name_tokens: set[str] = set()
+
+    assets_dir = decoded_dir / "assets"
+    if assets_dir.exists():
+        for path in assets_dir.rglob("*"):
+            if path.is_file() and path.suffix.lower() in FRAMEWORK_SHIFT_TEXT_SUFFIXES:
+                assets_tokens |= _framework_shift_tokenize(
+                    _framework_shift_safe_read_text(path)
+                )
+
+    res_dir = decoded_dir / "res"
+    if res_dir.exists():
+        for path in res_dir.rglob("*"):
+            if not path.is_file():
+                continue
+            name_tokens |= _framework_shift_tokenize(path.stem)
+            if path.suffix.lower() in FRAMEWORK_SHIFT_TEXT_SUFFIXES:
+                res_tokens |= _framework_shift_tokenize(
+                    _framework_shift_safe_read_text(path)
+                )
+
+    smali_dir = decoded_dir / "smali"
+    if smali_dir.exists():
+        for path in smali_dir.rglob("*.smali"):
+            values = _framework_shift_extract_const_strings(
+                _framework_shift_safe_read_text(path)
+            )
+            if values:
+                smali_tokens |= _framework_shift_tokenize("\n".join(values))
+
+    has_assets_www = (assets_dir / "www").exists()
+    has_cordova = _framework_shift_has_cordova(decoded_dir)
+    return {
+        "all": assets_tokens | res_tokens | smali_tokens | name_tokens,
+        "assets": assets_tokens,
+        "res": res_tokens,
+        "smali": smali_tokens,
+        "names": name_tokens,
+        "package": _framework_shift_package_name(decoded_dir),
+        "has_assets_www": has_assets_www,
+        "has_cordova": has_cordova,
+        "hybrid_hint": has_assets_www or has_cordova,
+        "layout_count": _framework_shift_layout_count(decoded_dir),
+    }
+
+
+def _framework_shift_jaccard(left: set[str], right: set[str]) -> float:
+    union = left | right
+    if not union:
+        return 0.0
+    return len(left & right) / len(union)
+
+
+def _framework_shift_containment(left: set[str], right: set[str]) -> float:
+    if not left or not right:
+        return 0.0
+    return len(left & right) / min(len(left), len(right))
+
+
+def build_framework_shift_evidence_fields(
+    decoded_a: str | Path | None,
+    decoded_b: str | Path | None,
+) -> dict[str, Any]:
+    """Build guarded framework-shift evidence fields.
+
+    This is evidence-only: it explains a possible hybrid/WebView to native
+    rewrite under the same package name, but it never changes
+    ``similarity_score`` or ``similarity_score_source``.
+    """
+    if not decoded_a or not decoded_b:
+        return _framework_shift_default_fields(error="missing_decoded_dir")
+
+    left = _framework_shift_extract_anchors(decoded_a)
+    right = _framework_shift_extract_anchors(decoded_b)
+    common = set(left["all"]) & set(right["all"])
+    package_equal = bool(left["package"] and left["package"] == right["package"])
+    hybrid_to_native = (
+        bool(left["hybrid_hint"]) != bool(right["hybrid_hint"])
+        and int(left["layout_count"]) != int(right["layout_count"])
+    )
+    anchor_containment = _framework_shift_containment(left["all"], right["all"])
+    anchor_jaccard = _framework_shift_jaccard(left["all"], right["all"])
+    applied = (
+        package_equal
+        and hybrid_to_native
+        and anchor_containment >= FRAMEWORK_SHIFT_MIN_ANCHOR_CONTAINMENT
+        and len(common) >= FRAMEWORK_SHIFT_MIN_COMMON_ANCHORS
+    )
+
+    fields = _framework_shift_default_fields()
+    fields.update(
+        {
+            "framework_shift_evidence_applied": bool(applied),
+            "framework_shift_left_package": str(left["package"]),
+            "framework_shift_right_package": str(right["package"]),
+            "framework_shift_package_equal": bool(package_equal),
+            "framework_shift_left_hybrid_hint": bool(left["hybrid_hint"]),
+            "framework_shift_right_hybrid_hint": bool(right["hybrid_hint"]),
+            "framework_shift_hybrid_to_native": bool(hybrid_to_native),
+            "framework_shift_left_layout_count": int(left["layout_count"]),
+            "framework_shift_right_layout_count": int(right["layout_count"]),
+            "framework_shift_left_anchor_count": len(left["all"]),
+            "framework_shift_right_anchor_count": len(right["all"]),
+            "framework_shift_common_anchor_count": len(common),
+            "framework_shift_anchor_containment": float(anchor_containment),
+            "framework_shift_anchor_jaccard": float(anchor_jaccard),
+            "framework_shift_common_anchor_sample": sorted(common)[:30],
+        }
+    )
+    return fields
 
 
 def load_layers_for_pairwise(
@@ -2134,6 +2412,12 @@ def _compute_pair_row_with_caches(
                         feature_cache=feature_cache,
                     )
                 )
+                pair_row.update(
+                    build_framework_shift_evidence_fields(
+                        decoded_a=decoded_a,
+                        decoded_b=decoded_b,
+                    )
+                )
             except Exception as policy_error:
                 pair_row.update(
                     {
@@ -2147,6 +2431,11 @@ def _compute_pair_row_with_caches(
                         ),
                         "code_stats_added_code_policy_applied": False,
                         "code_stats_added_code_policy_error": str(policy_error),
+                        "framework_shift_evidence_policy_id": (
+                            FRAMEWORK_SHIFT_EVIDENCE_POLICY_ID
+                        ),
+                        "framework_shift_evidence_applied": False,
+                        "framework_shift_evidence_error": str(policy_error),
                     }
                 )
         else:
@@ -2156,6 +2445,11 @@ def _compute_pair_row_with_caches(
                     "code_stats_containment_policy_applied": False,
                     "code_stats_added_code_policy_id": CODE_STATS_ADDED_CODE_POLICY_ID,
                     "code_stats_added_code_policy_applied": False,
+                    "framework_shift_evidence_policy_id": (
+                        FRAMEWORK_SHIFT_EVIDENCE_POLICY_ID
+                    ),
+                    "framework_shift_evidence_applied": False,
+                    "framework_shift_evidence_role": "evidence_only",
                 }
             )
         apply_code_stats_score_policy(pair_row, threshold=threshold)
