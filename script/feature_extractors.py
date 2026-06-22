@@ -16,6 +16,10 @@ import zipfile
 
 try:
     from script.screening_runner import extract_layers_from_apk
+    from script.semantic_multiview import (
+        VIEW_SCHEMA_VERSIONS as SEMANTIC_VIEW_SCHEMA_VERSIONS,
+        extract_semantic_views,
+    )
     from script.v3_4_contracts import (
         STATUS_ANALYSIS_FAILED,
         STATUS_PARTIAL_RESULT,
@@ -27,6 +31,10 @@ try:
     )
 except ImportError:  # pragma: no cover - direct script import fallback
     from screening_runner import extract_layers_from_apk
+    from semantic_multiview import (
+        VIEW_SCHEMA_VERSIONS as SEMANTIC_VIEW_SCHEMA_VERSIONS,
+        extract_semantic_views,
+    )
     from v3_4_contracts import (
         STATUS_ANALYSIS_FAILED,
         STATUS_PARTIAL_RESULT,
@@ -42,6 +50,11 @@ ZIP_LIGHT_EXTRACTOR_ID = "zip_light_extractor"
 ZIP_LIGHT_EXTRACTOR_VERSION = "zip-light-v1"
 ZIP_LIGHT_SUPPORTED_VIEWS = ("code", "component", "resource", "metadata", "library")
 ZIP_LIGHT_SUPPORTED_MODES = ("light",)
+
+SEMANTIC_MULTIVIEW_EXTRACTOR_ID = "semantic_multiview_extractor"
+SEMANTIC_MULTIVIEW_EXTRACTOR_VERSION = "semantic-multiview-v1"
+SEMANTIC_MULTIVIEW_SUPPORTED_VIEWS = tuple(SEMANTIC_VIEW_SCHEMA_VERSIONS.keys())
+SEMANTIC_MULTIVIEW_SUPPORTED_MODES = ("deep", "diagnostic")
 
 
 def _utc_timestamp() -> str:
@@ -71,6 +84,23 @@ def _zip_light_cache_key(
     )
 
 
+def _semantic_multiview_cache_key(
+    *,
+    apk_sha256: str,
+    mode: str,
+    representation_spec_ref: object = None,
+    config_hash: object = None,
+) -> str:
+    return "{}:{}:{}:{}:{}:{}".format(
+        SEMANTIC_MULTIVIEW_EXTRACTOR_ID,
+        SEMANTIC_MULTIVIEW_EXTRACTOR_VERSION,
+        mode,
+        apk_sha256,
+        representation_spec_ref or "representation-spec:none",
+        config_hash or "config:none",
+    )
+
+
 def build_zip_light_extractor_capability() -> dict[str, Any]:
     """Describe the current ZIP-based light extractor."""
     return build_extractor_capability(
@@ -92,9 +122,38 @@ def build_zip_light_extractor_capability() -> dict[str, Any]:
     )
 
 
-def _normalize_requested_views(requested_views: object) -> list[str]:
+def build_semantic_multiview_extractor_capability() -> dict[str, Any]:
+    """Describe the semantic multiview extractor."""
+    return build_extractor_capability(
+        extractor_id=SEMANTIC_MULTIVIEW_EXTRACTOR_ID,
+        extractor_version=SEMANTIC_MULTIVIEW_EXTRACTOR_VERSION,
+        supported_views=list(SEMANTIC_MULTIVIEW_SUPPORTED_VIEWS),
+        supported_modes=list(SEMANTIC_MULTIVIEW_SUPPORTED_MODES),
+        cost={
+            "class": "medium",
+            "requires_decoded_dir": False,
+            "uses_decoded_dir_when_available": True,
+        },
+        tool_name="semantic_multiview.py",
+        tool_version=SEMANTIC_MULTIVIEW_EXTRACTOR_VERSION,
+        requires=["code_view_v4", "resource_view", "resource_view_v2"],
+        cache_key_fields=[
+            "apk_sha256",
+            "extractor_id",
+            "extractor_version",
+            "mode",
+            "representation_spec_ref",
+            "config_hash",
+        ],
+    )
+
+
+def _normalize_requested_views(
+    requested_views: object,
+    supported_views: tuple[str, ...] = ZIP_LIGHT_SUPPORTED_VIEWS,
+) -> list[str]:
     if requested_views is None:
-        return list(ZIP_LIGHT_SUPPORTED_VIEWS)
+        return list(supported_views)
     if not isinstance(requested_views, (list, tuple, set)):
         return []
     return [str(view) for view in requested_views if isinstance(view, str) and view.strip()]
@@ -138,6 +197,50 @@ def _failure_result(
         "extractor_run_record": run_record,
         "view_artifacts": [],
         "layers": {},
+        "warnings": [],
+        "errors": list(errors),
+    }
+
+
+def _semantic_failure_result(
+    *,
+    status: str,
+    errors: list[str],
+    apk_sha256: str,
+    requested_views: list[str],
+    started_at: str,
+    duration_ms: int,
+    cache_key: str,
+    mode: str,
+    profile_ref: object,
+    representation_spec_ref: object,
+    config_hash: object,
+) -> dict[str, Any]:
+    run_record = build_extractor_run_record(
+        extractor_id=SEMANTIC_MULTIVIEW_EXTRACTOR_ID,
+        extractor_version=SEMANTIC_MULTIVIEW_EXTRACTOR_VERSION,
+        tool_name="semantic_multiview.py",
+        tool_version=SEMANTIC_MULTIVIEW_EXTRACTOR_VERSION,
+        mode=mode,
+        apk_sha256=apk_sha256,
+        requested_views=requested_views,
+        produced_views=[],
+        status=status,
+        started_at=started_at,
+        finished_at=_utc_timestamp(),
+        duration_ms=duration_ms,
+        cache_key=cache_key,
+        cache_status="not_used",
+        profile_ref=profile_ref,
+        representation_spec_ref=representation_spec_ref,
+        config_hash=config_hash,
+        errors=errors,
+    )
+    return {
+        "status": status,
+        "extractor_run_record": run_record,
+        "view_artifacts": [],
+        "semantic_views": {},
         "warnings": [],
         "errors": list(errors),
     }
@@ -277,6 +380,176 @@ def run_zip_light_extractor(
         "extractor_run_record": run_record,
         "view_artifacts": view_artifacts,
         "layers": layers,
+        "warnings": warnings,
+        "errors": [],
+    }
+
+
+def run_semantic_multiview_extractor(
+    apk_path: str | Path,
+    *,
+    decoded_dir: str | Path | None = None,
+    requested_views: object = None,
+    feature_bundle: dict[str, Any] | None = None,
+    profile_ref: object = None,
+    representation_spec_ref: object = None,
+    config_hash: object = None,
+    mode: str = "deep",
+) -> dict[str, Any]:
+    """Run semantic multiview extraction under the v3.4 extractor contract."""
+    started_at = _utc_timestamp()
+    started = perf_counter()
+    normalized_mode = mode if mode in SEMANTIC_MULTIVIEW_SUPPORTED_MODES else "deep"
+    requested = _normalize_requested_views(
+        requested_views,
+        SEMANTIC_MULTIVIEW_SUPPORTED_VIEWS,
+    )
+    path = Path(apk_path)
+    apk_sha256 = "sha256:unknown"
+
+    if not path.exists() or not path.is_file():
+        cache_key = _semantic_multiview_cache_key(
+            apk_sha256=apk_sha256,
+            mode=normalized_mode,
+            representation_spec_ref=representation_spec_ref,
+            config_hash=config_hash,
+        )
+        return _semantic_failure_result(
+            status=STATUS_UNSUPPORTED_INPUT,
+            errors=["missing_apk"],
+            apk_sha256=apk_sha256,
+            requested_views=requested,
+            started_at=started_at,
+            duration_ms=int((perf_counter() - started) * 1000),
+            cache_key=cache_key,
+            mode=normalized_mode,
+            profile_ref=profile_ref,
+            representation_spec_ref=representation_spec_ref,
+            config_hash=config_hash,
+        )
+
+    apk_sha256 = _sha256_file(path)
+    cache_key = _semantic_multiview_cache_key(
+        apk_sha256=apk_sha256,
+        mode=normalized_mode,
+        representation_spec_ref=representation_spec_ref,
+        config_hash=config_hash,
+    )
+
+    try:
+        with zipfile.ZipFile(path, "r") as archive:
+            archive.namelist()
+    except zipfile.BadZipFile:
+        return _semantic_failure_result(
+            status=STATUS_ANALYSIS_FAILED,
+            errors=["bad_zipfile"],
+            apk_sha256=apk_sha256,
+            requested_views=requested,
+            started_at=started_at,
+            duration_ms=int((perf_counter() - started) * 1000),
+            cache_key=cache_key,
+            mode=normalized_mode,
+            profile_ref=profile_ref,
+            representation_spec_ref=representation_spec_ref,
+            config_hash=config_hash,
+        )
+    except OSError as exc:
+        return _semantic_failure_result(
+            status=STATUS_ANALYSIS_FAILED,
+            errors=["io_error:{}".format(type(exc).__name__)],
+            apk_sha256=apk_sha256,
+            requested_views=requested,
+            started_at=started_at,
+            duration_ms=int((perf_counter() - started) * 1000),
+            cache_key=cache_key,
+            mode=normalized_mode,
+            profile_ref=profile_ref,
+            representation_spec_ref=representation_spec_ref,
+            config_hash=config_hash,
+        )
+
+    semantic_views = extract_semantic_views(
+        apk_path=path,
+        decoded_dir=decoded_dir,
+        apk_id=apk_sha256,
+        feature_bundle=feature_bundle,
+    )
+    all_views = semantic_views.get("views")
+    if not isinstance(all_views, dict):
+        all_views = {}
+
+    supported_requested = [
+        view for view in requested if view in SEMANTIC_MULTIVIEW_SUPPORTED_VIEWS
+    ]
+    unsupported_requested = [
+        view for view in requested if view not in SEMANTIC_MULTIVIEW_SUPPORTED_VIEWS
+    ]
+    produced_views = [
+        view for view in supported_requested if view in all_views
+    ]
+    status = STATUS_SUCCESS if len(produced_views) == len(requested) else STATUS_PARTIAL_RESULT
+    warnings = [
+        "unsupported_view:{}".format(view) for view in unsupported_requested
+    ]
+
+    run_record = build_extractor_run_record(
+        extractor_id=SEMANTIC_MULTIVIEW_EXTRACTOR_ID,
+        extractor_version=SEMANTIC_MULTIVIEW_EXTRACTOR_VERSION,
+        tool_name="semantic_multiview.py",
+        tool_version=SEMANTIC_MULTIVIEW_EXTRACTOR_VERSION,
+        mode=normalized_mode,
+        apk_sha256=apk_sha256,
+        requested_views=requested,
+        produced_views=produced_views,
+        status=status,
+        started_at=started_at,
+        finished_at=_utc_timestamp(),
+        duration_ms=int((perf_counter() - started) * 1000),
+        cache_key=cache_key,
+        cache_status="not_used",
+        profile_ref=profile_ref,
+        representation_spec_ref=representation_spec_ref,
+        config_hash=config_hash,
+        warnings=warnings,
+    )
+
+    artifacts_by_view = {
+        item.get("view_type"): item
+        for item in semantic_views.get("view_artifacts", [])
+        if isinstance(item, dict)
+    }
+    view_artifacts: list[dict[str, Any]] = []
+    for view in produced_views:
+        artifact = dict(artifacts_by_view.get(view, {}))
+        if not artifact:
+            artifact = build_view_artifact_record(
+                apk_id=apk_sha256,
+                view_type=view,
+                artifact_ref={
+                    "extractor_id": SEMANTIC_MULTIVIEW_EXTRACTOR_ID,
+                    "artifact_kind": "semantic_view",
+                    "source": "semantic_multiview",
+                },
+                status=STATUS_SUCCESS,
+                view_schema_version=SEMANTIC_VIEW_SCHEMA_VERSIONS.get(view),
+            )
+        artifact["extractor_run_ref"] = run_record["run_id"]
+        artifact["extractor_run_record"] = run_record
+        view_artifacts.append(artifact)
+
+    filtered_semantic_views = dict(semantic_views)
+    filtered_semantic_views["views"] = {
+        view: all_views[view]
+        for view in produced_views
+        if view in all_views
+    }
+    filtered_semantic_views["view_artifacts"] = view_artifacts
+
+    return {
+        "status": status,
+        "extractor_run_record": run_record,
+        "view_artifacts": view_artifacts,
+        "semantic_views": filtered_semantic_views,
         "warnings": warnings,
         "errors": [],
     }
