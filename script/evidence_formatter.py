@@ -302,6 +302,16 @@ def collect_evidence_from_pairwise(pair_row: dict) -> list[dict]:
             )
         )
 
+    if pair_row.get("code_stats_payload_resource_bridge_policy_applied") is True:
+        evidence.append(
+            make_evidence(
+                source_stage="pairwise",
+                signal_type="payload_resource_bridge_support",
+                magnitude=_clamp_unit(pair_row.get("payload_resource_bridge_score")),
+                ref="R_code_stats_payload_resource_bridge",
+            )
+        )
+
     if pair_row.get("framework_shift_evidence_applied") is True:
         evidence.append(
             make_evidence(

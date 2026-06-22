@@ -9,6 +9,7 @@ import re
 import sys
 import tempfile
 import time
+from collections import Counter
 from concurrent.futures import (
     FIRST_COMPLETED,
     ProcessPoolExecutor,
@@ -80,6 +81,19 @@ CODE_STATS_PAYLOAD_RESOURCE_SUPPORT_THRESHOLD = 0.55
 CODE_STATS_PAYLOAD_RESOURCE_MIN_METHODS = 50
 CODE_STATS_PAYLOAD_RESOURCE_MAX_ADDED_DELTA = 0.90
 CODE_STATS_PAYLOAD_RESOURCE_SCORE_THRESHOLD = 0.70
+CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_POLICY_ID = (
+    "R_code_stats_payload_resource_bridge_policy_v1"
+)
+CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_SCORE_SOURCE = (
+    "code_stats_payload_resource_bridge"
+)
+CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_CODE_THRESHOLD = 0.45
+CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_SUPPORT_THRESHOLD = 0.90
+CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_FP_COUNTER_THRESHOLD = 0.55
+CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_MIN_METHODS = 50
+CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_MIN_ADDED_DELTA = 0.30
+CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_MAX_ADDED_DELTA = 0.90
+CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_SCORE_THRESHOLD = 0.70
 FRAMEWORK_SHIFT_EVIDENCE_POLICY_ID = "R_framework_shift_anchor_evidence_policy_v1"
 FRAMEWORK_SHIFT_EVIDENCE_REF = "R_framework_shift_anchors"
 FRAMEWORK_SHIFT_MIN_ANCHOR_CONTAINMENT = 0.10
@@ -1106,6 +1120,19 @@ def flatten_code_fingerprint_features(features: Any) -> set[str]:
     return tokens
 
 
+def flatten_code_fingerprint_values(features: Any) -> list[str]:
+    if not isinstance(features, dict):
+        return []
+    fingerprints = features.get("method_fingerprints")
+    if not isinstance(fingerprints, dict):
+        return []
+    values: list[str] = []
+    for fingerprint in fingerprints.values():
+        if fingerprint:
+            values.append(str(fingerprint))
+    return values
+
+
 def _framework_shift_default_fields(error: str | None = None) -> dict[str, Any]:
     return {
         "framework_shift_evidence_policy_id": FRAMEWORK_SHIFT_EVIDENCE_POLICY_ID,
@@ -1357,12 +1384,16 @@ def load_layers_for_pairwise(
         if feature_cache is not None and apk_sha256 is not None:
             feature_cache.put(apk_sha256, FEATURE_CACHE_VERSION, feature_bundle)
 
+    code_v4_shingled = feature_bundle.get("code_v4_shingled")
+    code_v4 = feature_bundle.get("code_v4")
     layers = {
         "code": normalize_pairwise_layer_tokens("code", feature_bundle.get("code", set())),
         "code_fingerprint": flatten_code_fingerprint_features(
-            feature_bundle.get("code_v4_shingled")
+            code_v4_shingled
         )
-        or flatten_code_fingerprint_features(feature_bundle.get("code_v4")),
+        or flatten_code_fingerprint_features(code_v4),
+        "code_fingerprint_values": flatten_code_fingerprint_values(code_v4_shingled)
+        or flatten_code_fingerprint_values(code_v4),
         "metadata": normalize_pairwise_layer_tokens("metadata", feature_bundle.get("metadata", set())),
         "component": normalize_pairwise_layer_tokens("component", feature_bundle.get("component", {})),
         "resource": normalize_pairwise_layer_tokens("resource", feature_bundle.get("resource", {})),
@@ -1528,6 +1559,20 @@ def _added_code_delta(left: set[str], right: set[str]) -> float:
     if denominator == 0:
         return 0.0
     return max(len(left - right), len(right - left)) / denominator
+
+
+def _counter_containment(left: list[str], right: list[str]) -> float:
+    left_counter = Counter(left)
+    right_counter = Counter(right)
+    denominator = min(sum(left_counter.values()), sum(right_counter.values()))
+    if denominator == 0:
+        return 0.0
+    keys = set(left_counter) | set(right_counter)
+    intersection = sum(
+        min(left_counter.get(key, 0), right_counter.get(key, 0))
+        for key in keys
+    )
+    return intersection / denominator
 
 
 def build_code_stats_containment_policy_fields(
@@ -1766,6 +1811,8 @@ def build_code_stats_payload_resource_policy_fields(
     selected = set(selected_layers)
     fingerprint_a = set(layers_a.get("code_fingerprint", set()))
     fingerprint_b = set(layers_b.get("code_fingerprint", set()))
+    fingerprint_values_a = list(layers_a.get("code_fingerprint_values", []))
+    fingerprint_values_b = list(layers_b.get("code_fingerprint_values", []))
     resource_a = set(layers_a.get("resource", set()))
     resource_b = set(layers_b.get("resource", set()))
 
@@ -1773,7 +1820,11 @@ def build_code_stats_payload_resource_policy_fields(
     preserved_methods = len(fingerprint_a & fingerprint_b)
     added_delta = float(_added_code_delta(fingerprint_a, fingerprint_b))
     resource_support = float(containment_similarity(resource_a, resource_b))
+    fp_counter_containment = float(
+        _counter_containment(fingerprint_values_a, fingerprint_values_b)
+    )
     payload_score = (code_similarity + resource_support) / 2.0
+    bridge_score = (code_similarity + 2.0 * resource_support) / 3.0
     active = "code" in selected and "resource" in selected
     fingerprint_available = bool(fingerprint_a or fingerprint_b)
     applied = (
@@ -1784,6 +1835,20 @@ def build_code_stats_payload_resource_policy_fields(
         and preserved_methods >= CODE_STATS_PAYLOAD_RESOURCE_MIN_METHODS
         and added_delta <= CODE_STATS_PAYLOAD_RESOURCE_MAX_ADDED_DELTA
         and payload_score >= CODE_STATS_PAYLOAD_RESOURCE_SCORE_THRESHOLD
+    )
+    bridge_applied = (
+        active
+        and fingerprint_available
+        and code_similarity >= CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_CODE_THRESHOLD
+        and resource_support >= CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_SUPPORT_THRESHOLD
+        and (
+            fp_counter_containment
+            >= CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_FP_COUNTER_THRESHOLD
+        )
+        and preserved_methods >= CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_MIN_METHODS
+        and added_delta >= CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_MIN_ADDED_DELTA
+        and added_delta <= CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_MAX_ADDED_DELTA
+        and bridge_score >= CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_SCORE_THRESHOLD
     )
 
     return {
@@ -1806,6 +1871,41 @@ def build_code_stats_payload_resource_policy_fields(
         ),
         "payload_resource_score_threshold": CODE_STATS_PAYLOAD_RESOURCE_SCORE_THRESHOLD,
         "payload_resource_representation": "code_fingerprint",
+        "code_stats_payload_resource_bridge_policy_id": (
+            CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_POLICY_ID
+        ),
+        "code_stats_payload_resource_bridge_policy_applied": bool(
+            bridge_applied
+        ),
+        "payload_resource_bridge_score": bridge_score,
+        "payload_resource_bridge_formula": "resource_weighted_2x",
+        "payload_resource_bridge_code_similarity": code_similarity,
+        "payload_resource_bridge_code_threshold": (
+            CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_CODE_THRESHOLD
+        ),
+        "payload_resource_bridge_support_score": resource_support,
+        "payload_resource_bridge_support_threshold": (
+            CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_SUPPORT_THRESHOLD
+        ),
+        "payload_resource_fp_counter_containment": fp_counter_containment,
+        "payload_resource_bridge_fp_counter_threshold": (
+            CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_FP_COUNTER_THRESHOLD
+        ),
+        "payload_resource_bridge_method_count": int(preserved_methods),
+        "payload_resource_bridge_min_methods": (
+            CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_MIN_METHODS
+        ),
+        "payload_resource_bridge_added_code_delta": added_delta,
+        "payload_resource_bridge_min_added_code_delta": (
+            CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_MIN_ADDED_DELTA
+        ),
+        "payload_resource_bridge_max_added_code_delta": (
+            CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_MAX_ADDED_DELTA
+        ),
+        "payload_resource_bridge_score_threshold": (
+            CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_SCORE_THRESHOLD
+        ),
+        "payload_resource_bridge_representation": "code_fingerprint_value_counter",
     }
 
 
@@ -1951,6 +2051,19 @@ def apply_code_stats_score_policy(
             and pair_row.get("code_stats_repack_core_policy_applied") is not True,
             pair_row.get("payload_resource_score"),
             CODE_STATS_PAYLOAD_RESOURCE_SCORE_SOURCE,
+        ),
+        (
+            pair_row.get("code_stats_payload_resource_bridge_policy_applied")
+            is True
+            and pair_row.get("code_stats_containment_policy_applied") is not True
+            and pair_row.get("code_stats_added_code_policy_applied") is not True
+            and pair_row.get("code_stats_resource_change_identity_policy_applied")
+            is not True
+            and pair_row.get("code_stats_repack_core_policy_applied") is not True
+            and pair_row.get("code_stats_payload_resource_policy_applied")
+            is not True,
+            pair_row.get("payload_resource_bridge_score"),
+            CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_SCORE_SOURCE,
         ),
     )
     for is_applied, candidate_score, candidate_source in score_candidates:
