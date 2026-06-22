@@ -57,6 +57,12 @@ _REQUIRED_CACHE_KEY_FIELDS = {
     "extractor_version",
     "mode",
 }
+_ALLOWED_CACHE_STATUS = {
+    "hit",
+    "miss",
+    "not_used",
+    "cache_incompatible",
+}
 
 
 def _is_non_empty_string(value: object) -> bool:
@@ -170,6 +176,9 @@ def validate_extractor_run_result(
         errors.append("{}:missing_apk_sha256".format(prefix))
     if not _is_non_empty_string(run_record.get("cache_key")):
         errors.append("{}:missing_cache_key".format(prefix))
+    cache_status = run_record.get("cache_status")
+    if cache_status not in _ALLOWED_CACHE_STATUS:
+        errors.append("{}:unsupported_cache_status:{}".format(prefix, cache_status))
 
     requested_views = _as_list(run_record.get("requested_views"))
     produced_views = _as_list(run_record.get("produced_views"))

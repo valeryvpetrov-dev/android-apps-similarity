@@ -15,6 +15,7 @@ from typing import Any
 import zipfile
 
 try:
+    from script.feature_cache import FeatureCache
     from script.screening_runner import extract_layers_from_apk
     from script.semantic_multiview import (
         VIEW_SCHEMA_VERSIONS as SEMANTIC_VIEW_SCHEMA_VERSIONS,
@@ -30,6 +31,7 @@ try:
         build_view_artifact_record,
     )
 except ImportError:  # pragma: no cover - direct script import fallback
+    from feature_cache import FeatureCache
     from screening_runner import extract_layers_from_apk
     from semantic_multiview import (
         VIEW_SCHEMA_VERSIONS as SEMANTIC_VIEW_SCHEMA_VERSIONS,
@@ -67,6 +69,51 @@ def _sha256_file(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return "sha256:{}".format(digest.hexdigest())
+
+
+def _extractor_cache_storage_key(cache_key: str) -> str:
+    """Map arbitrary v3.4 cache_key text to a filesystem-safe JSON key."""
+    return sha256(cache_key.encode("utf-8")).hexdigest()
+
+
+def _build_extractor_cache(cache_dir: object) -> FeatureCache | None:
+    if cache_dir is None:
+        return None
+    return FeatureCache(cache_dir)
+
+
+def _read_extractor_cache(cache: FeatureCache | None, cache_key: str) -> dict[str, Any] | None:
+    if cache is None or not cache.available:
+        return None
+    cached = cache.get(_extractor_cache_storage_key(cache_key))
+    if not isinstance(cached, dict):
+        return None
+    if cached.get("cache_key") != cache_key:
+        return None
+    payload = cached.get("payload")
+    return payload if isinstance(payload, dict) else None
+
+
+def _write_extractor_cache(
+    cache: FeatureCache | None,
+    cache_key: str,
+    payload: dict[str, Any],
+) -> None:
+    if cache is None or not cache.available:
+        return
+    cache.put(
+        _extractor_cache_storage_key(cache_key),
+        {
+            "cache_key": cache_key,
+            "payload": payload,
+        },
+    )
+
+
+def _cache_status_for_miss(cache: FeatureCache | None) -> str:
+    if cache is None or not cache.available:
+        return "not_used"
+    return "miss"
 
 
 def _zip_light_cache_key(
@@ -171,6 +218,7 @@ def _failure_result(
     profile_ref: object,
     representation_spec_ref: object,
     config_hash: object,
+    cache_status: str = "not_used",
 ) -> dict[str, Any]:
     run_record = build_extractor_run_record(
         extractor_id=ZIP_LIGHT_EXTRACTOR_ID,
@@ -186,7 +234,7 @@ def _failure_result(
         finished_at=_utc_timestamp(),
         duration_ms=duration_ms,
         cache_key=cache_key,
-        cache_status="not_used",
+        cache_status=cache_status,
         profile_ref=profile_ref,
         representation_spec_ref=representation_spec_ref,
         config_hash=config_hash,
@@ -215,6 +263,7 @@ def _semantic_failure_result(
     profile_ref: object,
     representation_spec_ref: object,
     config_hash: object,
+    cache_status: str = "not_used",
 ) -> dict[str, Any]:
     run_record = build_extractor_run_record(
         extractor_id=SEMANTIC_MULTIVIEW_EXTRACTOR_ID,
@@ -230,7 +279,7 @@ def _semantic_failure_result(
         finished_at=_utc_timestamp(),
         duration_ms=duration_ms,
         cache_key=cache_key,
-        cache_status="not_used",
+        cache_status=cache_status,
         profile_ref=profile_ref,
         representation_spec_ref=representation_spec_ref,
         config_hash=config_hash,
@@ -253,6 +302,7 @@ def run_zip_light_extractor(
     profile_ref: object = None,
     representation_spec_ref: object = None,
     config_hash: object = None,
+    cache_dir: str | Path | None = None,
 ) -> dict[str, Any]:
     """Run the current light APK ZIP extractor under the v3.4 contract."""
     started_at = _utc_timestamp()
@@ -287,34 +337,46 @@ def run_zip_light_extractor(
         config_hash=config_hash,
     )
 
-    try:
-        extracted_layers = extract_layers_from_apk(path)
-    except zipfile.BadZipFile:
-        return _failure_result(
-            status=STATUS_ANALYSIS_FAILED,
-            errors=["bad_zipfile"],
-            apk_sha256=apk_sha256,
-            requested_views=requested,
-            started_at=started_at,
-            duration_ms=int((perf_counter() - started) * 1000),
-            cache_key=cache_key,
-            profile_ref=profile_ref,
-            representation_spec_ref=representation_spec_ref,
-            config_hash=config_hash,
-        )
-    except OSError as exc:
-        return _failure_result(
-            status=STATUS_ANALYSIS_FAILED,
-            errors=["io_error:{}".format(type(exc).__name__)],
-            apk_sha256=apk_sha256,
-            requested_views=requested,
-            started_at=started_at,
-            duration_ms=int((perf_counter() - started) * 1000),
-            cache_key=cache_key,
-            profile_ref=profile_ref,
-            representation_spec_ref=representation_spec_ref,
-            config_hash=config_hash,
-        )
+    cache = _build_extractor_cache(cache_dir)
+    cached_payload = _read_extractor_cache(cache, cache_key)
+    if cached_payload is not None:
+        extracted_layers = cached_payload.get("layers")
+        cache_status = "hit"
+    else:
+        cache_status = _cache_status_for_miss(cache)
+        try:
+            extracted_layers = extract_layers_from_apk(path)
+        except zipfile.BadZipFile:
+            return _failure_result(
+                status=STATUS_ANALYSIS_FAILED,
+                errors=["bad_zipfile"],
+                apk_sha256=apk_sha256,
+                requested_views=requested,
+                started_at=started_at,
+                duration_ms=int((perf_counter() - started) * 1000),
+                cache_key=cache_key,
+                profile_ref=profile_ref,
+                representation_spec_ref=representation_spec_ref,
+                config_hash=config_hash,
+                cache_status=cache_status,
+            )
+        except OSError as exc:
+            return _failure_result(
+                status=STATUS_ANALYSIS_FAILED,
+                errors=["io_error:{}".format(type(exc).__name__)],
+                apk_sha256=apk_sha256,
+                requested_views=requested,
+                started_at=started_at,
+                duration_ms=int((perf_counter() - started) * 1000),
+                cache_key=cache_key,
+                profile_ref=profile_ref,
+                representation_spec_ref=representation_spec_ref,
+                config_hash=config_hash,
+                cache_status=cache_status,
+            )
+        _write_extractor_cache(cache, cache_key, {"layers": extracted_layers})
+    if not isinstance(extracted_layers, dict):
+        extracted_layers = {}
 
     supported_requested = [
         view for view in requested if view in ZIP_LIGHT_SUPPORTED_VIEWS
@@ -346,7 +408,7 @@ def run_zip_light_extractor(
         finished_at=finished_at,
         duration_ms=duration_ms,
         cache_key=cache_key,
-        cache_status="not_used",
+        cache_status=cache_status,
         profile_ref=profile_ref,
         representation_spec_ref=representation_spec_ref,
         config_hash=config_hash,
@@ -395,6 +457,7 @@ def run_semantic_multiview_extractor(
     representation_spec_ref: object = None,
     config_hash: object = None,
     mode: str = "deep",
+    cache_dir: str | Path | None = None,
 ) -> dict[str, Any]:
     """Run semantic multiview extraction under the v3.4 extractor contract."""
     started_at = _utc_timestamp()
@@ -468,12 +531,22 @@ def run_semantic_multiview_extractor(
             config_hash=config_hash,
         )
 
-    semantic_views = extract_semantic_views(
-        apk_path=path,
-        decoded_dir=decoded_dir,
-        apk_id=apk_sha256,
-        feature_bundle=feature_bundle,
-    )
+    cache = _build_extractor_cache(cache_dir)
+    cached_payload = _read_extractor_cache(cache, cache_key)
+    if cached_payload is not None:
+        semantic_views = cached_payload.get("semantic_views")
+        cache_status = "hit"
+    else:
+        cache_status = _cache_status_for_miss(cache)
+        semantic_views = extract_semantic_views(
+            apk_path=path,
+            decoded_dir=decoded_dir,
+            apk_id=apk_sha256,
+            feature_bundle=feature_bundle,
+        )
+        _write_extractor_cache(cache, cache_key, {"semantic_views": semantic_views})
+    if not isinstance(semantic_views, dict):
+        semantic_views = {}
     all_views = semantic_views.get("views")
     if not isinstance(all_views, dict):
         all_views = {}
@@ -506,7 +579,7 @@ def run_semantic_multiview_extractor(
         finished_at=_utc_timestamp(),
         duration_ms=int((perf_counter() - started) * 1000),
         cache_key=cache_key,
-        cache_status="not_used",
+        cache_status=cache_status,
         profile_ref=profile_ref,
         representation_spec_ref=representation_spec_ref,
         config_hash=config_hash,

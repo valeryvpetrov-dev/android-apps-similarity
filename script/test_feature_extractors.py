@@ -7,6 +7,7 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest import mock
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _SCRIPT_DIR.parent
@@ -85,6 +86,58 @@ class TestZipLightExtractor(unittest.TestCase):
         self.assertEqual(result["layers"], {})
         self.assertEqual(result["extractor_run_record"]["status"], "analysis_failed")
         self.assertIn("bad_zipfile", result["extractor_run_record"]["errors"])
+
+    def test_zip_light_extractor_reuses_cache_on_second_call(self) -> None:
+        from feature_extractors import run_zip_light_extractor
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            apk_path = self._make_apk(root)
+            cache_dir = root / "cache"
+
+            first = run_zip_light_extractor(
+                apk_path,
+                requested_views=["code", "resource"],
+                cache_dir=cache_dir,
+            )
+            with mock.patch(
+                "feature_extractors.extract_layers_from_apk",
+                side_effect=AssertionError("zip extractor must not run on cache hit"),
+            ):
+                second = run_zip_light_extractor(
+                    apk_path,
+                    requested_views=["code", "resource"],
+                    cache_dir=cache_dir,
+                )
+
+        self.assertEqual(first["extractor_run_record"]["cache_status"], "miss")
+        self.assertEqual(second["extractor_run_record"]["cache_status"], "hit")
+        self.assertEqual(first["layers"], second["layers"])
+        for artifact in second["view_artifacts"]:
+            self.assertEqual(
+                artifact["extractor_run_ref"],
+                second["extractor_run_record"]["run_id"],
+            )
+
+    def test_zip_light_cache_serves_requested_subset_from_full_payload(self) -> None:
+        from feature_extractors import run_zip_light_extractor
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            apk_path = self._make_apk(root)
+            cache_dir = root / "cache"
+
+            first = run_zip_light_extractor(apk_path, cache_dir=cache_dir)
+            second = run_zip_light_extractor(
+                apk_path,
+                requested_views=["metadata"],
+                cache_dir=cache_dir,
+            )
+
+        self.assertEqual(first["extractor_run_record"]["cache_status"], "miss")
+        self.assertEqual(second["extractor_run_record"]["cache_status"], "hit")
+        self.assertEqual(second["extractor_run_record"]["produced_views"], ["metadata"])
+        self.assertEqual(set(second["layers"]), {"metadata"})
 
 
 class TestSemanticMultiviewExtractor(unittest.TestCase):
@@ -201,6 +254,41 @@ class TestSemanticMultiviewExtractor(unittest.TestCase):
         self.assertEqual(result["semantic_views"], {})
         self.assertEqual(result["extractor_run_record"]["status"], "analysis_failed")
         self.assertIn("bad_zipfile", result["extractor_run_record"]["errors"])
+
+    def test_semantic_multiview_extractor_reuses_cache_on_second_call(self) -> None:
+        from feature_extractors import run_semantic_multiview_extractor
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            apk_path = self._make_apk(root)
+            cache_dir = root / "cache"
+
+            first = run_semantic_multiview_extractor(
+                apk_path,
+                requested_views=["R_code_identity", "R_code_stats"],
+                cache_dir=cache_dir,
+            )
+            with mock.patch(
+                "feature_extractors.extract_semantic_views",
+                side_effect=AssertionError("semantic extractor must not run on cache hit"),
+            ):
+                second = run_semantic_multiview_extractor(
+                    apk_path,
+                    requested_views=["R_code_identity", "R_code_stats"],
+                    cache_dir=cache_dir,
+                )
+
+        self.assertEqual(first["extractor_run_record"]["cache_status"], "miss")
+        self.assertEqual(second["extractor_run_record"]["cache_status"], "hit")
+        self.assertEqual(
+            first["semantic_views"]["views"],
+            second["semantic_views"]["views"],
+        )
+        for artifact in second["view_artifacts"]:
+            self.assertEqual(
+                artifact["extractor_run_ref"],
+                second["extractor_run_record"]["run_id"],
+            )
 
 
 if __name__ == "__main__":

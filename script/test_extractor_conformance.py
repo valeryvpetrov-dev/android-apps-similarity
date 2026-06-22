@@ -101,6 +101,29 @@ class TestExtractorConformance(unittest.TestCase):
             errors,
         )
 
+    def test_run_validator_rejects_unknown_cache_status(self) -> None:
+        from extractor_conformance import validate_extractor_run_result
+        from feature_extractors import (
+            build_zip_light_extractor_capability,
+            run_zip_light_extractor,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            apk_path = self._make_apk(Path(tmp))
+            result = run_zip_light_extractor(apk_path, requested_views=["code"])
+
+        result["extractor_run_record"]["cache_status"] = "surprising_cache_state"
+        errors = validate_extractor_run_result(
+            result,
+            build_zip_light_extractor_capability(),
+            payload_key="layers",
+        )
+
+        self.assertIn(
+            "run:zip_light_extractor:unsupported_cache_status:surprising_cache_state",
+            errors,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
