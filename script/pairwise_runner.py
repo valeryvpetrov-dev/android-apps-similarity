@@ -1588,8 +1588,16 @@ def build_code_stats_containment_policy_fields(
     the selected content score may use the containment signal.
     """
     selected = set(selected_layers)
-    code_a = set(layers_a.get("code", set()))
-    code_b = set(layers_b.get("code", set()))
+    fingerprint_a = set(layers_a.get("code_fingerprint", set()))
+    fingerprint_b = set(layers_b.get("code_fingerprint", set()))
+    if fingerprint_a and fingerprint_b:
+        code_a = fingerprint_a
+        code_b = fingerprint_b
+        code_representation = "code_fingerprint"
+    else:
+        code_a = set(layers_a.get("code", set()))
+        code_b = set(layers_b.get("code", set()))
+        code_representation = "code"
     resource_a = set(layers_a.get("resource", set()))
     resource_b = set(layers_b.get("resource", set()))
 
@@ -1609,6 +1617,7 @@ def build_code_stats_containment_policy_fields(
         "code_stats_containment_score": code_containment,
         "code_stats_containment_larger_score": larger_coverage,
         "code_stats_containment_direction": _containment_direction(code_a, code_b),
+        "code_stats_containment_representation": code_representation,
         "code_stats_resource_corroboration_score": resource_corroboration,
         "code_stats_resource_corroboration_signal": CODE_STATS_RESOURCE_CORROBORATION_SIGNAL,
         "code_stats_containment_threshold": CODE_STATS_CONTAINMENT_THRESHOLD,

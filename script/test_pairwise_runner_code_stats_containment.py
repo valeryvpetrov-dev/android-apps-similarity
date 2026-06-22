@@ -28,7 +28,19 @@ def touch_apk(path: Path) -> None:
         archive.writestr("classes.dex", b"dex\n035\0")
 
 
-def _resource_bundle(code_tokens: set[str], digests: set[tuple[str, str]]) -> dict:
+def _code_v4_bundle_from_pairs(pairs: dict[str, str]) -> dict:
+    return {
+        "method_fingerprints": dict(pairs),
+        "total_methods": len(pairs),
+        "mode": "v4_shingled",
+    }
+
+
+def _resource_bundle(
+    code_tokens: set[str],
+    digests: set[tuple[str, str]],
+    method_fingerprints: dict[str, str] | None = None,
+) -> dict:
     return {
         "mode": "quick",
         "code": code_tokens,
@@ -36,6 +48,7 @@ def _resource_bundle(code_tokens: set[str], digests: set[tuple[str, str]]) -> di
         "component": {},
         "resource": {"resource_digests": digests},
         "library": {},
+        "code_v4_shingled": _code_v4_bundle_from_pairs(method_fingerprints or {}),
     }
 
 
@@ -182,6 +195,77 @@ stages:
         self.assertFalse(result["code_stats_containment_policy_applied"])
         self.assertAlmostEqual(result["code_stats_containment_score"], 1.0)
         self.assertAlmostEqual(result["code_stats_resource_corroboration_score"], 0.0)
+
+    def test_containment_uses_fingerprints_before_coarse_code_tokens(self) -> None:
+        shared_exact = {
+            "Lcom/example/Shared{:03d};->m()V".format(index): "fp:shared_{:03d}".format(index)
+            for index in range(52)
+        }
+        left_renamed = {
+            "Lcom/example/LeftRenamed{:03d};->m()V".format(index): "fp:renamed_{:03d}".format(index)
+            for index in range(14)
+        }
+        right_renamed = {
+            "Lcom/example/RightRenamed{:03d};->m()V".format(index): "fp:renamed_{:03d}".format(index)
+            for index in range(14)
+        }
+        left_only = {
+            "Lcom/example/LeftOnly{:03d};->m()V".format(index): "fp:left_{:03d}".format(index)
+            for index in range(44)
+        }
+        right_only = {
+            "Lcom/example/RightOnly{:03d};->m()V".format(index): "fp:right_{:03d}".format(index)
+            for index in range(44)
+        }
+        coarse_left = {"method:coarse_{:03d}".format(index) for index in range(110)}
+        coarse_right = coarse_left | {
+            "method:extra_{:03d}".format(index) for index in range(220)
+        }
+        shared_resources = {
+            ("res/layout/shared_{:02d}.xml".format(index), "shared-{:02d}".format(index))
+            for index in range(19)
+        }
+        left_resources = shared_resources | {
+            ("res/layout/left_{:02d}.xml".format(index), "left-{:02d}".format(index))
+            for index in range(2)
+        }
+        right_resources = shared_resources | {
+            ("res/layout/right_{:02d}.xml".format(index), "right-{:02d}".format(index))
+            for index in range(81)
+        }
+
+        result = self._run_one_pair(
+            _resource_bundle(
+                coarse_left,
+                left_resources,
+                shared_exact | left_renamed | left_only,
+            ),
+            _resource_bundle(
+                coarse_right,
+                right_resources,
+                shared_exact | right_renamed | right_only,
+            ),
+        )
+
+        exact_code_similarity = 52 / 110
+        bridge_score = (exact_code_similarity + 2 * (19 / 21)) / 3
+
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(
+            result.get("code_stats_containment_representation"),
+            "code_fingerprint",
+        )
+        self.assertFalse(result["code_stats_containment_policy_applied"])
+        self.assertAlmostEqual(
+            result["code_stats_containment_score"],
+            exact_code_similarity,
+        )
+        self.assertTrue(result["code_stats_payload_resource_bridge_policy_applied"])
+        self.assertEqual(
+            result["similarity_score_source"],
+            "code_stats_payload_resource_bridge",
+        )
+        self.assertAlmostEqual(result["similarity_score"], bridge_score)
 
     def test_detailed_scores_preserve_explicit_containment_selected_score(self) -> None:
         scores = pairwise_runner.build_detailed_scores(
