@@ -15,6 +15,45 @@ import pairwise_runner
 
 
 class TestPairwiseScoreConflictGuard(unittest.TestCase):
+    def test_p0_score_channel_wins_over_higher_p2_score_channel(self) -> None:
+        pair_row = {
+            "full_similarity_score": 0.20,
+            "library_reduced_score": 0.20,
+            "code_stats_containment_policy_applied": True,
+            "code_stats_containment_score": 0.81,
+            "code_stats_added_code_policy_applied": True,
+            "added_code_evidence_score": 0.96,
+        }
+
+        pairwise_runner.apply_code_stats_score_policy(pair_row, threshold=0.70)
+
+        self.assertEqual(pair_row["status"], "success")
+        self.assertAlmostEqual(pair_row["similarity_score"], 0.81)
+        self.assertEqual(
+            pair_row["similarity_score_source"],
+            "code_stats_containment_with_resource_corroboration",
+        )
+        self.assertEqual(pair_row["score_decision_selected_priority"], "P0")
+
+    def test_same_priority_score_channels_still_select_higher_score(self) -> None:
+        pair_row = {
+            "full_similarity_score": 0.20,
+            "library_reduced_score": 0.20,
+            "code_stats_containment_policy_applied": True,
+            "code_stats_containment_score": 0.86,
+            "code_stats_resource_change_identity_policy_applied": True,
+            "resource_change_identity_score": 1.0,
+        }
+
+        pairwise_runner.apply_code_stats_score_policy(pair_row, threshold=0.70)
+
+        self.assertAlmostEqual(pair_row["similarity_score"], 1.0)
+        self.assertEqual(
+            pair_row["similarity_score_source"],
+            "code_stats_resource_change_tolerant_code_identity",
+        )
+        self.assertEqual(pair_row["score_decision_selected_priority"], "P0")
+
     def test_zero_code_fingerprint_overlap_caps_library_reduced_review_score(self) -> None:
         pair_row = {
             "full_similarity_score": 0.625,

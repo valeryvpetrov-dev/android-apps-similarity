@@ -168,6 +168,11 @@ CODE_CONFLICT_GUARD_REVIEW_CAP = 0.29
 CODE_CONFLICT_GUARD_REASON = (
     "zero_code_fingerprint_overlap_for_library_reduced_review_score"
 )
+SCORE_DECISION_PRIORITY_CORE = 10
+SCORE_DECISION_PRIORITY_P2 = 20
+SCORE_DECISION_PRIORITY_P0 = 30
+SCORE_DECISION_PRIORITY_P0_GUARD = 40
+SCORE_DECISION_PRIORITY_ORDER = "P0_guard > P0 > P2 > core"
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -2022,6 +2027,8 @@ def apply_code_stats_score_policy(
 
     selected_score = base_score
     score_source = base_source
+    selected_priority_label = "core"
+    selected_priority_rank = SCORE_DECISION_PRIORITY_CORE
     selected_score_numeric: float | None
     try:
         selected_score_numeric = (
@@ -2035,21 +2042,29 @@ def apply_code_stats_score_policy(
             pair_row.get("code_stats_containment_policy_applied") is True,
             pair_row.get("code_stats_containment_score"),
             CODE_STATS_CONTAINMENT_SCORE_SOURCE,
+            "P0",
+            SCORE_DECISION_PRIORITY_P0,
         ),
         (
             pair_row.get("code_stats_added_code_policy_applied") is True,
             pair_row.get("added_code_evidence_score"),
             CODE_STATS_ADDED_CODE_SCORE_SOURCE,
+            "P2",
+            SCORE_DECISION_PRIORITY_P2,
         ),
         (
             pair_row.get("code_stats_resource_change_identity_policy_applied") is True,
             pair_row.get("resource_change_identity_score"),
             CODE_STATS_RESOURCE_CHANGE_IDENTITY_SCORE_SOURCE,
+            "P0",
+            SCORE_DECISION_PRIORITY_P0,
         ),
         (
             pair_row.get("code_stats_repack_core_policy_applied") is True,
             pair_row.get("repack_core_score"),
             CODE_STATS_REPACK_CORE_SCORE_SOURCE,
+            "P0",
+            SCORE_DECISION_PRIORITY_P0,
         ),
         (
             pair_row.get("code_stats_payload_resource_policy_applied") is True
@@ -2060,6 +2075,8 @@ def apply_code_stats_score_policy(
             and pair_row.get("code_stats_repack_core_policy_applied") is not True,
             pair_row.get("payload_resource_score"),
             CODE_STATS_PAYLOAD_RESOURCE_SCORE_SOURCE,
+            "P2",
+            SCORE_DECISION_PRIORITY_P2,
         ),
         (
             pair_row.get("code_stats_payload_resource_bridge_policy_applied")
@@ -2073,9 +2090,17 @@ def apply_code_stats_score_policy(
             is not True,
             pair_row.get("payload_resource_bridge_score"),
             CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_SCORE_SOURCE,
+            "P2",
+            SCORE_DECISION_PRIORITY_P2,
         ),
     )
-    for is_applied, candidate_score, candidate_source in score_candidates:
+    for (
+        is_applied,
+        candidate_score,
+        candidate_source,
+        candidate_priority_label,
+        candidate_priority_rank,
+    ) in score_candidates:
         if not is_applied:
             continue
         try:
@@ -2083,12 +2108,20 @@ def apply_code_stats_score_policy(
         except (TypeError, ValueError):
             continue
         if (
-            selected_score_numeric is None
-            or candidate_value > selected_score_numeric
+            candidate_priority_rank > selected_priority_rank
+            or (
+                candidate_priority_rank == selected_priority_rank
+                and (
+                    selected_score_numeric is None
+                    or candidate_value > selected_score_numeric
+                )
+            )
         ):
             selected_score = candidate_value
             selected_score_numeric = candidate_value
             score_source = candidate_source
+            selected_priority_label = candidate_priority_label
+            selected_priority_rank = candidate_priority_rank
 
     pair_row["score_conflict_guard_policy_id"] = CODE_CONFLICT_GUARD_POLICY_ID
     pair_row["score_conflict_guard_applied"] = False
@@ -2128,11 +2161,16 @@ def apply_code_stats_score_policy(
             )
             selected_score_numeric = float(selected_score)
             score_source = CODE_CONFLICT_GUARD_SCORE_SOURCE
+            selected_priority_label = "P0_guard"
+            selected_priority_rank = SCORE_DECISION_PRIORITY_P0_GUARD
             pair_row["score_conflict_guard_applied"] = True
             pair_row["score_conflict_guard_reason"] = CODE_CONFLICT_GUARD_REASON
             pair_row["score_conflict_guard_original_score"] = original_score
             pair_row["score_conflict_guard_adjusted_score"] = selected_score_numeric
 
+    pair_row["score_decision_priority_order"] = SCORE_DECISION_PRIORITY_ORDER
+    pair_row["score_decision_selected_priority"] = selected_priority_label
+    pair_row["score_decision_selected_priority_rank"] = selected_priority_rank
     pair_row["similarity_score"] = selected_score
     pair_row["selected_similarity_score"] = selected_score
     pair_row["similarity_score_source"] = score_source
