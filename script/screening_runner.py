@@ -108,6 +108,8 @@ DEX_MAGIC_PREFIX = b"dex\n"
 DEX_MAGIC_SUFFIX = b"\x00"
 DEX_VERSION_LENGTH = 3
 METHOD_IDENTITY_DEX_BYTES_LIMIT = 256 * 1024
+METHOD_ID_TOKEN_PREFIX = "method_id:"
+METHOD_NAMESPACE_TOKEN_PREFIX = "method_namespace:"
 # APK_SIG_V1_EXTENSIONS удалена в ARCH-31: после переноса
 # _detect_signing_scheme на signing_view (ARCH-30) META-INF enum'ация
 # полностью делегирована signing_view._has_meta_inf_v1_signature.
@@ -746,6 +748,27 @@ def _extract_code_method_identity_tokens(
     }
 
 
+def _code_method_namespace_tokens(code_tokens: set[str]) -> set[str]:
+    """Derive package/namespace anchors from method identity tokens.
+
+    R8-style obfuscation can shorten class and method names while keeping the
+    package namespace stable. The exact method ids no longer intersect, but the
+    namespace remains a cheap APK-local anchor for the first-stage code layer.
+    """
+    namespaces: set[str] = set()
+    for token in code_tokens:
+        if not isinstance(token, str) or not token.startswith(METHOD_ID_TOKEN_PREFIX):
+            continue
+        method_id = token[len(METHOD_ID_TOKEN_PREFIX):]
+        class_descriptor = method_id.split("->", 1)[0]
+        if "/" not in class_descriptor:
+            continue
+        namespace = class_descriptor.rsplit("/", 1)[0]
+        if namespace:
+            namespaces.add("{}{}".format(METHOD_NAMESPACE_TOKEN_PREFIX, namespace))
+    return namespaces
+
+
 def extract_layers_from_apk(apk_path: Path) -> dict[str, set[str]]:
     with zipfile.ZipFile(apk_path, "r") as archive:
         entries = [entry for entry in archive.namelist() if entry and not entry.endswith("/")]
@@ -813,6 +836,8 @@ def extract_layers_from_apk(apk_path: Path) -> dict[str, set[str]]:
             apk_path,
             total_dex_bytes=total_dex_bytes,
         )
+        if code:
+            code.update(_code_method_namespace_tokens(code))
         if not code:
             code = set("dex:{}".format(entry) for entry in dex_entries)
 

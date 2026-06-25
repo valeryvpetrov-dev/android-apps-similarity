@@ -106,6 +106,41 @@ class TestScreeningRunnerMetadataExtraction(unittest.TestCase):
             any(token.startswith("method_id:") for token in left["layers"]["code"])
         )
 
+    def test_code_layer_derives_namespace_tokens_from_method_ids(self) -> None:
+        original_code = {
+            "method_id:Lcom/phd/m3/c06/f090/Feature00;-><init>()V",
+            "method_id:Lcom/phd/m3/c06/f090/Feature00;->compute00()I",
+        }
+        obfuscated_code = {
+            "method_id:Lcom/phd/m3/c06/f090/a;-><init>()V",
+            "method_id:Lcom/phd/m3/c06/f090/a;->a()I",
+        }
+
+        original_augmented = (
+            original_code
+            | screening_runner._code_method_namespace_tokens(original_code)
+        )
+        obfuscated_augmented = (
+            obfuscated_code
+            | screening_runner._code_method_namespace_tokens(obfuscated_code)
+        )
+
+        self.assertIn(
+            "method_namespace:Lcom/phd/m3/c06/f090",
+            original_augmented,
+        )
+        self.assertIn(
+            "method_namespace:Lcom/phd/m3/c06/f090",
+            obfuscated_augmented,
+        )
+        self.assertGreater(
+            screening_runner.jaccard_similarity(
+                original_augmented,
+                obfuscated_augmented,
+            ),
+            0.0,
+        )
+
 
 class TestScreeningRunnerCandidateListContract(unittest.TestCase):
     def test_build_candidate_list_adds_screening_handoff_fields(self) -> None:
