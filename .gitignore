@@ -327,4 +327,7 @@ Temporary Items
 # iCloud generated files
 *.icloud
 
+# Local feature cache
+experiments/artifacts/.feature_cache.sqlite*
+
 # End of https://www.toptal.com/developers/gitignore/api/macos

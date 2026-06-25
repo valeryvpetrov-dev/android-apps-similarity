@@ -432,6 +432,23 @@ def _open_feature_cache(
     return FeatureCacheSqlite(_resolve_feature_cache_path(feature_cache_path))
 
 
+def _get_cached_feature_bundle(
+    apk_path: str | os.PathLike[str] | None,
+    feature_cache: Any | None,
+) -> dict[str, Any] | None:
+    if feature_cache is None or apk_path is None:
+        return None
+    try:
+        apk_file = Path(apk_path)
+        if not apk_file.is_file():
+            return None
+        apk_sha256 = _sha256_of_file(apk_file)
+        feature_bundle = feature_cache.get(apk_sha256, FEATURE_CACHE_VERSION)
+    except Exception:
+        return None
+    return feature_bundle if isinstance(feature_bundle, dict) else None
+
+
 @contextmanager
 def _process_pool_sysconf_workaround():
     """Sandbox workaround: some hosts deny os.sysconf(SC_SEM_NSEMS_MAX)."""
@@ -1364,10 +1381,6 @@ def load_layers_for_pairwise(
     apk_file = Path(apk_path)
     if not apk_file.is_file():
         raise PairwiseAnalysisError("APK does not exist: {}".format(apk_path))
-
-    requires_decoded = any(layer in DECODE_REQUIRED_LAYERS for layer in selected_layers)
-    if requires_decoded and not decoded_dir:
-        raise PairwiseAnalysisError("missing_decoded_dir")
 
     feature_bundle = None
     apk_sha256 = None
@@ -2433,6 +2446,8 @@ def _attach_semantic_multiview_check(
     apk_b: str | None,
     decoded_a: str | Path | None,
     decoded_b: str | Path | None,
+    feature_bundle_a: dict[str, Any] | None = None,
+    feature_bundle_b: dict[str, Any] | None = None,
 ) -> None:
     """Best-effort semantic check; never changes final pairwise verdict."""
     if not _semantic_multiview_enabled():
@@ -2447,6 +2462,8 @@ def _attach_semantic_multiview_check(
             decoded_b=decoded_b,
             app_a=pair_row.get("app_a"),
             app_b=pair_row.get("app_b"),
+            feature_bundle_a=feature_bundle_a,
+            feature_bundle_b=feature_bundle_b,
         )
     except Exception as exc:
         pair_row["semantic_multiview"] = {
@@ -2628,6 +2645,8 @@ def _compute_pair_row_with_caches(
         apk_b=apk_b,
         decoded_a=decoded_a,
         decoded_b=decoded_b,
+        feature_bundle_a=_get_cached_feature_bundle(apk_a, feature_cache),
+        feature_bundle_b=_get_cached_feature_bundle(apk_b, feature_cache),
     )
     pair_row["signature_match"] = collect_signature_match(apk_a, apk_b)
     pair_row["elapsed_ms_deep"] = int(round((time.perf_counter() - deep_start) * 1000))
@@ -2922,6 +2941,9 @@ def run_pairwise(
       через `shutdown(wait=False, cancel_futures=True)`, чтобы не зависнуть на
       `__exit__`.
     """
+    use_main_feature_cache = (
+        feature_cache_path is not None or os.environ.get("FEATURE_CACHE_PATH") is not None
+    )
     with _feature_cache_path_override(feature_cache_path):
         if os.environ.get("SIMILARITY_SKIP_REQ_CHECK") != "1":
             verify_required_dependencies()
@@ -2953,19 +2975,29 @@ def run_pairwise(
                     pair_index=index,
                     feature_cache_path_str=resolved_feature_cache_path,
                 )
-            return _compute_pair_row_with_caches(
-                candidate=candidate,
-                selected_layers=selected_layers,
-                metric=metric,
-                threshold=threshold,
-                ins_block_sim_threshold=ins_block_sim_threshold,
-                ged_timeout_sec=ged_timeout_sec,
-                processes_count=processes_count,
-                threads_count=threads_count,
-                layer_cache=layer_cache,
-                code_cache=code_cache,
-                apk_discovery_cache=apk_discovery_cache,
+            feature_cache = (
+                _open_feature_cache(resolved_feature_cache_path)
+                if use_main_feature_cache
+                else None
             )
+            try:
+                return _compute_pair_row_with_caches(
+                    candidate=candidate,
+                    selected_layers=selected_layers,
+                    metric=metric,
+                    threshold=threshold,
+                    ins_block_sim_threshold=ins_block_sim_threshold,
+                    ged_timeout_sec=ged_timeout_sec,
+                    processes_count=processes_count,
+                    threads_count=threads_count,
+                    layer_cache=layer_cache,
+                    code_cache=code_cache,
+                    apk_discovery_cache=apk_discovery_cache,
+                    feature_cache=feature_cache,
+                )
+            finally:
+                if feature_cache is not None:
+                    feature_cache.close()
 
         # workers=1 — полностью прежнее последовательное поведение.
         if not use_parallel:
@@ -2984,19 +3016,7 @@ def run_pairwise(
             if _should_skip_deep_verification(candidate):
                 # EXEC-091-EXEC: shortcut-пара не уходит в пул — считаем в основном
                 # процессе теми же функциями, что и при workers=1.
-                results_by_index[index] = _compute_pair_row_with_caches(
-                    candidate=candidate,
-                    selected_layers=selected_layers,
-                    metric=metric,
-                    threshold=threshold,
-                    ins_block_sim_threshold=ins_block_sim_threshold,
-                    ged_timeout_sec=ged_timeout_sec,
-                    processes_count=processes_count,
-                    threads_count=threads_count,
-                    layer_cache=layer_cache,
-                    code_cache=code_cache,
-                    apk_discovery_cache=apk_discovery_cache,
-                )
+                results_by_index[index] = run_one_sequential(index, candidate)
             else:
                 heavy_indices.append(index)
 

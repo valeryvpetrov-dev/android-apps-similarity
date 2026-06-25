@@ -32,10 +32,11 @@ class TestPairwiseRunnerEnhanced(unittest.TestCase):
             root = Path(tmpdir)
             config_path = root / "config.yaml"
             enriched_path = root / "enriched.json"
+            feature_cache_path = root / "feature-cache.sqlite"
             apk_a = root / "a.apk"
             apk_b = root / "b.apk"
-            touch_apk(apk_a)
-            touch_apk(apk_b)
+            apk_a.write_bytes(b"fake_apk_a")
+            apk_b.write_bytes(b"fake_apk_b")
 
             write_text(
                 config_path,
@@ -75,7 +76,7 @@ stages:
                 pairwise_runner,
                 "extract_all_features",
                 side_effect=[feature_bundle, feature_bundle],
-            ):
+            ) as features_mock:
                 payload = pairwise_runner.run_pairwise(
                     config_path=config_path,
                     enriched_path=enriched_path,
@@ -83,13 +84,100 @@ stages:
                     ged_timeout_sec=30,
                     processes_count=1,
                     threads_count=2,
+                    feature_cache_path=feature_cache_path,
                 )
 
         result = payload[0]
+        self.assertEqual(features_mock.call_count, 2)
         self.assertEqual(result["status"], "success")
         self.assertEqual(result["views_used"], ["code", "metadata"])
         self.assertAlmostEqual(result["full_similarity_score"], 1.0)
         self.assertAlmostEqual(result["library_reduced_score"], 1.0)
+
+    def test_run_pairwise_passes_cached_feature_bundles_to_semantic_check(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            config_path = root / "config.yaml"
+            enriched_path = root / "enriched.json"
+            feature_cache_path = root / "feature-cache.sqlite"
+            apk_a = root / "a.apk"
+            apk_b = root / "b.apk"
+            apk_a.write_bytes(b"fake_apk_a")
+            apk_b.write_bytes(b"fake_apk_b")
+
+            write_text(
+                config_path,
+                """
+stages:
+  pairwise:
+    features: [code, resource]
+    metric: jaccard
+    threshold: 0.10
+""".strip(),
+            )
+            enriched_path.write_text(
+                json.dumps(
+                    {
+                        "enriched_candidates": [
+                            {
+                                "app_a": {"app_id": "A", "apk_path": str(apk_a)},
+                                "app_b": {"app_id": "B", "apk_path": str(apk_b)},
+                            }
+                        ]
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+            feature_bundle_a = {
+                "mode": "quick",
+                "code": {"dex:classes.dex", "method:a"},
+                "metadata": set(),
+                "component": {},
+                "resource": {"res_type:layout"},
+                "library": set(),
+                "code_v4": {"method_ids": ["A.m"], "method_fingerprints": {"A.m": "fp-a"}},
+            }
+            feature_bundle_b = {
+                "mode": "quick",
+                "code": {"dex:classes.dex", "method:b"},
+                "metadata": set(),
+                "component": {},
+                "resource": {"res_type:layout"},
+                "library": set(),
+                "code_v4": {"method_ids": ["B.m"], "method_fingerprints": {"B.m": "fp-b"}},
+            }
+
+            semantic_result = {
+                "profile_id": "R_semantic_multiview_decision_policy_v0",
+                "status": "success",
+                "scores": {},
+            }
+            with mock.patch.object(
+                pairwise_runner,
+                "extract_all_features",
+                side_effect=[feature_bundle_a, feature_bundle_b],
+            ), mock.patch.object(
+                pairwise_runner,
+                "run_semantic_multiview_check",
+                return_value=semantic_result,
+            ) as semantic_mock:
+                payload = pairwise_runner.run_pairwise(
+                    config_path=config_path,
+                    enriched_path=enriched_path,
+                    ins_block_sim_threshold=0.8,
+                    ged_timeout_sec=30,
+                    processes_count=1,
+                    threads_count=2,
+                    feature_cache_path=feature_cache_path,
+                )
+
+        self.assertEqual(payload[0]["semantic_multiview"], semantic_result)
+        semantic_mock.assert_called_once()
+        kwargs = semantic_mock.call_args.kwargs
+        self.assertEqual(kwargs["feature_bundle_a"], feature_bundle_a)
+        self.assertEqual(kwargs["feature_bundle_b"], feature_bundle_b)
 
     def test_run_pairwise_keeps_backward_compat_with_mocked_calculate_pair_scores(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -245,7 +333,7 @@ stages:
         self.assertAlmostEqual(result["full_similarity_score"], 1.0)
         self.assertAlmostEqual(result["library_reduced_score"], 1.0)
 
-    def test_run_pairwise_fails_when_decoded_layers_are_missing(self) -> None:
+    def test_run_pairwise_uses_quick_apk_features_when_decoded_layers_are_missing(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             config_path = root / "config.yaml"
@@ -280,19 +368,34 @@ stages:
                 encoding="utf-8",
             )
 
-            payload = pairwise_runner.run_pairwise(
-                config_path=config_path,
-                enriched_path=enriched_path,
-                ins_block_sim_threshold=0.8,
-                ged_timeout_sec=30,
-                processes_count=1,
-                threads_count=2,
-            )
+            feature_bundle = {
+                "mode": "quick",
+                "code": set(),
+                "metadata": set(),
+                "component": {"activity:com.example.MainActivity"},
+                "resource": {"res/layout/main.xml", "res/values/strings.xml"},
+                "library": set(),
+            }
+
+            with mock.patch.object(
+                pairwise_runner,
+                "extract_all_features",
+                side_effect=[feature_bundle, feature_bundle],
+            ) as features_mock:
+                payload = pairwise_runner.run_pairwise(
+                    config_path=config_path,
+                    enriched_path=enriched_path,
+                    ins_block_sim_threshold=0.8,
+                    ged_timeout_sec=30,
+                    processes_count=1,
+                    threads_count=2,
+                )
 
         result = payload[0]
-        self.assertEqual(result["status"], "analysis_failed")
-        self.assertIsNone(result["full_similarity_score"])
-        self.assertIsNone(result["library_reduced_score"])
+        self.assertEqual(features_mock.call_count, 2)
+        self.assertEqual(result["status"], "success")
+        self.assertAlmostEqual(result["full_similarity_score"], 1.0)
+        self.assertAlmostEqual(result["library_reduced_score"], 1.0)
 
     def test_run_pairwise_discovers_shared_apk_and_decoded_dirs_by_app_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
