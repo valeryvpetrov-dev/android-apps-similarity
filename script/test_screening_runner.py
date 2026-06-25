@@ -67,6 +67,45 @@ class TestScreeningRunnerMetadataExtraction(unittest.TestCase):
         self.assertFalse(any(token.startswith("min_sdk:") for token in layers["metadata"]))
         self.assertFalse(any(token.startswith("target_sdk:") for token in layers["metadata"]))
 
+    def test_code_layer_keeps_method_identity_when_same_dex_is_packaged_as_multidex(self) -> None:
+        source_apk = (
+            Path(__file__).resolve().parents[1]
+            / "apk"
+            / "simple_app"
+            / "simple_app-releaseNonOptimized.apk"
+        )
+        if not source_apk.is_file():
+            self.skipTest("simple_app APK fixture is missing")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            multidex_apk = Path(tmpdir) / "simple_app_multidex.apk"
+            with zipfile.ZipFile(source_apk, "r") as src:
+                classes_dex = src.read("classes.dex")
+                with zipfile.ZipFile(multidex_apk, "w", compression=zipfile.ZIP_STORED) as dst:
+                    for info in src.infolist():
+                        if info.is_dir():
+                            continue
+                        dst.writestr(info.filename, src.read(info.filename))
+                    dst.writestr("classes2.dex", classes_dex)
+
+            left = {"app_id": "left", "layers": extract_layers_from_apk(source_apk)}
+            right = {"app_id": "right", "layers": extract_layers_from_apk(multidex_apk)}
+            score = screening_runner.calculate_pair_score(
+                app_a=left,
+                app_b=right,
+                metric="jaccard",
+                selected_layers=["code"],
+                ins_block_sim_threshold=0.80,
+                ged_timeout_sec=30,
+                processes_count=1,
+                threads_count=1,
+            )
+
+        self.assertGreaterEqual(score, 0.90)
+        self.assertTrue(
+            any(token.startswith("method_id:") for token in left["layers"]["code"])
+        )
+
 
 class TestScreeningRunnerCandidateListContract(unittest.TestCase):
     def test_build_candidate_list_adds_screening_handoff_fields(self) -> None:

@@ -107,6 +107,7 @@ MANIFEST_SOFTWARE_FEATURE_PATTERN = re.compile(
 DEX_MAGIC_PREFIX = b"dex\n"
 DEX_MAGIC_SUFFIX = b"\x00"
 DEX_VERSION_LENGTH = 3
+METHOD_IDENTITY_DEX_BYTES_LIMIT = 256 * 1024
 # APK_SIG_V1_EXTENSIONS удалена в ARCH-31: после переноса
 # _detect_signing_scheme на signing_view (ARCH-30) META-INF enum'ация
 # полностью делегирована signing_view._has_meta_inf_v1_signature.
@@ -704,6 +705,47 @@ def _extract_permission_feature_tokens(manifest_bytes: bytes) -> set[str]:
     return tokens
 
 
+def _extract_code_method_identity_tokens(
+    apk_path: Path,
+    *,
+    total_dex_bytes: int,
+) -> set[str]:
+    """Extract DEX method-id tokens across all classes*.dex files.
+
+    The old ZIP-light code signal used only DEX file names, so a single-dex
+    APK was ranked above its true multi-dex counterpart when the class set was
+    merely redistributed between ``classes.dex`` and ``classes2.dex``.
+    Method ids are invariant to DEX file boundaries. To keep the first stage
+    cheap, the parser is used only for small DEX payloads; larger APKs keep the
+    legacy DEX-packaging fallback until a separate indexed/rerank path is
+    validated.
+    """
+    if total_dex_bytes > METHOD_IDENTITY_DEX_BYTES_LIMIT:
+        return set()
+    try:
+        try:
+            from code_view_v4_shingled import extract_code_view_v4_shingled
+        except ImportError:
+            from script.code_view_v4_shingled import (  # type: ignore
+                extract_code_view_v4_shingled,
+            )
+        features = extract_code_view_v4_shingled(apk_path)
+    except Exception as exc:  # pragma: no cover - defensive cheap-path fallback
+        logger.warning("screening_runner: method identity extraction failed: %s", exc)
+        return set()
+
+    if not isinstance(features, dict):
+        return set()
+    method_fingerprints = features.get("method_fingerprints")
+    if not isinstance(method_fingerprints, dict):
+        return set()
+    return {
+        "method_id:{}".format(method_id)
+        for method_id in method_fingerprints
+        if isinstance(method_id, str) and method_id
+    }
+
+
 def extract_layers_from_apk(apk_path: Path) -> dict[str, set[str]]:
     with zipfile.ZipFile(apk_path, "r") as archive:
         entries = [entry for entry in archive.namelist() if entry and not entry.endswith("/")]
@@ -762,7 +804,17 @@ def extract_layers_from_apk(apk_path: Path) -> dict[str, set[str]]:
         resource = set()
         component = set(manifest_component_features)
         library = set()
-        code = set("dex:{}".format(entry) for entry in dex_entries)
+        total_dex_bytes = sum(
+            archive.getinfo(entry).file_size
+            for entry in dex_entries
+            if entry in entry_set
+        )
+        code = _extract_code_method_identity_tokens(
+            apk_path,
+            total_dex_bytes=total_dex_bytes,
+        )
+        if not code:
+            code = set("dex:{}".format(entry) for entry in dex_entries)
 
         for entry in entries:
             if entry.startswith("res/"):
