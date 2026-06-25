@@ -625,6 +625,22 @@ class TestEvidenceToMarkdownBlock(unittest.TestCase):
         self.assertIn("Layer score", block)
         self.assertNotIn("Оценка по слою", block)
 
+    def test_framework_shift_evidence_has_human_readable_labels(self) -> None:
+        record = make_evidence(
+            "pairwise",
+            "framework_shift_evidence",
+            0.21,
+            "R_framework_shift_anchors",
+        )
+
+        row_ru = render_single_evidence(record, locale="ru")
+        row_en = render_single_evidence(record, locale="en")
+
+        self.assertIn("Смена каркаса приложения", row_ru)
+        self.assertIn("Framework shift evidence", row_en)
+        self.assertNotIn("framework_shift_evidence", row_ru)
+        self.assertNotIn("framework_shift_evidence", row_en)
+
     def test_summary_groups_by_source_stage(self) -> None:
         records = [
             make_evidence("screening", "layer_score", 0.6, "a"),

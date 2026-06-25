@@ -434,6 +434,7 @@ _SIGNAL_LABELS = {
     "signature_match": "совпадение подписи APK",
     "library_match": "совпадение набора библиотек",
     "icc_overlap": "пересечение ICC-кортежей",
+    "framework_shift_evidence": "смена каркаса приложения при сохранении якорей",
 }
 
 
@@ -659,6 +660,7 @@ def describe_pair_evidence(
 _MARKDOWN_SIGNAL_LABELS_RU = {
     "layer_score": "Оценка по слою",
     "signature_match": "Совпадение подписи APK",
+    "framework_shift_evidence": "Смена каркаса приложения",
     "shortcut_applied": "Применён короткий путь",
     "timeout": "Превышен лимит времени",
 }
@@ -666,6 +668,7 @@ _MARKDOWN_SIGNAL_LABELS_RU = {
 _MARKDOWN_SIGNAL_LABELS_EN = {
     "layer_score": "Layer score",
     "signature_match": "APK signature match",
+    "framework_shift_evidence": "Framework shift evidence",
     "shortcut_applied": "Shortcut applied",
     "timeout": "Timeout exceeded",
 }
