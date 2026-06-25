@@ -141,6 +141,42 @@ class TestScreeningRunnerMetadataExtraction(unittest.TestCase):
             0.0,
         )
 
+    def test_code_layer_derives_filtered_namespace_segment_tokens(self) -> None:
+        original_code = {
+            "method_id:Lcom/phd/m3/c04/f169/Feature00;->value00()I",
+        }
+        renamed_code = {
+            "method_id:Lcom/phd/m3/c04/renamed/f169/Feature00;->value00()I",
+        }
+
+        original_augmented = (
+            original_code
+            | screening_runner._code_method_namespace_tokens(original_code)
+        )
+        renamed_augmented = (
+            renamed_code
+            | screening_runner._code_method_namespace_tokens(renamed_code)
+        )
+        original_segments = screening_runner._code_method_namespace_segment_tokens(
+            original_augmented
+        )
+        renamed_segments = screening_runner._code_method_namespace_segment_tokens(
+            renamed_augmented
+        )
+
+        self.assertIn("method_namespace_segment:c04", original_segments)
+        self.assertIn("method_namespace_segment:f169", original_segments)
+        self.assertIn("method_namespace_segment:c04", renamed_segments)
+        self.assertIn("method_namespace_segment:f169", renamed_segments)
+        self.assertNotIn("method_namespace_segment:com", original_segments)
+        self.assertGreater(
+            screening_runner.jaccard_similarity(
+                original_augmented | original_segments,
+                renamed_augmented | renamed_segments,
+            ),
+            0.0,
+        )
+
 
 class TestScreeningRunnerCandidateListContract(unittest.TestCase):
     def test_build_candidate_list_adds_screening_handoff_fields(self) -> None:

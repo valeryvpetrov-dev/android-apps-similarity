@@ -110,6 +110,20 @@ DEX_VERSION_LENGTH = 3
 METHOD_IDENTITY_DEX_BYTES_LIMIT = 256 * 1024
 METHOD_ID_TOKEN_PREFIX = "method_id:"
 METHOD_NAMESPACE_TOKEN_PREFIX = "method_namespace:"
+METHOD_NAMESPACE_SEGMENT_TOKEN_PREFIX = "method_namespace_segment:"
+COMMON_METHOD_NAMESPACE_SEGMENTS = frozenset(
+    {
+        "android",
+        "androidx",
+        "com",
+        "io",
+        "java",
+        "javax",
+        "kotlin",
+        "net",
+        "org",
+    }
+)
 # APK_SIG_V1_EXTENSIONS удалена в ARCH-31: после переноса
 # _detect_signing_scheme на signing_view (ARCH-30) META-INF enum'ация
 # полностью делегирована signing_view._has_meta_inf_v1_signature.
@@ -769,6 +783,31 @@ def _code_method_namespace_tokens(code_tokens: set[str]) -> set[str]:
     return namespaces
 
 
+def _code_method_namespace_segment_tokens(code_tokens: set[str]) -> set[str]:
+    """Derive filtered namespace segment anchors from namespace tokens.
+
+    Package/namespace rewrites can insert or replace one path segment while
+    preserving other meaningful segments. Common top-level Java/Android
+    segments are skipped because they add noise to Jaccard screening.
+    """
+    segments: set[str] = set()
+    for token in code_tokens:
+        if not isinstance(token, str) or not token.startswith(METHOD_NAMESPACE_TOKEN_PREFIX):
+            continue
+        namespace = token[len(METHOD_NAMESPACE_TOKEN_PREFIX):].strip().rstrip(";")
+        if namespace.startswith("L"):
+            namespace = namespace[1:]
+        for raw_segment in namespace.split("/"):
+            segment = raw_segment.strip().lower()
+            if (
+                len(segment) <= 2
+                or segment in COMMON_METHOD_NAMESPACE_SEGMENTS
+            ):
+                continue
+            segments.add("{}{}".format(METHOD_NAMESPACE_SEGMENT_TOKEN_PREFIX, segment))
+    return segments
+
+
 def extract_layers_from_apk(apk_path: Path) -> dict[str, set[str]]:
     with zipfile.ZipFile(apk_path, "r") as archive:
         entries = [entry for entry in archive.namelist() if entry and not entry.endswith("/")]
@@ -838,6 +877,7 @@ def extract_layers_from_apk(apk_path: Path) -> dict[str, set[str]]:
         )
         if code:
             code.update(_code_method_namespace_tokens(code))
+            code.update(_code_method_namespace_segment_tokens(code))
         if not code:
             code = set("dex:{}".format(entry) for entry in dex_entries)
 
