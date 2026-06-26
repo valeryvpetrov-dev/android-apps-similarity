@@ -7,6 +7,7 @@ import logging
 import math
 import os
 import re
+import struct
 import time
 import zipfile
 from itertools import combinations
@@ -737,7 +738,7 @@ def _extract_code_method_identity_tokens(
     validated.
     """
     if total_dex_bytes > METHOD_IDENTITY_DEX_BYTES_LIMIT:
-        return set()
+        return _extract_code_method_id_only_tokens(apk_path)
     try:
         try:
             from code_view_v4_shingled import extract_code_view_v4_shingled
@@ -760,6 +761,142 @@ def _extract_code_method_identity_tokens(
         for method_id in method_fingerprints
         if isinstance(method_id, str) and method_id
     }
+
+
+def _extract_code_method_id_only_tokens(apk_path: Path) -> set[str]:
+    """Extract defined DEX method ids without opcode fingerprints.
+
+    Large piggybacking APKs can exceed the cheap shingled-fingerprint limit.
+    The first-stage screening still benefits from exact method ids, and those
+    can be read from DEX class data without decoding opcode streams.
+    """
+    tokens: set[str] = set()
+    try:
+        with zipfile.ZipFile(apk_path, "r") as archive:
+            dex_entries = sorted(
+                entry
+                for entry in archive.namelist()
+                if entry.startswith("classes") and entry.endswith(".dex")
+            )
+            for entry in dex_entries:
+                for method_id in _iter_dex_defined_method_ids(archive.read(entry)):
+                    tokens.add("{}{}".format(METHOD_ID_TOKEN_PREFIX, method_id))
+    except Exception as exc:  # pragma: no cover - defensive cheap-path fallback
+        logger.warning("screening_runner: method id-only extraction failed: %s", exc)
+        return set()
+    return tokens
+
+
+def _iter_dex_defined_method_ids(dex: bytes) -> list[str]:
+    """Return method ids for DEX methods with code, without opcode decoding."""
+    if len(dex) < 0x70 or dex[:4] != DEX_MAGIC_PREFIX:
+        return []
+
+    try:
+        try:
+            from code_view_v4 import _read_mutf8_string, _read_uleb128
+        except ImportError:
+            from script.code_view_v4 import (  # type: ignore
+                _read_mutf8_string,
+                _read_uleb128,
+            )
+    except Exception as exc:  # pragma: no cover - defensive import fallback
+        logger.warning("screening_runner: DEX method-id parser unavailable: %s", exc)
+        return []
+
+    (
+        string_ids_size,
+        string_ids_off,
+        type_ids_size,
+        type_ids_off,
+        proto_ids_size,
+        proto_ids_off,
+        _field_ids_size,
+        _field_ids_off,
+        method_ids_size,
+        method_ids_off,
+        class_defs_size,
+        class_defs_off,
+        _data_size,
+        _data_off,
+    ) = struct.unpack_from("<14I", dex, 56)
+
+    strings: list[str] = [""] * string_ids_size
+    for index in range(string_ids_size):
+        (string_data_off,) = struct.unpack_from(
+            "<I", dex, string_ids_off + index * 4
+        )
+        strings[index] = _read_mutf8_string(dex, string_data_off)
+
+    types: list[str] = [""] * type_ids_size
+    for index in range(type_ids_size):
+        (string_index,) = struct.unpack_from("<I", dex, type_ids_off + index * 4)
+        types[index] = strings[string_index]
+
+    proto_descs: list[str] = [""] * proto_ids_size
+    for index in range(proto_ids_size):
+        (_shorty_idx, return_type_idx, parameters_off) = struct.unpack_from(
+            "<III", dex, proto_ids_off + index * 12
+        )
+        params: list[str] = []
+        if parameters_off != 0:
+            (list_size,) = struct.unpack_from("<I", dex, parameters_off)
+            for param_index in range(list_size):
+                (type_index,) = struct.unpack_from(
+                    "<H", dex, parameters_off + 4 + param_index * 2
+                )
+                params.append(types[type_index])
+        proto_descs[index] = "({}){}".format("".join(params), types[return_type_idx])
+
+    method_refs: list[tuple[str, str, str]] = [("", "", "")] * method_ids_size
+    for index in range(method_ids_size):
+        (class_idx, proto_idx, name_idx) = struct.unpack_from(
+            "<HHI", dex, method_ids_off + index * 8
+        )
+        method_refs[index] = (
+            types[class_idx],
+            strings[name_idx],
+            proto_descs[proto_idx],
+        )
+
+    method_ids: list[str] = []
+    for index in range(class_defs_size):
+        class_def_off = class_defs_off + index * 32
+        (
+            _class_idx,
+            _access_flags,
+            _superclass_idx,
+            _interfaces_off,
+            _source_file_idx,
+            _annotations_off,
+            class_data_off,
+            _static_values_off,
+        ) = struct.unpack_from("<8I", dex, class_def_off)
+        if class_data_off == 0:
+            continue
+
+        cursor = class_data_off
+        static_fields_size, cursor = _read_uleb128(dex, cursor)
+        instance_fields_size, cursor = _read_uleb128(dex, cursor)
+        direct_methods_size, cursor = _read_uleb128(dex, cursor)
+        virtual_methods_size, cursor = _read_uleb128(dex, cursor)
+
+        for _ in range(static_fields_size + instance_fields_size):
+            _, cursor = _read_uleb128(dex, cursor)
+            _, cursor = _read_uleb128(dex, cursor)
+
+        for method_group_size in (direct_methods_size, virtual_methods_size):
+            previous_method_idx = 0
+            for _ in range(method_group_size):
+                method_idx_diff, cursor = _read_uleb128(dex, cursor)
+                _, cursor = _read_uleb128(dex, cursor)
+                code_off, cursor = _read_uleb128(dex, cursor)
+                previous_method_idx += method_idx_diff
+                if code_off == 0:
+                    continue
+                class_desc, name, proto = method_refs[previous_method_idx]
+                method_ids.append("{}->{}{}".format(class_desc, name, proto))
+    return method_ids
 
 
 def _code_method_namespace_tokens(code_tokens: set[str]) -> set[str]:

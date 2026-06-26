@@ -106,6 +106,23 @@ class TestScreeningRunnerMetadataExtraction(unittest.TestCase):
             any(token.startswith("method_id:") for token in left["layers"]["code"])
         )
 
+    def test_code_layer_keeps_method_ids_above_shingled_limit(self) -> None:
+        source_apk = (
+            Path(__file__).resolve().parents[1]
+            / "apk"
+            / "simple_app"
+            / "simple_app-releaseNonOptimized.apk"
+        )
+        if not source_apk.is_file():
+            self.skipTest("simple_app APK fixture is missing")
+
+        tokens = screening_runner._extract_code_method_identity_tokens(
+            source_apk,
+            total_dex_bytes=screening_runner.METHOD_IDENTITY_DEX_BYTES_LIMIT + 1,
+        )
+
+        self.assertTrue(any(token.startswith("method_id:") for token in tokens))
+
     def test_code_layer_derives_namespace_tokens_from_method_ids(self) -> None:
         original_code = {
             "method_id:Lcom/phd/m3/c06/f090/Feature00;-><init>()V",
