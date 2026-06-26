@@ -168,6 +168,17 @@ CODE_CONFLICT_GUARD_REVIEW_CAP = 0.29
 CODE_CONFLICT_GUARD_REASON = (
     "zero_code_fingerprint_overlap_for_library_reduced_review_score"
 )
+SEMANTIC_MULTIVIEW_SCORE_POLICY_ID = (
+    "R_semantic_multiview_score_promotion_policy_v1"
+)
+SEMANTIC_MULTIVIEW_SCORE_SOURCE = (
+    "semantic_multiview_high_same_resources_code_stats_match"
+)
+SEMANTIC_MULTIVIEW_PROMOTION_REF = "R_semantic_multiview_score_promotion"
+SEMANTIC_MULTIVIEW_PROMOTION_RELATION = "same_resources_code_stats_match"
+SEMANTIC_MULTIVIEW_CODE_STATS_THRESHOLD = 0.70
+SEMANTIC_MULTIVIEW_RESOURCE_IDENTITY_THRESHOLD = 0.70
+SEMANTIC_MULTIVIEW_RESOURCE_STRUCTURE_THRESHOLD = 0.60
 SCORE_DECISION_PRIORITY_CORE = 10
 SCORE_DECISION_PRIORITY_P2 = 20
 SCORE_DECISION_PRIORITY_P0 = 30
@@ -2203,6 +2214,155 @@ def apply_code_stats_score_policy(
         pair_row["status"] = "success" if decision_score >= threshold else "low_similarity"
 
 
+def _score_float_or_none(value: Any) -> float | None:
+    try:
+        return float(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _score_priority_rank_or_core(value: Any) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return SCORE_DECISION_PRIORITY_CORE
+
+
+def apply_semantic_multiview_score_policy(
+    pair_row: dict[str, Any],
+    threshold: float,
+) -> None:
+    """Promote a guarded semantic_multiview high relation to score source.
+
+    The policy is intentionally narrow: it promotes only
+    ``same_resources_code_stats_match`` when both independent anchors are
+    strong enough. Review-band semantic results remain evidence-only.
+    """
+    pair_row["semantic_multiview_score_policy_id"] = (
+        SEMANTIC_MULTIVIEW_SCORE_POLICY_ID
+    )
+    pair_row["semantic_multiview_score_policy_applied"] = False
+    pair_row["semantic_multiview_score_selected"] = False
+    pair_row["semantic_multiview_score_policy_reason"] = None
+    pair_row["semantic_multiview_score_source"] = SEMANTIC_MULTIVIEW_SCORE_SOURCE
+    pair_row["semantic_multiview_promotion_ref"] = SEMANTIC_MULTIVIEW_PROMOTION_REF
+    pair_row["semantic_multiview_promotion_relation"] = None
+    pair_row["semantic_multiview_promotion_score"] = None
+    pair_row["semantic_multiview_code_stats_score"] = None
+    pair_row["semantic_multiview_resource_identity_score"] = None
+    pair_row["semantic_multiview_resource_structure_score"] = None
+    pair_row["semantic_multiview_code_stats_threshold"] = (
+        SEMANTIC_MULTIVIEW_CODE_STATS_THRESHOLD
+    )
+    pair_row["semantic_multiview_resource_identity_threshold"] = (
+        SEMANTIC_MULTIVIEW_RESOURCE_IDENTITY_THRESHOLD
+    )
+    pair_row["semantic_multiview_resource_structure_threshold"] = (
+        SEMANTIC_MULTIVIEW_RESOURCE_STRUCTURE_THRESHOLD
+    )
+
+    if pair_row.get("status") == "analysis_failed":
+        pair_row["semantic_multiview_score_policy_reason"] = "analysis_failed_status"
+        return
+
+    semantic = pair_row.get("semantic_multiview")
+    if not isinstance(semantic, dict):
+        pair_row["semantic_multiview_score_policy_reason"] = (
+            "missing_semantic_multiview"
+        )
+        return
+
+    if semantic.get("status") != "success":
+        pair_row["semantic_multiview_score_policy_reason"] = (
+            "semantic_status_not_success"
+        )
+        return
+
+    band = str(semantic.get("semantic_band") or "")
+    relation = str(semantic.get("semantic_relation") or "")
+    pair_row["semantic_multiview_promotion_relation"] = relation or None
+    if band != "high":
+        pair_row["semantic_multiview_score_policy_reason"] = "semantic_band_not_high"
+        return
+    if relation != SEMANTIC_MULTIVIEW_PROMOTION_RELATION:
+        pair_row["semantic_multiview_score_policy_reason"] = (
+            "semantic_relation_not_promoted"
+        )
+        return
+
+    scores = semantic.get("scores")
+    if not isinstance(scores, dict):
+        pair_row["semantic_multiview_score_policy_reason"] = "missing_semantic_scores"
+        return
+
+    code_stats = _score_float_or_none(scores.get("R_code_stats"))
+    resource_identity = _score_float_or_none(scores.get("R_resource_identity"))
+    resource_structure = _score_float_or_none(scores.get("R_resource_structure"))
+    pair_row["semantic_multiview_code_stats_score"] = code_stats
+    pair_row["semantic_multiview_resource_identity_score"] = resource_identity
+    pair_row["semantic_multiview_resource_structure_score"] = resource_structure
+    if (
+        code_stats is None
+        or resource_identity is None
+        or resource_structure is None
+    ):
+        pair_row["semantic_multiview_score_policy_reason"] = "missing_guard_scores"
+        return
+    if (
+        code_stats < SEMANTIC_MULTIVIEW_CODE_STATS_THRESHOLD
+        or resource_identity < SEMANTIC_MULTIVIEW_RESOURCE_IDENTITY_THRESHOLD
+        or resource_structure < SEMANTIC_MULTIVIEW_RESOURCE_STRUCTURE_THRESHOLD
+    ):
+        pair_row["semantic_multiview_score_policy_reason"] = (
+            "guard_scores_below_threshold"
+        )
+        return
+
+    promotion_score = min(code_stats, resource_identity)
+    pair_row["semantic_multiview_score_policy_applied"] = True
+    pair_row["semantic_multiview_promotion_score"] = promotion_score
+
+    current_rank = _score_priority_rank_or_core(
+        pair_row.get("score_decision_selected_priority_rank")
+    )
+    current_score = _score_float_or_none(pair_row.get("similarity_score"))
+    if current_score is None:
+        current_score = _score_float_or_none(pair_row.get("selected_similarity_score"))
+    if current_score is None:
+        current_score = _score_float_or_none(pair_row.get("library_reduced_score"))
+    if current_score is None:
+        current_score = _score_float_or_none(pair_row.get("full_similarity_score"))
+
+    semantic_priority_label = "P0_guard"
+    semantic_priority_rank = SCORE_DECISION_PRIORITY_P0_GUARD
+    should_select = (
+        semantic_priority_rank > current_rank
+        or (
+            semantic_priority_rank == current_rank
+            and (current_score is None or promotion_score > current_score)
+        )
+    )
+    if not should_select:
+        pair_row["semantic_multiview_score_policy_reason"] = (
+            "existing_score_has_equal_or_higher_priority"
+        )
+        return
+
+    pair_row["semantic_multiview_score_selected"] = True
+    pair_row["semantic_multiview_score_policy_reason"] = (
+        "selected_as_similarity_score"
+    )
+    pair_row["score_decision_priority_order"] = SCORE_DECISION_PRIORITY_ORDER
+    pair_row["score_decision_selected_priority"] = semantic_priority_label
+    pair_row["score_decision_selected_priority_rank"] = semantic_priority_rank
+    pair_row["similarity_score"] = promotion_score
+    pair_row["selected_similarity_score"] = promotion_score
+    pair_row["similarity_score_source"] = SEMANTIC_MULTIVIEW_SCORE_SOURCE
+    pair_row["score_decision_policy_id"] = DEEP_M2_SCORE_DECISION_POLICY_ID
+    pair_row["failure_similarity_semantics"] = None
+    pair_row["status"] = "success" if promotion_score >= threshold else "low_similarity"
+
+
 def apply_code_stats_containment_score_policy(
     pair_row: dict[str, Any],
     threshold: float,
@@ -2449,7 +2609,7 @@ def _attach_semantic_multiview_check(
     feature_bundle_a: dict[str, Any] | None = None,
     feature_bundle_b: dict[str, Any] | None = None,
 ) -> None:
-    """Best-effort semantic check; never changes final pairwise verdict."""
+    """Attach a best-effort semantic check; score selection is separate."""
     if not _semantic_multiview_enabled():
         return
     if run_semantic_multiview_check is None:
@@ -2648,6 +2808,7 @@ def _compute_pair_row_with_caches(
         feature_bundle_a=_get_cached_feature_bundle(apk_a, feature_cache),
         feature_bundle_b=_get_cached_feature_bundle(apk_b, feature_cache),
     )
+    apply_semantic_multiview_score_policy(pair_row, threshold=threshold)
     pair_row["signature_match"] = collect_signature_match(apk_a, apk_b)
     pair_row["elapsed_ms_deep"] = int(round((time.perf_counter() - deep_start) * 1000))
     pair_row["evidence"] = collect_evidence_from_pairwise(pair_row)

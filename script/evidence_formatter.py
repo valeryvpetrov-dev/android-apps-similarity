@@ -312,6 +312,21 @@ def collect_evidence_from_pairwise(pair_row: dict) -> list[dict]:
             )
         )
 
+    if pair_row.get("semantic_multiview_score_policy_applied") is True:
+        evidence.append(
+            make_evidence(
+                source_stage="pairwise",
+                signal_type="semantic_multiview_score_promotion",
+                magnitude=_clamp_unit(
+                    pair_row.get("semantic_multiview_promotion_score")
+                ),
+                ref=str(
+                    pair_row.get("semantic_multiview_promotion_ref")
+                    or "R_semantic_multiview_score_promotion"
+                ),
+            )
+        )
+
     if pair_row.get("framework_shift_evidence_applied") is True:
         evidence.append(
             make_evidence(
@@ -435,6 +450,9 @@ _SIGNAL_LABELS = {
     "library_match": "совпадение набора библиотек",
     "icc_overlap": "пересечение ICC-кортежей",
     "framework_shift_evidence": "смена каркаса приложения при сохранении якорей",
+    "semantic_multiview_score_promotion": (
+        "семантическое подтверждение по нескольким представлениям"
+    ),
 }
 
 

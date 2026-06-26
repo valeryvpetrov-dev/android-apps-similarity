@@ -20,12 +20,17 @@ logger = logging.getLogger(__name__)
 
 _TYPE_MARKER = "__feature_cache_type__"
 _TYPE_SET = "set"
+_TYPE_FROZENSET = "frozenset"
 _TYPE_TUPLE = "tuple"
 _FEATURES_TABLE = "features"
 _LEGACY_TABLE = "feature_cache"
 
 
 def _encode_json(payload: Any) -> Any:
+    if isinstance(payload, frozenset):
+        items = [_encode_json(item) for item in payload]
+        items.sort(key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True))
+        return {_TYPE_MARKER: _TYPE_FROZENSET, "items": items}
     if isinstance(payload, set):
         items = [_encode_json(item) for item in payload]
         items.sort(key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True))
@@ -47,6 +52,8 @@ def _decode_json(payload: Any) -> Any:
         marker = payload.get(_TYPE_MARKER)
         if marker == _TYPE_SET:
             return {_decode_json(item) for item in payload.get("items", [])}
+        if marker == _TYPE_FROZENSET:
+            return frozenset(_decode_json(item) for item in payload.get("items", []))
         if marker == _TYPE_TUPLE:
             return tuple(_decode_json(item) for item in payload.get("items", []))
         return {key: _decode_json(value) for key, value in payload.items()}

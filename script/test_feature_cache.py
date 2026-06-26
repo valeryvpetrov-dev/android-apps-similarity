@@ -267,6 +267,26 @@ class TestFeatureCacheSqlite(unittest.TestCase):
 
             self.assertEqual(restored, payload)
 
+    def test_sqlite_frozenset_roundtrip(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = FeatureCacheSqlite(Path(tmp) / "feature-cache.sqlite")
+            payload = {
+                "library": {
+                    "app_packages": frozenset(
+                        {
+                            "com.example.app",
+                            "com.example.app.ui",
+                        }
+                    ),
+                },
+            }
+            cache.put("9" * 64, "v1", payload)
+            restored = cache.get("9" * 64, "v1")
+            cache.close()
+
+            self.assertEqual(restored, payload)
+            self.assertIsInstance(restored["library"]["app_packages"], frozenset)
+
     def test_sqlite_get_missing_returns_none(self):
         with tempfile.TemporaryDirectory() as tmp:
             cache = FeatureCacheSqlite(Path(tmp) / "feature-cache.sqlite")
