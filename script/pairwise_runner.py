@@ -9,6 +9,7 @@ import re
 import sys
 import tempfile
 import time
+import zipfile
 from collections import Counter
 from concurrent.futures import (
     FIRST_COMPLETED,
@@ -96,6 +97,19 @@ CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_MAX_ADDED_DELTA = 0.90
 CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_SCORE_THRESHOLD = 0.70
 FRAMEWORK_SHIFT_EVIDENCE_POLICY_ID = "R_framework_shift_anchor_evidence_policy_v1"
 FRAMEWORK_SHIFT_EVIDENCE_REF = "R_framework_shift_anchors"
+C05_STATIC_EVIDENCE_POLICY_ID = "R_c05_static_evidence_policy_v1"
+C05_STATIC_EVIDENCE_REF = "R_c05_static_evidence"
+C05_STATIC_MIN_RELATION_SCORE = 0.10
+C05_STATIC_SAMPLE_LIMIT = 20
+C05_STATIC_NAMESPACE_STOPWORDS = {
+    "android",
+    "androidx",
+    "dalvik",
+    "java",
+    "javax",
+    "kotlin",
+    "kotlinx",
+}
 FRAMEWORK_SHIFT_MIN_ANCHOR_CONTAINMENT = 0.10
 FRAMEWORK_SHIFT_MIN_COMMON_ANCHORS = 50
 FRAMEWORK_SHIFT_TEXT_SUFFIXES = {
@@ -1730,6 +1744,232 @@ def build_code_stats_added_code_policy_fields(
     }
 
 
+def _c05_static_default_fields(error: str | None = None) -> dict[str, Any]:
+    fields: dict[str, Any] = {
+        "c05_static_evidence_policy_id": C05_STATIC_EVIDENCE_POLICY_ID,
+        "c05_static_evidence_applied": False,
+        "c05_static_evidence_role": "evidence_only",
+        "c05_static_evidence_ref": C05_STATIC_EVIDENCE_REF,
+        "c05_static_evidence_score": 0.0,
+        "c05_static_relation_score": 0.0,
+        "c05_static_code_namespace_overlap": 0.0,
+        "c05_static_component_namespace_overlap": 0.0,
+        "c05_static_code_token_containment": 0.0,
+        "c05_static_manifest_delta_count": 0,
+        "c05_static_component_delta_count": 0,
+        "c05_static_permission_delta_count": 0,
+        "c05_static_feature_delta_count": 0,
+        "c05_static_container_delta_count": 0,
+        "c05_static_extra_dex_delta_count": 0,
+        "c05_static_native_lib_delta_count": 0,
+        "c05_static_library_delta_count": 0,
+        "c05_static_manifest_delta_sample": [],
+        "c05_static_container_delta_sample": [],
+        "c05_static_library_delta_sample": [],
+        "c05_static_relation_namespace_sample": [],
+        "c05_static_min_relation_score": C05_STATIC_MIN_RELATION_SCORE,
+    }
+    if error is not None:
+        fields["c05_static_evidence_error"] = error
+    return fields
+
+
+def _c05_static_split_component_tokens(
+    component_tokens: set[str],
+) -> tuple[set[str], set[str], set[str]]:
+    permissions = {
+        token for token in component_tokens if token.startswith("permission:")
+    }
+    features = {token for token in component_tokens if token.startswith("feature:")}
+    components = component_tokens - permissions - features
+    return components, permissions, features
+
+
+def _c05_static_container_profile(apk_path: str | None) -> dict[str, set[str]]:
+    dex_files: set[str] = set()
+    extra_dex_files: set[str] = set()
+    native_libs: set[str] = set()
+    if not apk_path:
+        return {
+            "dex": dex_files,
+            "extra_dex": extra_dex_files,
+            "native": native_libs,
+        }
+
+    try:
+        with zipfile.ZipFile(apk_path) as archive:
+            for raw_name in archive.namelist():
+                name = raw_name.strip()
+                lower_name = name.lower()
+                if not name:
+                    continue
+                if lower_name.endswith(".dex"):
+                    dex_files.add(name)
+                    if lower_name != "classes.dex":
+                        extra_dex_files.add(name)
+                if lower_name.startswith("lib/") and lower_name.endswith(".so"):
+                    native_libs.add(name)
+    except (OSError, zipfile.BadZipFile):
+        pass
+
+    return {
+        "dex": dex_files,
+        "extra_dex": extra_dex_files,
+        "native": native_libs,
+    }
+
+
+def _c05_static_namespace_prefixes(tokens: set[str]) -> set[str]:
+    prefixes: set[str] = set()
+    for token in tokens:
+        normalized = str(token).replace("/", ".")
+        normalized = re.sub(r"\bL(?=(com|org|net|io|ru)\.)", "", normalized)
+        for match in re.finditer(
+            r"\b[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+\b",
+            normalized,
+        ):
+            parts = [
+                part
+                for part in match.group(0).split(".")
+                if part and part not in {"method_fp"}
+            ]
+            if len(parts) < 2:
+                continue
+            first = parts[0].lower()
+            if first in C05_STATIC_NAMESPACE_STOPWORDS:
+                continue
+            max_size = min(3, len(parts))
+            for size in range(2, max_size + 1):
+                prefixes.add(".".join(parts[:size]))
+    return prefixes
+
+
+def _c05_static_sample(tokens: set[str]) -> list[str]:
+    return sorted(tokens)[:C05_STATIC_SAMPLE_LIMIT]
+
+
+def build_c05_static_evidence_fields(
+    apk_a: str,
+    apk_b: str,
+    layers_a: dict[str, set[str]],
+    layers_b: dict[str, set[str]],
+    selected_layers: list[str],
+) -> dict[str, Any]:
+    """Build evidence-only static diagnostics for added-code cases.
+
+    This channel records static signs that one APK received extra code or
+    container-level payloads. It never updates ``similarity_score``.
+    """
+    selected = set(selected_layers)
+    active = "code" in selected
+    if not active:
+        return _c05_static_default_fields()
+
+    component_a = set(layers_a.get("component", set()))
+    component_b = set(layers_b.get("component", set()))
+    code_a = set(layers_a.get("code_fingerprint", set())) or set(
+        layers_a.get("code", set())
+    )
+    code_b = set(layers_b.get("code_fingerprint", set())) or set(
+        layers_b.get("code", set())
+    )
+    library_a = set(layers_a.get("library", set()))
+    library_b = set(layers_b.get("library", set()))
+
+    components_a, permissions_a, features_a = _c05_static_split_component_tokens(
+        component_a
+    )
+    components_b, permissions_b, features_b = _c05_static_split_component_tokens(
+        component_b
+    )
+    component_delta = components_a ^ components_b
+    permission_delta = permissions_a ^ permissions_b
+    feature_delta = features_a ^ features_b
+    manifest_delta = component_a ^ component_b
+
+    container_a = _c05_static_container_profile(apk_a)
+    container_b = _c05_static_container_profile(apk_b)
+    extra_dex_delta = container_a["extra_dex"] ^ container_b["extra_dex"]
+    native_lib_delta = container_a["native"] ^ container_b["native"]
+    container_delta = extra_dex_delta | native_lib_delta
+    library_delta = library_a ^ library_b
+
+    code_namespaces_a = _c05_static_namespace_prefixes(code_a)
+    code_namespaces_b = _c05_static_namespace_prefixes(code_b)
+    component_namespaces_a = _c05_static_namespace_prefixes(component_a)
+    component_namespaces_b = _c05_static_namespace_prefixes(component_b)
+    common_code_namespaces = code_namespaces_a & code_namespaces_b
+    common_component_namespaces = component_namespaces_a & component_namespaces_b
+
+    code_namespace_overlap = float(
+        containment_similarity(code_namespaces_a, code_namespaces_b)
+    )
+    component_namespace_overlap = float(
+        containment_similarity(component_namespaces_a, component_namespaces_b)
+    )
+    code_token_containment = float(containment_similarity(code_a, code_b))
+    relation_score = max(
+        code_namespace_overlap,
+        component_namespace_overlap,
+        code_token_containment,
+    )
+
+    static_delta_categories = sum(
+        1
+        for count in (
+            len(manifest_delta),
+            len(extra_dex_delta),
+            len(native_lib_delta),
+            len(library_delta),
+        )
+        if count > 0
+    )
+    static_delta_score = min(1.0, static_delta_categories / 4)
+    evidence_score = min(
+        1.0,
+        (relation_score * 0.6) + (static_delta_score * 0.4),
+    )
+    applied = (
+        static_delta_categories > 0
+        and relation_score >= C05_STATIC_MIN_RELATION_SCORE
+    )
+
+    fields = _c05_static_default_fields()
+    fields.update(
+        {
+            "c05_static_evidence_applied": bool(applied),
+            "c05_static_evidence_score": float(evidence_score if applied else 0.0),
+            "c05_static_relation_score": float(relation_score),
+            "c05_static_code_namespace_overlap": float(code_namespace_overlap),
+            "c05_static_component_namespace_overlap": float(
+                component_namespace_overlap
+            ),
+            "c05_static_code_token_containment": float(code_token_containment),
+            "c05_static_manifest_delta_count": len(manifest_delta),
+            "c05_static_component_delta_count": len(component_delta),
+            "c05_static_permission_delta_count": len(permission_delta),
+            "c05_static_feature_delta_count": len(feature_delta),
+            "c05_static_container_delta_count": len(container_delta),
+            "c05_static_extra_dex_delta_count": len(extra_dex_delta),
+            "c05_static_native_lib_delta_count": len(native_lib_delta),
+            "c05_static_library_delta_count": len(library_delta),
+            "c05_static_manifest_delta_sample": _c05_static_sample(
+                manifest_delta
+            ),
+            "c05_static_container_delta_sample": _c05_static_sample(
+                container_delta
+            ),
+            "c05_static_library_delta_sample": _c05_static_sample(
+                library_delta
+            ),
+            "c05_static_relation_namespace_sample": _c05_static_sample(
+                common_code_namespaces | common_component_namespaces
+            ),
+        }
+    )
+    return fields
+
+
 def build_code_stats_resource_change_identity_policy_fields(
     layers_a: dict[str, set[str]],
     layers_b: dict[str, set[str]],
@@ -2001,6 +2241,15 @@ def build_code_stats_policy_fields_for_pair(
     )
     fields.update(
         build_code_stats_payload_resource_policy_fields(
+            layers_a=layers_a,
+            layers_b=layers_b,
+            selected_layers=selected_layers,
+        )
+    )
+    fields.update(
+        build_c05_static_evidence_fields(
+            apk_a=apk_a,
+            apk_b=apk_b,
             layers_a=layers_a,
             layers_b=layers_b,
             selected_layers=selected_layers,
@@ -2768,6 +3017,12 @@ def _compute_pair_row_with_caches(
                         ),
                         "code_stats_added_code_policy_applied": False,
                         "code_stats_added_code_policy_error": str(policy_error),
+                        "c05_static_evidence_policy_id": (
+                            C05_STATIC_EVIDENCE_POLICY_ID
+                        ),
+                        "c05_static_evidence_applied": False,
+                        "c05_static_evidence_role": "evidence_only",
+                        "c05_static_evidence_error": str(policy_error),
                         "framework_shift_evidence_policy_id": (
                             FRAMEWORK_SHIFT_EVIDENCE_POLICY_ID
                         ),
@@ -2782,6 +3037,9 @@ def _compute_pair_row_with_caches(
                     "code_stats_containment_policy_applied": False,
                     "code_stats_added_code_policy_id": CODE_STATS_ADDED_CODE_POLICY_ID,
                     "code_stats_added_code_policy_applied": False,
+                    "c05_static_evidence_policy_id": C05_STATIC_EVIDENCE_POLICY_ID,
+                    "c05_static_evidence_applied": False,
+                    "c05_static_evidence_role": "evidence_only",
                     "framework_shift_evidence_policy_id": (
                         FRAMEWORK_SHIFT_EVIDENCE_POLICY_ID
                     ),

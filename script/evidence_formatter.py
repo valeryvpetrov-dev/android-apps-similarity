@@ -413,6 +413,19 @@ def collect_evidence_from_pairwise(pair_row: dict) -> list[dict]:
             )
         )
 
+    if pair_row.get("c05_static_evidence_applied") is True:
+        evidence.append(
+            make_evidence(
+                source_stage="pairwise",
+                signal_type="c05_static_evidence",
+                magnitude=_clamp_unit(pair_row.get("c05_static_evidence_score")),
+                ref=str(
+                    pair_row.get("c05_static_evidence_ref")
+                    or "R_c05_static_evidence"
+                ),
+            )
+        )
+
     signature_match = pair_row.get("signature_match")
     if isinstance(signature_match, dict) and "score" in signature_match:
         magnitude = _clamp_unit(signature_match.get("score"))
@@ -525,6 +538,9 @@ _SIGNAL_LABELS = {
     "library_noise": "библиотечный шум, отделённый от основного кода",
     "icc_overlap": "пересечение ICC-кортежей",
     "framework_shift_evidence": "смена каркаса приложения при сохранении якорей",
+    "c05_static_evidence": (
+        "статические признаки добавленного кода и изменений APK-контейнера"
+    ),
     "semantic_multiview_score_promotion": (
         "семантическое подтверждение по нескольким представлениям"
     ),
@@ -755,6 +771,7 @@ _MARKDOWN_SIGNAL_LABELS_RU = {
     "signature_match": "Совпадение подписи APK",
     "library_noise": "Библиотечный шум",
     "framework_shift_evidence": "Смена каркаса приложения",
+    "c05_static_evidence": "Статические признаки добавленного кода",
     "shortcut_applied": "Применён короткий путь",
     "timeout": "Превышен лимит времени",
 }
@@ -764,6 +781,7 @@ _MARKDOWN_SIGNAL_LABELS_EN = {
     "signature_match": "APK signature match",
     "library_noise": "Library noise",
     "framework_shift_evidence": "Framework shift evidence",
+    "c05_static_evidence": "Static added-code evidence",
     "shortcut_applied": "Shortcut applied",
     "timeout": "Timeout exceeded",
 }
