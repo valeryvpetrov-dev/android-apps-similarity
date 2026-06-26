@@ -145,6 +145,52 @@ class TestCollectEvidenceFromPairwise(unittest.TestCase):
         self.assertEqual(len(layer_records), 1)
         self.assertEqual(layer_records[0]["magnitude"], 0.8)
 
+    def test_adds_library_noise_evidence_when_reduced_score_changes_full_score(self) -> None:
+        pair_row = {
+            "app_a": "A",
+            "app_b": "B",
+            "full_similarity_score": 0.92,
+            "library_reduced_score": 0.61,
+            "library_noise_indicators": ["okhttp3", "com.google.ads"],
+            "status": "success",
+            "views_used": ["code", "library"],
+            "signature_match": {"score": 0.0, "status": "missing"},
+        }
+
+        evidence = collect_evidence_from_pairwise(pair_row)
+        library_noise_records = [
+            item for item in evidence if item["signal_type"] == "library_noise"
+        ]
+
+        self.assertEqual(len(library_noise_records), 1)
+        self.assertEqual(library_noise_records[0]["source_stage"], "pairwise")
+        self.assertEqual(library_noise_records[0]["ref"], "library_reduced_score_delta")
+        self.assertAlmostEqual(library_noise_records[0]["magnitude"], 0.31)
+        self.assertAlmostEqual(library_noise_records[0]["full_similarity_score"], 0.92)
+        self.assertAlmostEqual(library_noise_records[0]["library_reduced_score"], 0.61)
+        self.assertAlmostEqual(library_noise_records[0]["score_delta"], 0.31)
+        self.assertEqual(
+            library_noise_records[0]["library_indicators"],
+            ["okhttp3", "com.google.ads"],
+        )
+
+    def test_library_noise_evidence_is_not_added_for_small_delta(self) -> None:
+        pair_row = {
+            "app_a": "A",
+            "app_b": "B",
+            "full_similarity_score": 0.64,
+            "library_reduced_score": 0.62,
+            "status": "success",
+            "views_used": ["code", "library"],
+        }
+
+        evidence = collect_evidence_from_pairwise(pair_row)
+
+        self.assertNotIn(
+            "library_noise",
+            {item["signal_type"] for item in evidence},
+        )
+
     def test_adds_signature_match_evidence_when_present_and_success(self) -> None:
         pair_row = {
             "app_a": "A",
@@ -640,6 +686,22 @@ class TestEvidenceToMarkdownBlock(unittest.TestCase):
         self.assertIn("Framework shift evidence", row_en)
         self.assertNotIn("framework_shift_evidence", row_ru)
         self.assertNotIn("framework_shift_evidence", row_en)
+
+    def test_library_noise_has_human_readable_labels(self) -> None:
+        record = make_evidence(
+            "pairwise",
+            "library_noise",
+            0.31,
+            "library_reduced_score_delta",
+        )
+
+        row_ru = render_single_evidence(record, locale="ru")
+        row_en = render_single_evidence(record, locale="en")
+
+        self.assertIn("Библиотечный шум", row_ru)
+        self.assertIn("Library noise", row_en)
+        self.assertNotIn("library_noise", row_ru)
+        self.assertNotIn("library_noise", row_en)
 
     def test_summary_groups_by_source_stage(self) -> None:
         records = [

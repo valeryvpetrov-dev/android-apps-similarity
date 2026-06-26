@@ -108,6 +108,8 @@ _PER_VIEW_SCORE_FIELDS: tuple[str, ...] = (
     "prior_per_view_scores",
 )
 
+_LIBRARY_NOISE_DELTA_THRESHOLD = 0.05
+
 
 def _extract_per_view_scores(pair_row: dict) -> dict[str, float] | None:
     """Вернуть primary per-view similarity dict {layer: score} из pair_row.
@@ -135,6 +137,74 @@ def _extract_per_view_scores(pair_row: dict) -> dict[str, float] | None:
         if coerced:
             return coerced
     return None
+
+
+def _score_or_none(value: object) -> float | None:
+    try:
+        return float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+
+
+def _coerce_string_list(value: object, limit: int = 10) -> list[str]:
+    if isinstance(value, dict):
+        iterable = value.keys()
+    elif isinstance(value, (list, tuple, set)):
+        iterable = value
+    else:
+        return []
+
+    items: list[str] = []
+    for item in iterable:
+        if not isinstance(item, str) or not item.strip():
+            continue
+        normalized = item.strip()
+        if normalized in items:
+            continue
+        items.append(normalized)
+        if len(items) >= limit:
+            break
+    return items
+
+
+def _library_noise_indicators(pair_row: dict) -> list[str]:
+    for field_name in (
+        "library_noise_indicators",
+        "library_indicators",
+        "detected_tpls",
+        "library_mask",
+    ):
+        indicators = _coerce_string_list(pair_row.get(field_name))
+        if indicators:
+            return indicators
+    return []
+
+
+def _build_library_noise_evidence(pair_row: dict) -> dict | None:
+    full_similarity = _score_or_none(pair_row.get("full_similarity_score"))
+    library_reduced = _score_or_none(pair_row.get("library_reduced_score"))
+    if full_similarity is None or library_reduced is None:
+        return None
+
+    score_delta = full_similarity - library_reduced
+    if score_delta < _LIBRARY_NOISE_DELTA_THRESHOLD:
+        return None
+
+    evidence = make_evidence(
+        source_stage="pairwise",
+        signal_type="library_noise",
+        magnitude=_clamp_unit(score_delta),
+        ref="library_reduced_score_delta",
+    )
+    evidence.update(
+        {
+            "full_similarity_score": full_similarity,
+            "library_reduced_score": library_reduced,
+            "score_delta": score_delta,
+            "library_indicators": _library_noise_indicators(pair_row),
+        }
+    )
+    return evidence
 
 
 def collect_evidence_from_pairwise(pair_row: dict) -> list[dict]:
@@ -213,6 +283,10 @@ def collect_evidence_from_pairwise(pair_row: dict) -> list[dict]:
                             ref=layer.strip(),
                         )
                     )
+
+    library_noise_evidence = _build_library_noise_evidence(pair_row)
+    if library_noise_evidence is not None:
+        evidence.append(library_noise_evidence)
 
     if pair_row.get("code_stats_containment_policy_applied") is True:
         evidence.append(
@@ -448,6 +522,7 @@ _STAGE_LABELS = {
 _SIGNAL_LABELS = {
     "signature_match": "совпадение подписи APK",
     "library_match": "совпадение набора библиотек",
+    "library_noise": "библиотечный шум, отделённый от основного кода",
     "icc_overlap": "пересечение ICC-кортежей",
     "framework_shift_evidence": "смена каркаса приложения при сохранении якорей",
     "semantic_multiview_score_promotion": (
@@ -678,6 +753,7 @@ def describe_pair_evidence(
 _MARKDOWN_SIGNAL_LABELS_RU = {
     "layer_score": "Оценка по слою",
     "signature_match": "Совпадение подписи APK",
+    "library_noise": "Библиотечный шум",
     "framework_shift_evidence": "Смена каркаса приложения",
     "shortcut_applied": "Применён короткий путь",
     "timeout": "Превышен лимит времени",
@@ -686,6 +762,7 @@ _MARKDOWN_SIGNAL_LABELS_RU = {
 _MARKDOWN_SIGNAL_LABELS_EN = {
     "layer_score": "Layer score",
     "signature_match": "APK signature match",
+    "library_noise": "Library noise",
     "framework_shift_evidence": "Framework shift evidence",
     "shortcut_applied": "Shortcut applied",
     "timeout": "Timeout exceeded",
