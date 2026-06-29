@@ -101,6 +101,11 @@ C05_STATIC_EVIDENCE_POLICY_ID = "R_c05_static_evidence_policy_v1"
 C05_STATIC_EVIDENCE_REF = "R_c05_static_evidence"
 C05_STATIC_MIN_RELATION_SCORE = 0.10
 C05_STATIC_SAMPLE_LIMIT = 20
+C05_STATIC_SCORE_POLICY_ID = "R_c05_static_manifest_relation_high_score_policy_v1"
+C05_STATIC_SCORE_SOURCE = "c05_static_manifest_relation_high_score"
+C05_STATIC_SCORE_REF = "R_c05_static_manifest_relation_high_score"
+C05_STATIC_SCORE_EVIDENCE_THRESHOLD = 0.70
+C05_STATIC_SCORE_RELATION_THRESHOLD = 0.70
 C05_STATIC_NAMESPACE_STOPWORDS = {
     "android",
     "androidx",
@@ -2612,6 +2617,89 @@ def apply_semantic_multiview_score_policy(
     pair_row["status"] = "success" if promotion_score >= threshold else "low_similarity"
 
 
+def apply_c05_static_score_policy(
+    pair_row: dict[str, Any],
+    threshold: float,
+) -> None:
+    """Promote only the guarded high-only C05 static evidence score.
+
+    This policy follows the M3 C05 gate: it may raise the selected score only
+    when manifest delta, relation score, and evidence score are all strong. It
+    never promotes container-only evidence and never lowers an existing score.
+    """
+    pair_row["c05_static_score_policy_id"] = C05_STATIC_SCORE_POLICY_ID
+    pair_row["c05_static_score_policy_applied"] = False
+    pair_row["c05_static_score_selected"] = False
+    pair_row["c05_static_score_policy_reason"] = None
+    pair_row["c05_static_score_source"] = C05_STATIC_SCORE_SOURCE
+    pair_row["c05_static_score_ref"] = C05_STATIC_SCORE_REF
+    pair_row["c05_static_score_evidence_threshold"] = (
+        C05_STATIC_SCORE_EVIDENCE_THRESHOLD
+    )
+    pair_row["c05_static_score_relation_threshold"] = (
+        C05_STATIC_SCORE_RELATION_THRESHOLD
+    )
+    pair_row["c05_static_score_candidate"] = None
+
+    if pair_row.get("status") == "analysis_failed":
+        pair_row["c05_static_score_policy_reason"] = "analysis_failed_status"
+        return
+    if pair_row.get("c05_static_evidence_applied") is not True:
+        pair_row["c05_static_score_policy_reason"] = "static_evidence_not_applied"
+        return
+
+    try:
+        manifest_delta = int(pair_row.get("c05_static_manifest_delta_count") or 0)
+    except (TypeError, ValueError):
+        manifest_delta = 0
+    if manifest_delta <= 0:
+        pair_row["c05_static_score_policy_reason"] = "missing_manifest_delta"
+        return
+
+    relation_score = _score_float_or_none(pair_row.get("c05_static_relation_score"))
+    if (
+        relation_score is None
+        or relation_score < C05_STATIC_SCORE_RELATION_THRESHOLD
+    ):
+        pair_row["c05_static_score_policy_reason"] = "relation_below_threshold"
+        return
+
+    evidence_score = _score_float_or_none(pair_row.get("c05_static_evidence_score"))
+    if (
+        evidence_score is None
+        or evidence_score < C05_STATIC_SCORE_EVIDENCE_THRESHOLD
+    ):
+        pair_row["c05_static_score_policy_reason"] = "evidence_score_below_threshold"
+        return
+
+    pair_row["c05_static_score_policy_applied"] = True
+    pair_row["c05_static_score_candidate"] = evidence_score
+
+    current_score = _score_float_or_none(pair_row.get("similarity_score"))
+    if current_score is None:
+        current_score = _score_float_or_none(pair_row.get("selected_similarity_score"))
+    if current_score is None:
+        current_score = _score_float_or_none(pair_row.get("library_reduced_score"))
+    if current_score is None:
+        current_score = _score_float_or_none(pair_row.get("full_similarity_score"))
+
+    if current_score is not None and evidence_score <= current_score:
+        pair_row["c05_static_score_policy_reason"] = "existing_score_is_equal_or_higher"
+        return
+
+    pair_row["c05_static_score_selected"] = True
+    pair_row["c05_static_score_policy_reason"] = "selected_as_similarity_score"
+    pair_row["score_decision_priority_order"] = SCORE_DECISION_PRIORITY_ORDER
+    pair_row["score_decision_selected_priority"] = "P0_guard"
+    pair_row["score_decision_selected_priority_rank"] = SCORE_DECISION_PRIORITY_P0_GUARD
+    pair_row["similarity_score"] = evidence_score
+    pair_row["selected_similarity_score"] = evidence_score
+    pair_row["similarity_score_source"] = C05_STATIC_SCORE_SOURCE
+    pair_row["score_decision_policy_id"] = DEEP_M2_SCORE_DECISION_POLICY_ID
+    pair_row["failure_similarity_semantics"] = None
+    pair_row["status"] = "success" if evidence_score >= threshold else "low_similarity"
+
+
 def apply_code_stats_containment_score_policy(
     pair_row: dict[str, Any],
     threshold: float,
@@ -3048,6 +3136,7 @@ def _compute_pair_row_with_caches(
                 }
             )
         apply_code_stats_score_policy(pair_row, threshold=threshold)
+        apply_c05_static_score_policy(pair_row, threshold=threshold)
     except Exception:
         pair_row.update(
             {

@@ -116,7 +116,7 @@ stages:
                 )
         return payload[0]
 
-    def test_c05_static_evidence_is_evidence_only_and_does_not_promote_score(self) -> None:
+    def test_c05_static_guarded_high_evidence_promotes_score(self) -> None:
         left_components = {
             "activities": [{"name": "com.example.MainActivity"}],
             "services": [],
@@ -164,7 +164,7 @@ stages:
             ),
         )
 
-        self.assertEqual(result["status"], "low_similarity")
+        self.assertEqual(result["status"], "success")
         self.assertTrue(result["c05_static_evidence_applied"])
         self.assertEqual(result["c05_static_evidence_role"], "evidence_only")
         self.assertGreater(result["c05_static_component_delta_count"], 0)
@@ -172,11 +172,17 @@ stages:
         self.assertEqual(result["c05_static_extra_dex_delta_count"], 1)
         self.assertEqual(result["c05_static_native_lib_delta_count"], 1)
         self.assertGreater(result["c05_static_library_delta_count"], 0)
-        self.assertNotEqual(
+        self.assertEqual(
             result.get("similarity_score_source"),
-            "c05_static_evidence",
+            "c05_static_manifest_relation_high_score",
         )
-        self.assertLess(result["similarity_score"], 0.70)
+        self.assertTrue(result["c05_static_score_policy_applied"])
+        self.assertTrue(result["c05_static_score_selected"])
+        self.assertEqual(
+            result["c05_static_score_policy_reason"],
+            "selected_as_similarity_score",
+        )
+        self.assertGreaterEqual(result["similarity_score"], 0.70)
 
         evidence_refs = {
             (item["signal_type"], item["ref"]): item["magnitude"]
@@ -186,6 +192,55 @@ stages:
             ("c05_static_evidence", "R_c05_static_evidence"),
             evidence_refs,
         )
+
+    def test_c05_static_container_only_evidence_does_not_promote_score(self) -> None:
+        components = {
+            "activities": [{"name": "com.example.MainActivity"}],
+            "services": [],
+            "receivers": [],
+            "providers": [],
+            "permissions": {"android.permission.INTERNET"},
+            "features": set(),
+        }
+
+        result = self._run_one_pair(
+            _bundle(
+                code_tokens={"com.example.MainActivity:onCreate"},
+                component_features=components,
+                resource_digests={("res/layout/main.xml", "left-digest")},
+            ),
+            _bundle(
+                code_tokens={
+                    "com.example.MainActivity:onCreate",
+                    "payload.a",
+                    "payload.b",
+                    "payload.c",
+                    "payload.d",
+                    "payload.e",
+                    "payload.f",
+                },
+                component_features=components,
+                resource_digests={("res/layout/main.xml", "right-digest")},
+            ),
+            extra_apk_b_entries=("classes2.dex",),
+        )
+
+        self.assertEqual(result["status"], "low_similarity")
+        self.assertTrue(result["c05_static_evidence_applied"])
+        self.assertEqual(result["c05_static_manifest_delta_count"], 0)
+        self.assertEqual(result["c05_static_extra_dex_delta_count"], 1)
+        self.assertGreaterEqual(result["c05_static_evidence_score"], 0.70)
+        self.assertFalse(result["c05_static_score_policy_applied"])
+        self.assertFalse(result["c05_static_score_selected"])
+        self.assertEqual(
+            result["c05_static_score_policy_reason"],
+            "missing_manifest_delta",
+        )
+        self.assertNotEqual(
+            result.get("similarity_score_source"),
+            "c05_static_manifest_relation_high_score",
+        )
+        self.assertLess(result["similarity_score"], 0.70)
 
     def test_c05_static_evidence_stays_disabled_without_static_delta(self) -> None:
         components = {
