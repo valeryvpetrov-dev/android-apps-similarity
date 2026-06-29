@@ -49,6 +49,23 @@ def _bundle(
 
 
 class TestC05StaticEvidencePolicy(unittest.TestCase):
+    def test_c05_static_namespace_prefixes_drop_platform_dalvik_prefixes(self) -> None:
+        prefixes = pairwise_runner._c05_static_namespace_prefixes(
+            {
+                "Landroid/view/View;->draw(Landroid/graphics/Canvas;)V",
+                "ILandroid/os/Bundle;->getString(Ljava/lang/String;)Ljava/lang/String;",
+                "Ljava/lang/String;->length()I",
+                "CILjava/lang/StringBuilder;->append(Ljava/lang/String;)V",
+                "Lcom/payload/Stage;->run()V",
+            }
+        )
+
+        self.assertIn("com.payload", prefixes)
+        self.assertNotIn("Landroid.view", prefixes)
+        self.assertNotIn("ILandroid.os", prefixes)
+        self.assertNotIn("Ljava.lang", prefixes)
+        self.assertNotIn("CILjava.lang", prefixes)
+
     def _run_one_pair(
         self,
         bundle_a: dict,
@@ -235,6 +252,63 @@ stages:
         self.assertEqual(
             result["c05_static_score_policy_reason"],
             "missing_manifest_delta",
+        )
+        self.assertNotEqual(
+            result.get("similarity_score_source"),
+            "c05_static_manifest_relation_high_score",
+        )
+        self.assertLess(result["similarity_score"], 0.70)
+
+    def test_c05_static_platform_namespace_overlap_does_not_promote_score(self) -> None:
+        left_components = {
+            "activities": [{"name": "com.left.MainActivity"}],
+            "services": [],
+            "receivers": [],
+            "providers": [],
+            "permissions": {"android.permission.INTERNET"},
+            "features": set(),
+        }
+        right_components = {
+            "activities": [{"name": "com.right.MainActivity"}],
+            "services": [{"name": "com.google.ads.AdActivity"}],
+            "receivers": [],
+            "providers": [],
+            "permissions": {"android.permission.INTERNET"},
+            "features": set(),
+        }
+
+        result = self._run_one_pair(
+            _bundle(
+                code_tokens={
+                    "Landroid/view/View;->draw(Landroid/graphics/Canvas;)V",
+                    "Ljava/lang/String;->length()I",
+                    "com.left.Core:onlyLeft",
+                },
+                component_features=left_components,
+                resource_digests={("res/layout/main.xml", "left-digest")},
+                libraries={"androidx.appcompat"},
+            ),
+            _bundle(
+                code_tokens={
+                    "Landroid/view/View;->onTouchEvent(Landroid/view/MotionEvent;)Z",
+                    "Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;",
+                    "com.right.Payload:onlyRight",
+                },
+                component_features=right_components,
+                resource_digests={("res/layout/main.xml", "right-digest")},
+                libraries={"androidx.appcompat", "lib_abi:armeabi-v7a"},
+            ),
+            extra_apk_b_entries=("lib/armeabi-v7a/libpayload.so",),
+        )
+
+        self.assertFalse(result["c05_static_evidence_applied"])
+        self.assertGreater(result["c05_static_manifest_delta_count"], 0)
+        self.assertGreater(result["c05_static_native_lib_delta_count"], 0)
+        self.assertFalse(result["c05_static_score_policy_applied"])
+        self.assertFalse(result["c05_static_score_selected"])
+        self.assertEqual(
+            result["c05_static_score_policy_reason"],
+            "static_evidence_not_applied",
         )
         self.assertNotEqual(
             result.get("similarity_score_source"),

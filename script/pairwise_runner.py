@@ -115,6 +115,9 @@ C05_STATIC_NAMESPACE_STOPWORDS = {
     "kotlin",
     "kotlinx",
 }
+C05_STATIC_NAMESPACE_ROOT_RE = (
+    r"(android|androidx|dalvik|java|javax|kotlin|kotlinx|com|org|net|io|ru|cn)"
+)
 FRAMEWORK_SHIFT_MIN_ANCHOR_CONTAINMENT = 0.10
 FRAMEWORK_SHIFT_MIN_COMMON_ANCHORS = 50
 FRAMEWORK_SHIFT_TEXT_SUFFIXES = {
@@ -1836,14 +1839,23 @@ def _c05_static_namespace_prefixes(tokens: set[str]) -> set[str]:
     prefixes: set[str] = set()
     for token in tokens:
         normalized = str(token).replace("/", ".")
-        normalized = re.sub(r"\bL(?=(com|org|net|io|ru)\.)", "", normalized)
         for match in re.finditer(
             r"\b[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+\b",
             normalized,
         ):
+            namespace = re.sub(
+                rf"^[BCDFIJSZV\[]*L(?={C05_STATIC_NAMESPACE_ROOT_RE}\.)",
+                "",
+                match.group(0),
+            )
+            namespace = re.sub(
+                rf"^[BCDFIJSZV\[]+(?={C05_STATIC_NAMESPACE_ROOT_RE}\.)",
+                "",
+                namespace,
+            )
             parts = [
                 part
-                for part in match.group(0).split(".")
+                for part in namespace.split(".")
                 if part and part not in {"method_fp"}
             ]
             if len(parts) < 2:
