@@ -3381,6 +3381,21 @@ def run_pairwise(
 
         def run_one_sequential(index: int, candidate: dict[str, Any]) -> dict[str, Any]:
             """Один pair_row в основном процессе (workers=1 или < 2 кандидатов)."""
+            if _should_skip_deep_verification(candidate):
+                return _compute_pair_row_with_caches(
+                    candidate=candidate,
+                    selected_layers=selected_layers,
+                    metric=metric,
+                    threshold=threshold,
+                    ins_block_sim_threshold=ins_block_sim_threshold,
+                    ged_timeout_sec=ged_timeout_sec,
+                    processes_count=processes_count,
+                    threads_count=threads_count,
+                    layer_cache=layer_cache,
+                    code_cache=code_cache,
+                    apk_discovery_cache=apk_discovery_cache,
+                    feature_cache=None,
+                )
             if use_hard_timeout:
                 return _run_single_pair_with_timeout(
                     candidate=candidate,

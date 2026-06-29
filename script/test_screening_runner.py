@@ -195,6 +195,54 @@ class TestScreeningRunnerMetadataExtraction(unittest.TestCase):
         )
 
 
+class TestScreeningRunnerPairScoreCache(unittest.TestCase):
+    def test_calculate_pair_score_caches_aggregated_features_per_layer_set(self) -> None:
+        app_a = {
+            "app_id": "APP-A",
+            "layers": {
+                "code": {"c1", "c2"},
+                "resource": {"r1"},
+            },
+        }
+        app_b = {
+            "app_id": "APP-B",
+            "layers": {
+                "code": {"c2", "c3"},
+                "resource": {"r1", "r2"},
+            },
+        }
+
+        first_score = screening_runner.calculate_pair_score(
+            app_a=app_a,
+            app_b=app_b,
+            metric="jaccard",
+            selected_layers=["code", "resource"],
+            ins_block_sim_threshold=0.80,
+            ged_timeout_sec=30,
+            processes_count=1,
+            threads_count=1,
+        )
+        cache_key = screening_runner.SCREENING_AGGREGATE_FEATURE_CACHE_KEY
+        cached_a = app_a[cache_key][("code", "resource")]
+        cached_b = app_b[cache_key][("code", "resource")]
+        second_score = screening_runner.calculate_pair_score(
+            app_a=app_a,
+            app_b=app_b,
+            metric="jaccard",
+            selected_layers=["code", "resource"],
+            ins_block_sim_threshold=0.80,
+            ged_timeout_sec=30,
+            processes_count=1,
+            threads_count=1,
+        )
+
+        self.assertEqual(first_score, second_score)
+        self.assertIn(("code", "resource"), app_a[cache_key])
+        self.assertIn(("code", "resource"), app_b[cache_key])
+        self.assertIs(cached_a, app_a[cache_key][("code", "resource")])
+        self.assertIs(cached_b, app_b[cache_key][("code", "resource")])
+
+
 class TestScreeningRunnerCandidateListContract(unittest.TestCase):
     def test_build_candidate_list_adds_screening_handoff_fields(self) -> None:
         app_records = [

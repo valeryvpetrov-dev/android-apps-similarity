@@ -1131,43 +1131,53 @@ def discover_app_records_from_apk_root(apk_root: Path) -> list[dict]:
     return records
 
 
+SCREENING_AGGREGATE_FEATURE_CACHE_KEY = "_screening_aggregate_feature_cache"
+
+
+def _intersection_size(left: set[str], right: set[str]) -> int:
+    if len(left) > len(right):
+        left, right = right, left
+    return sum(1 for feature in left if feature in right)
+
+
 def jaccard_similarity(left: set[str], right: set[str]) -> float:
-    union_size = len(left | right)
+    intersection_size = _intersection_size(left, right)
+    union_size = len(left) + len(right) - intersection_size
     if union_size == 0:
         return 0.0
-    return len(left & right) / union_size
+    return intersection_size / union_size
 
 
 def cosine_similarity(left: set[str], right: set[str]) -> float:
     denominator = math.sqrt(len(left)) * math.sqrt(len(right))
     if denominator == 0.0:
         return 0.0
-    return len(left & right) / denominator
+    return _intersection_size(left, right) / denominator
 
 
 def containment_similarity(left: set[str], right: set[str]) -> float:
     denominator = min(len(left), len(right))
     if denominator == 0:
         return 0.0
-    return len(left & right) / denominator
+    return _intersection_size(left, right) / denominator
 
 
 def dice_similarity(left: set[str], right: set[str]) -> float:
     denominator = len(left) + len(right)
     if denominator == 0:
         return 0.0
-    return (2.0 * len(left & right)) / denominator
+    return (2.0 * _intersection_size(left, right)) / denominator
 
 
 def overlap_similarity(left: set[str], right: set[str]) -> float:
     denominator = max(len(left), len(right))
     if denominator == 0:
         return 0.0
-    return len(left & right) / denominator
+    return _intersection_size(left, right) / denominator
 
 
 def shared_count_similarity(left: set[str], right: set[str]) -> float:
-    return float(len(left & right))
+    return float(_intersection_size(left, right))
 
 
 def levenshtein_similarity(left: set[str], right: set[str]) -> float:
@@ -1206,6 +1216,20 @@ def aggregate_features(app_record: dict, selected_layers: list[str]) -> set[str]
         for feature in layer_values:
             aggregated.add("{}:{}".format(layer, feature))
     return aggregated
+
+
+def _aggregate_features_cached(app_record: dict, selected_layers: list[str]) -> set[str]:
+    cache = app_record.get(SCREENING_AGGREGATE_FEATURE_CACHE_KEY)
+    if not isinstance(cache, dict):
+        cache = {}
+        app_record[SCREENING_AGGREGATE_FEATURE_CACHE_KEY] = cache
+
+    cache_key = tuple(selected_layers)
+    cached = cache.get(cache_key)
+    if cached is None:
+        cached = aggregate_features(app_record, selected_layers)
+        cache[cache_key] = cached
+    return cached
 
 
 def _append_unique_warning(app_record: dict, warning: str) -> None:
@@ -1439,8 +1463,8 @@ def calculate_pair_score(
             )
         return 0.0
 
-    features_a = aggregate_features(app_a, selected_layers)
-    features_b = aggregate_features(app_b, selected_layers)
+    features_a = _aggregate_features_cached(app_a, selected_layers)
+    features_b = _aggregate_features_cached(app_b, selected_layers)
 
     if metric == "jaccard":
         return jaccard_similarity(features_a, features_b)
