@@ -207,6 +207,43 @@ def _build_library_noise_evidence(pair_row: dict) -> dict | None:
     return evidence
 
 
+def _build_packaging_changed_evidence(pair_row: dict) -> dict | None:
+    if pair_row.get("packaging_evidence_applied") is not True:
+        return None
+    evidence = make_evidence(
+        source_stage="pairwise",
+        signal_type="packaging_changed",
+        magnitude=_clamp_unit(pair_row.get("packaging_evidence_score")),
+        ref=str(pair_row.get("packaging_evidence_ref") or "apk_packaging_profile"),
+    )
+    evidence.update(
+        {
+            "delta_kinds": _coerce_string_list(
+                pair_row.get("packaging_delta_kinds"),
+                limit=20,
+            ),
+            "evidence_role": str(
+                pair_row.get("packaging_evidence_role") or "evidence_only"
+            ),
+            "score_effect": str(pair_row.get("packaging_score_effect") or "none"),
+            "score_included": bool(pair_row.get("packaging_score_included")),
+            "manifest_package_name_delta": bool(
+                pair_row.get("manifest_package_name_delta")
+            ),
+            "signing_certificate_delta": bool(
+                pair_row.get("signing_certificate_delta")
+            ),
+            "apk_entry_layout_delta": bool(pair_row.get("apk_entry_layout_delta")),
+            "manifest_or_metadata_packaging_delta": bool(
+                pair_row.get("manifest_or_metadata_packaging_delta")
+            ),
+            "left_manifest_package_name": pair_row.get("left_manifest_package_name"),
+            "right_manifest_package_name": pair_row.get("right_manifest_package_name"),
+        }
+    )
+    return evidence
+
+
 def collect_evidence_from_pairwise(pair_row: dict) -> list[dict]:
     """Построить список Evidence из pair_row.
 
@@ -287,6 +324,10 @@ def collect_evidence_from_pairwise(pair_row: dict) -> list[dict]:
     library_noise_evidence = _build_library_noise_evidence(pair_row)
     if library_noise_evidence is not None:
         evidence.append(library_noise_evidence)
+
+    packaging_changed_evidence = _build_packaging_changed_evidence(pair_row)
+    if packaging_changed_evidence is not None:
+        evidence.append(packaging_changed_evidence)
 
     if pair_row.get("code_stats_containment_policy_applied") is True:
         evidence.append(

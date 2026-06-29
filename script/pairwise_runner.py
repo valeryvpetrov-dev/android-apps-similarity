@@ -276,6 +276,14 @@ except Exception:
     from evidence_formatter import collect_evidence_from_pairwise  # type: ignore[no-redef]
 
 try:
+    from script.packaging_evidence import build_packaging_evidence_fields
+except Exception:
+    try:
+        from packaging_evidence import build_packaging_evidence_fields  # type: ignore[no-redef]
+    except Exception:
+        build_packaging_evidence_fields = None  # type: ignore[assignment]
+
+try:
     from script.v3_4_contracts import build_pair_aggregation_policy
     from script.v3_4_contracts import build_pair_check_run
     from script.v3_4_contracts import build_pair_similarity_result
@@ -3157,6 +3165,22 @@ def _compute_pair_row_with_caches(
     )
     apply_semantic_multiview_score_policy(pair_row, threshold=threshold)
     pair_row["signature_match"] = collect_signature_match(apk_a, apk_b)
+    if build_packaging_evidence_fields is not None:
+        try:
+            pair_row.update(build_packaging_evidence_fields(apk_a, apk_b))
+        except Exception as packaging_error:
+            pair_row.update(
+                {
+                    "packaging_evidence_policy_id": (
+                        "R_apk_packaging_evidence_policy_v1"
+                    ),
+                    "packaging_evidence_role": "evidence_only",
+                    "packaging_score_effect": "none",
+                    "packaging_score_included": False,
+                    "packaging_evidence_applied": False,
+                    "packaging_evidence_error": str(packaging_error),
+                }
+            )
     pair_row["elapsed_ms_deep"] = int(round((time.perf_counter() - deep_start) * 1000))
     pair_row["evidence"] = collect_evidence_from_pairwise(pair_row)
     return pair_row

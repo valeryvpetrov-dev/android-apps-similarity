@@ -223,6 +223,44 @@ class TestCollectEvidenceFromPairwise(unittest.TestCase):
         evidence = collect_evidence_from_pairwise(pair_row)
         self.assertEqual(evidence, [])
 
+    def test_adds_packaging_changed_evidence_when_direct_packaging_delta_exists(self) -> None:
+        pair_row = {
+            "app_a": "A",
+            "app_b": "B",
+            "full_similarity_score": 0.8,
+            "library_reduced_score": 0.8,
+            "status": "success",
+            "views_used": ["code"],
+            "signature_match": {"score": 0.0, "status": "mismatch"},
+            "packaging_evidence_applied": True,
+            "packaging_evidence_score": 0.75,
+            "packaging_delta_kinds": [
+                "manifest_package_name_delta",
+                "signing_certificate_delta",
+            ],
+            "packaging_evidence_ref": "apk_packaging_profile",
+            "manifest_package_name_delta": True,
+            "signing_certificate_delta": True,
+            "packaging_score_included": False,
+            "packaging_evidence_role": "evidence_only",
+        }
+
+        evidence = collect_evidence_from_pairwise(pair_row)
+        packaging_records = [
+            item for item in evidence if item["signal_type"] == "packaging_changed"
+        ]
+
+        self.assertEqual(len(packaging_records), 1)
+        self.assertEqual(packaging_records[0]["source_stage"], "pairwise")
+        self.assertEqual(packaging_records[0]["ref"], "apk_packaging_profile")
+        self.assertEqual(packaging_records[0]["magnitude"], 0.75)
+        self.assertEqual(
+            packaging_records[0]["delta_kinds"],
+            ["manifest_package_name_delta", "signing_certificate_delta"],
+        )
+        self.assertEqual(packaging_records[0]["score_effect"], "none")
+        self.assertEqual(packaging_records[0]["evidence_role"], "evidence_only")
+
 
 class TestCollectEvidenceFromPairwisePerLayerMagnitude(unittest.TestCase):
     """EXEC-EVIDENCE-PER-LAYER-MAGNITUDE.
