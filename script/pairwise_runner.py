@@ -279,6 +279,21 @@ except Exception:
     from evidence_formatter import collect_evidence_from_pairwise  # type: ignore[no-redef]
 
 try:
+    from script.code_core_evidence import (
+        CODE_CORE_EVIDENCE_POLICY_ID,
+        build_code_core_evidence_fields,
+    )
+except Exception:
+    try:
+        from code_core_evidence import (  # type: ignore[no-redef]
+            CODE_CORE_EVIDENCE_POLICY_ID,
+            build_code_core_evidence_fields,
+        )
+    except Exception:
+        CODE_CORE_EVIDENCE_POLICY_ID = "R_code_core_evidence_policy_v1"  # type: ignore[assignment]
+        build_code_core_evidence_fields = None  # type: ignore[assignment]
+
+try:
     from script.packaging_evidence import build_packaging_evidence_fields
 except Exception:
     try:
@@ -2280,6 +2295,14 @@ def build_code_stats_policy_fields_for_pair(
             selected_layers=selected_layers,
         )
     )
+    if build_code_core_evidence_fields is not None:
+        fields.update(
+            build_code_core_evidence_fields(
+                layers_a=layers_a,
+                layers_b=layers_b,
+                selected_layers=selected_layers,
+            )
+        )
     return fields
 
 
@@ -3131,6 +3154,14 @@ def _compute_pair_row_with_caches(
                         "c05_static_evidence_applied": False,
                         "c05_static_evidence_role": "evidence_only",
                         "c05_static_evidence_error": str(policy_error),
+                        "code_core_evidence_policy_id": (
+                            CODE_CORE_EVIDENCE_POLICY_ID
+                        ),
+                        "code_core_evidence_applied": False,
+                        "code_core_evidence_role": "evidence_only",
+                        "code_core_score_effect": "none",
+                        "code_core_score_included": False,
+                        "code_core_evidence_error": str(policy_error),
                         "framework_shift_evidence_policy_id": (
                             FRAMEWORK_SHIFT_EVIDENCE_POLICY_ID
                         ),
@@ -3148,6 +3179,11 @@ def _compute_pair_row_with_caches(
                     "c05_static_evidence_policy_id": C05_STATIC_EVIDENCE_POLICY_ID,
                     "c05_static_evidence_applied": False,
                     "c05_static_evidence_role": "evidence_only",
+                    "code_core_evidence_policy_id": CODE_CORE_EVIDENCE_POLICY_ID,
+                    "code_core_evidence_applied": False,
+                    "code_core_evidence_role": "evidence_only",
+                    "code_core_score_effect": "none",
+                    "code_core_score_included": False,
                     "framework_shift_evidence_policy_id": (
                         FRAMEWORK_SHIFT_EVIDENCE_POLICY_ID
                     ),

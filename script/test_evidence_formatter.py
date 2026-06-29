@@ -261,6 +261,49 @@ class TestCollectEvidenceFromPairwise(unittest.TestCase):
         self.assertEqual(packaging_records[0]["score_effect"], "none")
         self.assertEqual(packaging_records[0]["evidence_role"], "evidence_only")
 
+    def test_adds_same_code_core_evidence_when_fingerprint_core_exists(self) -> None:
+        pair_row = {
+            "app_a": "A",
+            "app_b": "B",
+            "full_similarity_score": 0.7,
+            "library_reduced_score": 0.7,
+            "status": "success",
+            "views_used": ["code"],
+            "code_core_evidence_applied": True,
+            "code_core_evidence_score": 1.0,
+            "code_core_evidence_ref": "R_code_core_fingerprint_multiset",
+            "code_core_evidence_role": "evidence_only",
+            "code_core_score_effect": "none",
+            "code_core_score_included": False,
+            "code_core_common_fingerprint_count": 12,
+            "left_code_core_fingerprint_count": 12,
+            "right_code_core_fingerprint_count": 12,
+            "code_core_counter_containment": 1.0,
+            "code_core_counter_jaccard": 1.0,
+            "code_core_common_fingerprint_sample": ["B:aaa", "B:bbb"],
+        }
+
+        evidence = collect_evidence_from_pairwise(pair_row)
+        code_core_records = [
+            item for item in evidence if item["signal_type"] == "same_code_core"
+        ]
+
+        self.assertEqual(len(code_core_records), 1)
+        self.assertEqual(code_core_records[0]["source_stage"], "pairwise")
+        self.assertEqual(
+            code_core_records[0]["ref"],
+            "R_code_core_fingerprint_multiset",
+        )
+        self.assertEqual(code_core_records[0]["magnitude"], 1.0)
+        self.assertEqual(code_core_records[0]["score_effect"], "none")
+        self.assertEqual(code_core_records[0]["evidence_role"], "evidence_only")
+        self.assertFalse(code_core_records[0]["score_included"])
+        self.assertEqual(code_core_records[0]["common_fingerprint_count"], 12)
+        self.assertEqual(
+            code_core_records[0]["common_fingerprint_sample"],
+            ["B:aaa", "B:bbb"],
+        )
+
 
 class TestCollectEvidenceFromPairwisePerLayerMagnitude(unittest.TestCase):
     """EXEC-EVIDENCE-PER-LAYER-MAGNITUDE.

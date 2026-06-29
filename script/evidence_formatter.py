@@ -244,6 +244,45 @@ def _build_packaging_changed_evidence(pair_row: dict) -> dict | None:
     return evidence
 
 
+def _build_same_code_core_evidence(pair_row: dict) -> dict | None:
+    if pair_row.get("code_core_evidence_applied") is not True:
+        return None
+    evidence = make_evidence(
+        source_stage="pairwise",
+        signal_type="same_code_core",
+        magnitude=_clamp_unit(pair_row.get("code_core_evidence_score")),
+        ref=str(
+            pair_row.get("code_core_evidence_ref")
+            or "R_code_core_fingerprint_multiset"
+        ),
+    )
+    evidence.update(
+        {
+            "evidence_role": str(
+                pair_row.get("code_core_evidence_role") or "evidence_only"
+            ),
+            "score_effect": str(pair_row.get("code_core_score_effect") or "none"),
+            "score_included": bool(pair_row.get("code_core_score_included")),
+            "common_fingerprint_count": pair_row.get(
+                "code_core_common_fingerprint_count"
+            ),
+            "left_fingerprint_count": pair_row.get(
+                "left_code_core_fingerprint_count"
+            ),
+            "right_fingerprint_count": pair_row.get(
+                "right_code_core_fingerprint_count"
+            ),
+            "counter_containment": pair_row.get("code_core_counter_containment"),
+            "counter_jaccard": pair_row.get("code_core_counter_jaccard"),
+            "common_fingerprint_sample": _coerce_string_list(
+                pair_row.get("code_core_common_fingerprint_sample"),
+                limit=20,
+            ),
+        }
+    )
+    return evidence
+
+
 def collect_evidence_from_pairwise(pair_row: dict) -> list[dict]:
     """Построить список Evidence из pair_row.
 
@@ -328,6 +367,10 @@ def collect_evidence_from_pairwise(pair_row: dict) -> list[dict]:
     packaging_changed_evidence = _build_packaging_changed_evidence(pair_row)
     if packaging_changed_evidence is not None:
         evidence.append(packaging_changed_evidence)
+
+    same_code_core_evidence = _build_same_code_core_evidence(pair_row)
+    if same_code_core_evidence is not None:
+        evidence.append(same_code_core_evidence)
 
     if pair_row.get("code_stats_containment_policy_applied") is True:
         evidence.append(
