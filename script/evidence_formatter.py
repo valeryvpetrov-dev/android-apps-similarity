@@ -283,6 +283,60 @@ def _build_same_code_core_evidence(pair_row: dict) -> dict | None:
     return evidence
 
 
+def _build_added_code_direct_evidence(pair_row: dict) -> dict | None:
+    if pair_row.get("added_code_direct_evidence_applied") is not True:
+        return None
+    evidence = make_evidence(
+        source_stage="pairwise",
+        signal_type="added_code_direct_evidence",
+        magnitude=_clamp_unit(pair_row.get("added_code_direct_evidence_score")),
+        ref=str(
+            pair_row.get("added_code_direct_evidence_ref")
+            or "R_added_code_method_delta"
+        ),
+    )
+    evidence.update(
+        {
+            "evidence_role": str(
+                pair_row.get("added_code_direct_evidence_role") or "evidence_only"
+            ),
+            "score_effect": str(
+                pair_row.get("added_code_direct_score_effect") or "none"
+            ),
+            "score_included": bool(pair_row.get("added_code_direct_score_included")),
+            "left_method_count": pair_row.get(
+                "added_code_direct_left_method_count"
+            ),
+            "right_method_count": pair_row.get(
+                "added_code_direct_right_method_count"
+            ),
+            "common_method_id_count": pair_row.get(
+                "added_code_direct_common_method_id_count"
+            ),
+            "right_only_method_count": pair_row.get(
+                "added_code_direct_right_only_method_count"
+            ),
+            "left_only_method_count": pair_row.get(
+                "added_code_direct_left_only_method_count"
+            ),
+            "added_fingerprint_count": pair_row.get(
+                "added_code_direct_added_fingerprint_count"
+            ),
+            "right_only_method_ratio": pair_row.get(
+                "added_code_direct_right_only_method_ratio"
+            ),
+            "top_method_prefixes": pair_row.get(
+                "added_code_direct_top_method_prefixes"
+            ),
+            "method_sample": _coerce_string_list(
+                pair_row.get("added_code_direct_method_sample"),
+                limit=20,
+            ),
+        }
+    )
+    return evidence
+
+
 def collect_evidence_from_pairwise(pair_row: dict) -> list[dict]:
     """Построить список Evidence из pair_row.
 
@@ -371,6 +425,10 @@ def collect_evidence_from_pairwise(pair_row: dict) -> list[dict]:
     same_code_core_evidence = _build_same_code_core_evidence(pair_row)
     if same_code_core_evidence is not None:
         evidence.append(same_code_core_evidence)
+
+    added_code_direct_evidence = _build_added_code_direct_evidence(pair_row)
+    if added_code_direct_evidence is not None:
+        evidence.append(added_code_direct_evidence)
 
     if pair_row.get("code_stats_containment_policy_applied") is True:
         evidence.append(

@@ -279,6 +279,23 @@ except Exception:
     from evidence_formatter import collect_evidence_from_pairwise  # type: ignore[no-redef]
 
 try:
+    from script.added_code_direct_evidence import (
+        ADDED_CODE_DIRECT_EVIDENCE_POLICY_ID,
+        build_added_code_direct_evidence_fields,
+    )
+except Exception:
+    try:
+        from added_code_direct_evidence import (  # type: ignore[no-redef]
+            ADDED_CODE_DIRECT_EVIDENCE_POLICY_ID,
+            build_added_code_direct_evidence_fields,
+        )
+    except Exception:
+        ADDED_CODE_DIRECT_EVIDENCE_POLICY_ID = (  # type: ignore[assignment]
+            "R_added_code_direct_evidence_policy_v1"
+        )
+        build_added_code_direct_evidence_fields = None  # type: ignore[assignment]
+
+try:
     from script.code_core_evidence import (
         CODE_CORE_EVIDENCE_POLICY_ID,
         build_code_core_evidence_fields,
@@ -1211,6 +1228,19 @@ def flatten_code_fingerprint_values(features: Any) -> list[str]:
     return values
 
 
+def flatten_code_method_fingerprints(features: Any) -> dict[str, str]:
+    if not isinstance(features, dict):
+        return {}
+    fingerprints = features.get("method_fingerprints")
+    if not isinstance(fingerprints, dict):
+        return {}
+    return {
+        str(method_id): str(fingerprint)
+        for method_id, fingerprint in fingerprints.items()
+        if method_id and fingerprint
+    }
+
+
 def _framework_shift_default_fields(error: str | None = None) -> dict[str, Any]:
     return {
         "framework_shift_evidence_policy_id": FRAMEWORK_SHIFT_EVIDENCE_POLICY_ID,
@@ -1468,6 +1498,10 @@ def load_layers_for_pairwise(
         or flatten_code_fingerprint_features(code_v4),
         "code_fingerprint_values": flatten_code_fingerprint_values(code_v4_shingled)
         or flatten_code_fingerprint_values(code_v4),
+        "code_method_fingerprints": flatten_code_method_fingerprints(
+            code_v4_shingled
+        )
+        or flatten_code_method_fingerprints(code_v4),
         "metadata": normalize_pairwise_layer_tokens("metadata", feature_bundle.get("metadata", set())),
         "component": normalize_pairwise_layer_tokens("component", feature_bundle.get("component", {})),
         "resource": normalize_pairwise_layer_tokens("resource", feature_bundle.get("resource", {})),
@@ -2295,6 +2329,14 @@ def build_code_stats_policy_fields_for_pair(
             selected_layers=selected_layers,
         )
     )
+    if build_added_code_direct_evidence_fields is not None:
+        fields.update(
+            build_added_code_direct_evidence_fields(
+                layers_a=layers_a,
+                layers_b=layers_b,
+                selected_layers=selected_layers,
+            )
+        )
     if build_code_core_evidence_fields is not None:
         fields.update(
             build_code_core_evidence_fields(
@@ -3162,6 +3204,14 @@ def _compute_pair_row_with_caches(
                         "code_core_score_effect": "none",
                         "code_core_score_included": False,
                         "code_core_evidence_error": str(policy_error),
+                        "added_code_direct_evidence_policy_id": (
+                            ADDED_CODE_DIRECT_EVIDENCE_POLICY_ID
+                        ),
+                        "added_code_direct_evidence_applied": False,
+                        "added_code_direct_evidence_role": "evidence_only",
+                        "added_code_direct_score_effect": "none",
+                        "added_code_direct_score_included": False,
+                        "added_code_direct_evidence_error": str(policy_error),
                         "framework_shift_evidence_policy_id": (
                             FRAMEWORK_SHIFT_EVIDENCE_POLICY_ID
                         ),
@@ -3184,6 +3234,13 @@ def _compute_pair_row_with_caches(
                     "code_core_evidence_role": "evidence_only",
                     "code_core_score_effect": "none",
                     "code_core_score_included": False,
+                    "added_code_direct_evidence_policy_id": (
+                        ADDED_CODE_DIRECT_EVIDENCE_POLICY_ID
+                    ),
+                    "added_code_direct_evidence_applied": False,
+                    "added_code_direct_evidence_role": "evidence_only",
+                    "added_code_direct_score_effect": "none",
+                    "added_code_direct_score_included": False,
                     "framework_shift_evidence_policy_id": (
                         FRAMEWORK_SHIFT_EVIDENCE_POLICY_ID
                     ),

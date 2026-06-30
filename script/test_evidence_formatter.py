@@ -304,6 +304,52 @@ class TestCollectEvidenceFromPairwise(unittest.TestCase):
             ["B:aaa", "B:bbb"],
         )
 
+    def test_adds_direct_added_code_evidence_when_right_only_methods_exist(self) -> None:
+        pair_row = {
+            "app_a": "A",
+            "app_b": "B",
+            "full_similarity_score": 0.7,
+            "library_reduced_score": 0.7,
+            "status": "success",
+            "views_used": ["code"],
+            "added_code_direct_evidence_applied": True,
+            "added_code_direct_evidence_score": 0.5,
+            "added_code_direct_evidence_ref": "R_added_code_method_delta",
+            "added_code_direct_evidence_role": "evidence_only",
+            "added_code_direct_score_effect": "none",
+            "added_code_direct_score_included": False,
+            "added_code_direct_right_only_method_count": 2,
+            "added_code_direct_left_only_method_count": 0,
+            "added_code_direct_common_method_id_count": 2,
+            "added_code_direct_added_fingerprint_count": 2,
+            "added_code_direct_top_method_prefixes": [
+                {"prefix": "payload.New", "count": 2}
+            ],
+            "added_code_direct_method_sample": [
+                "Lpayload/New;->x()V",
+                "Lpayload/New;->y()V",
+            ],
+        }
+
+        evidence = collect_evidence_from_pairwise(pair_row)
+        added_records = [
+            item
+            for item in evidence
+            if item["signal_type"] == "added_code_direct_evidence"
+        ]
+
+        self.assertEqual(len(added_records), 1)
+        self.assertEqual(added_records[0]["source_stage"], "pairwise")
+        self.assertEqual(added_records[0]["ref"], "R_added_code_method_delta")
+        self.assertEqual(added_records[0]["score_effect"], "none")
+        self.assertEqual(added_records[0]["evidence_role"], "evidence_only")
+        self.assertFalse(added_records[0]["score_included"])
+        self.assertEqual(added_records[0]["right_only_method_count"], 2)
+        self.assertEqual(
+            added_records[0]["method_sample"],
+            ["Lpayload/New;->x()V", "Lpayload/New;->y()V"],
+        )
+
 
 class TestCollectEvidenceFromPairwisePerLayerMagnitude(unittest.TestCase):
     """EXEC-EVIDENCE-PER-LAYER-MAGNITUDE.
