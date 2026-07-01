@@ -87,6 +87,40 @@ class TestZipLightExtractor(unittest.TestCase):
         self.assertEqual(result["extractor_run_record"]["status"], "analysis_failed")
         self.assertIn("bad_zipfile", result["extractor_run_record"]["errors"])
 
+    def test_zip_light_extractor_reports_missing_dex_as_analysis_failed(self) -> None:
+        from feature_extractors import run_zip_light_extractor
+
+        with tempfile.TemporaryDirectory() as tmp:
+            apk_path = Path(tmp) / "without-code.apk"
+            with zipfile.ZipFile(apk_path, "w") as archive:
+                archive.writestr("AndroidManifest.xml", b"<manifest package='x.y'/>")
+                archive.writestr("resources.arsc", b"resources")
+
+            result = run_zip_light_extractor(apk_path, requested_views=["code"])
+
+        self.assertEqual(result["status"], "analysis_failed")
+        self.assertEqual(result["view_artifacts"], [])
+        self.assertEqual(result["layers"], {})
+        self.assertEqual(result["extractor_run_record"]["status"], "analysis_failed")
+        self.assertIn("code_empty_apk", result["extractor_run_record"]["errors"])
+
+    def test_zip_light_extractor_reports_invalid_dex_as_analysis_failed(self) -> None:
+        from feature_extractors import run_zip_light_extractor
+
+        with tempfile.TemporaryDirectory() as tmp:
+            apk_path = Path(tmp) / "invalid-dex.apk"
+            with zipfile.ZipFile(apk_path, "w") as archive:
+                archive.writestr("AndroidManifest.xml", b"<manifest package='x.y'/>")
+                archive.writestr("classes.dex", b"not-a-real-dex")
+
+            result = run_zip_light_extractor(apk_path, requested_views=["code"])
+
+        self.assertEqual(result["status"], "analysis_failed")
+        self.assertEqual(result["view_artifacts"], [])
+        self.assertEqual(result["layers"], {})
+        self.assertEqual(result["extractor_run_record"]["status"], "analysis_failed")
+        self.assertIn("invalid_dex_payload", result["extractor_run_record"]["errors"])
+
     def test_zip_light_extractor_reuses_cache_on_second_call(self) -> None:
         from feature_extractors import run_zip_light_extractor
 

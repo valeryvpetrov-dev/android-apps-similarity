@@ -116,6 +116,30 @@ def _cache_status_for_miss(cache: FeatureCache | None) -> str:
     return "miss"
 
 
+def _zip_light_payload_failure(path: Path) -> str | None:
+    """Return a typed analysis failure when ZIP metadata is not enough."""
+    with zipfile.ZipFile(path, "r") as archive:
+        dex_names = [
+            name
+            for name in archive.namelist()
+            if name.endswith(".dex") and not name.endswith("/")
+        ]
+        if not dex_names:
+            return "code_empty_apk"
+
+        for dex_name in dex_names:
+            with archive.open(dex_name, "r") as stream:
+                header = stream.read(8)
+            if (
+                len(header) >= 8
+                and header.startswith(b"dex\n")
+                and header[4:7].isdigit()
+                and header[7:8] == b"\x00"
+            ):
+                return None
+        return "invalid_dex_payload"
+
+
 def _zip_light_cache_key(
     *,
     apk_sha256: str,
@@ -336,6 +360,48 @@ def run_zip_light_extractor(
         representation_spec_ref=representation_spec_ref,
         config_hash=config_hash,
     )
+
+    try:
+        payload_failure = _zip_light_payload_failure(path)
+    except zipfile.BadZipFile:
+        return _failure_result(
+            status=STATUS_ANALYSIS_FAILED,
+            errors=["bad_zipfile"],
+            apk_sha256=apk_sha256,
+            requested_views=requested,
+            started_at=started_at,
+            duration_ms=int((perf_counter() - started) * 1000),
+            cache_key=cache_key,
+            profile_ref=profile_ref,
+            representation_spec_ref=representation_spec_ref,
+            config_hash=config_hash,
+        )
+    except OSError as exc:
+        return _failure_result(
+            status=STATUS_ANALYSIS_FAILED,
+            errors=["io_error:{}".format(type(exc).__name__)],
+            apk_sha256=apk_sha256,
+            requested_views=requested,
+            started_at=started_at,
+            duration_ms=int((perf_counter() - started) * 1000),
+            cache_key=cache_key,
+            profile_ref=profile_ref,
+            representation_spec_ref=representation_spec_ref,
+            config_hash=config_hash,
+        )
+    if payload_failure is not None:
+        return _failure_result(
+            status=STATUS_ANALYSIS_FAILED,
+            errors=[payload_failure],
+            apk_sha256=apk_sha256,
+            requested_views=requested,
+            started_at=started_at,
+            duration_ms=int((perf_counter() - started) * 1000),
+            cache_key=cache_key,
+            profile_ref=profile_ref,
+            representation_spec_ref=representation_spec_ref,
+            config_hash=config_hash,
+        )
 
     cache = _build_extractor_cache(cache_dir)
     cached_payload = _read_extractor_cache(cache, cache_key)
