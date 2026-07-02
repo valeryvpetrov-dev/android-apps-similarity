@@ -112,7 +112,11 @@ class TestPairwisePackagingEvidence(unittest.TestCase):
                 apk_b,
                 package_name="com.example.right",
                 cert_payload=b"right-cert",
-                extra_entries=("classes2.dex", "assets/payload.bin"),
+                extra_entries=(
+                    "classes2.dex",
+                    "lib/arm64-v8a/libpayload.so",
+                    "assets/payload.bin",
+                ),
             )
             config_path, enriched_path = _build_enriched_pair_file(root, apk_a, apk_b)
 
@@ -140,6 +144,14 @@ class TestPairwisePackagingEvidence(unittest.TestCase):
         self.assertTrue(row["manifest_package_name_delta"])
         self.assertTrue(row["signing_certificate_delta"])
         self.assertTrue(row["apk_entry_layout_delta"])
+        self.assertTrue(row["package_rename_evidence_applied"])
+        self.assertEqual(row["package_rename_score_effect"], "none")
+        self.assertFalse(row["package_rename_score_included"])
+        self.assertTrue(row["apk_layout_evidence_applied"])
+        self.assertEqual(row["apk_layout_score_effect"], "none")
+        self.assertFalse(row["apk_layout_score_included"])
+        self.assertIn("dex_layout_delta", row["apk_layout_delta_kinds"])
+        self.assertIn("native_lib_delta", row["apk_layout_delta_kinds"])
         self.assertEqual(row["similarity_score_source"], "library_reduced_score")
 
         packaging_items = [
@@ -153,6 +165,16 @@ class TestPairwisePackagingEvidence(unittest.TestCase):
             "manifest_package_name_delta",
             packaging_items[0]["delta_kinds"],
         )
+        self.assertTrue(packaging_items[0]["package_rename"]["applied"])
+        self.assertEqual(
+            packaging_items[0]["package_rename"]["right_manifest_package_name"],
+            "com.example.right",
+        )
+        self.assertIn(
+            "native_lib_delta",
+            packaging_items[0]["apk_layout"]["delta_kinds"],
+        )
+        self.assertTrue(packaging_items[0]["apk_layout"]["dex_name_delta"])
 
 
 if __name__ == "__main__":

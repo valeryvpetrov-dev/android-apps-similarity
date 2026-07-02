@@ -20,6 +20,8 @@ PACKAGING_EVIDENCE_POLICY_ID = "R_apk_packaging_evidence_policy_v1"
 PACKAGING_EVIDENCE_REF = "apk_packaging_profile"
 PACKAGING_EVIDENCE_ROLE = "evidence_only"
 PACKAGING_SCORE_EFFECT = "none"
+PACKAGE_RENAME_EVIDENCE_POLICY_ID = "R_packaging_package_rename_evidence_v1"
+APK_LAYOUT_EVIDENCE_POLICY_ID = "R_packaging_apk_layout_evidence_v1"
 
 _PACKAGE_PATTERN = re.compile(
     r"(?<![A-Za-z0-9_$.])package(?:Name)?\s*(?:=|:)\s*[\"']?([A-Za-z0-9_$.]+)"
@@ -222,6 +224,20 @@ def build_packaging_evidence_fields(
     left_layout_tokens = list(left.get("entry_layout_tokens") or [])
     right_layout_tokens = list(right.get("entry_layout_tokens") or [])
     entry_layout_delta = left_layout_tokens != right_layout_tokens
+    left_dex_names = list(left.get("dex_names") or [])
+    right_dex_names = list(right.get("dex_names") or [])
+    left_native_lib_names = list(left.get("native_lib_names") or [])
+    right_native_lib_names = list(right.get("native_lib_names") or [])
+    dex_name_delta = left_dex_names != right_dex_names
+    native_lib_delta = left_native_lib_names != right_native_lib_names
+    apk_layout_delta_flags = {
+        "dex_layout_delta": dex_name_delta,
+        "native_lib_delta": native_lib_delta,
+        "apk_entry_layout_delta": entry_layout_delta,
+    }
+    apk_layout_delta_kinds = [
+        kind for kind, applied in apk_layout_delta_flags.items() if applied
+    ]
 
     delta_flags = {
         "manifest_package_name_delta": manifest_package_delta,
@@ -245,18 +261,41 @@ def build_packaging_evidence_fields(
         "signing_certificate_delta": signing_delta,
         "apk_entry_layout_delta": entry_layout_delta,
         "manifest_or_metadata_packaging_delta": manifest_or_metadata_delta,
+        "package_rename_evidence_policy_id": PACKAGE_RENAME_EVIDENCE_POLICY_ID,
+        "package_rename_evidence_ref": "manifest_package_name",
+        "package_rename_evidence_role": PACKAGING_EVIDENCE_ROLE,
+        "package_rename_score_effect": PACKAGING_SCORE_EFFECT,
+        "package_rename_score_included": False,
+        "package_rename_evidence_applied": manifest_package_delta,
+        "package_rename_evidence_score": 1.0 if manifest_package_delta else 0.0,
+        "package_rename_left_manifest_package_name": left_package,
+        "package_rename_right_manifest_package_name": right_package,
+        "apk_layout_evidence_policy_id": APK_LAYOUT_EVIDENCE_POLICY_ID,
+        "apk_layout_evidence_ref": "apk_zip_entries",
+        "apk_layout_evidence_role": PACKAGING_EVIDENCE_ROLE,
+        "apk_layout_score_effect": PACKAGING_SCORE_EFFECT,
+        "apk_layout_score_included": False,
+        "apk_layout_evidence_applied": bool(apk_layout_delta_kinds),
+        "apk_layout_evidence_score": (
+            min(1.0, len(apk_layout_delta_kinds) / 3.0)
+            if apk_layout_delta_kinds
+            else 0.0
+        ),
+        "apk_layout_delta_kinds": apk_layout_delta_kinds,
+        "apk_layout_dex_name_delta": dex_name_delta,
+        "apk_layout_native_lib_delta": native_lib_delta,
         "left_manifest_package_name": left_package,
         "right_manifest_package_name": right_package,
         "left_signing_certificate_sha256": left_signature,
         "right_signing_certificate_sha256": right_signature,
         "left_apk_entry_count": int(left.get("entry_count") or 0),
         "right_apk_entry_count": int(right.get("entry_count") or 0),
-        "left_dex_names": list(left.get("dex_names") or []),
-        "right_dex_names": list(right.get("dex_names") or []),
+        "left_dex_names": left_dex_names,
+        "right_dex_names": right_dex_names,
         "left_signature_file_names": list(left.get("signature_file_names") or []),
         "right_signature_file_names": list(right.get("signature_file_names") or []),
-        "left_native_lib_names": list(left.get("native_lib_names") or []),
-        "right_native_lib_names": list(right.get("native_lib_names") or []),
+        "left_native_lib_names": left_native_lib_names,
+        "right_native_lib_names": right_native_lib_names,
         "apk_entry_layout_delta_sample": _sample_delta(
             left_layout_tokens,
             right_layout_tokens,

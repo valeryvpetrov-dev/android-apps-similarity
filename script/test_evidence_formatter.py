@@ -241,8 +241,24 @@ class TestCollectEvidenceFromPairwise(unittest.TestCase):
             "packaging_evidence_ref": "apk_packaging_profile",
             "manifest_package_name_delta": True,
             "signing_certificate_delta": True,
+            "apk_entry_layout_delta": True,
             "packaging_score_included": False,
             "packaging_evidence_role": "evidence_only",
+            "package_rename_evidence_applied": True,
+            "package_rename_left_manifest_package_name": "com.example.left",
+            "package_rename_right_manifest_package_name": "com.example.right",
+            "package_rename_score_effect": "none",
+            "package_rename_score_included": False,
+            "apk_layout_evidence_applied": True,
+            "apk_layout_delta_kinds": ["dex_layout_delta", "native_lib_delta"],
+            "apk_layout_score_effect": "none",
+            "apk_layout_score_included": False,
+            "apk_layout_dex_name_delta": True,
+            "apk_layout_native_lib_delta": True,
+            "left_dex_names": ["classes.dex"],
+            "right_dex_names": ["classes.dex", "classes2.dex"],
+            "left_native_lib_names": [],
+            "right_native_lib_names": ["lib/arm64-v8a/libpayload.so"],
         }
 
         evidence = collect_evidence_from_pairwise(pair_row)
@@ -260,6 +276,30 @@ class TestCollectEvidenceFromPairwise(unittest.TestCase):
         )
         self.assertEqual(packaging_records[0]["score_effect"], "none")
         self.assertEqual(packaging_records[0]["evidence_role"], "evidence_only")
+        self.assertEqual(
+            packaging_records[0]["package_rename"],
+            {
+                "applied": True,
+                "left_manifest_package_name": "com.example.left",
+                "right_manifest_package_name": "com.example.right",
+                "score_effect": "none",
+                "score_included": False,
+            },
+        )
+        self.assertEqual(
+            packaging_records[0]["apk_layout"]["delta_kinds"],
+            ["dex_layout_delta", "native_lib_delta"],
+        )
+        self.assertTrue(packaging_records[0]["apk_layout"]["dex_name_delta"])
+        self.assertTrue(packaging_records[0]["apk_layout"]["native_lib_delta"])
+        self.assertEqual(
+            packaging_records[0]["apk_layout"]["right_dex_names"],
+            ["classes.dex", "classes2.dex"],
+        )
+        self.assertEqual(
+            packaging_records[0]["apk_layout"]["right_native_lib_names"],
+            ["lib/arm64-v8a/libpayload.so"],
+        )
 
     def test_adds_same_code_core_evidence_when_fingerprint_core_exists(self) -> None:
         pair_row = {

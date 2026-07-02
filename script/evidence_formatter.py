@@ -239,6 +239,52 @@ def _build_packaging_changed_evidence(pair_row: dict) -> dict | None:
             ),
             "left_manifest_package_name": pair_row.get("left_manifest_package_name"),
             "right_manifest_package_name": pair_row.get("right_manifest_package_name"),
+            "package_rename": {
+                "applied": bool(pair_row.get("package_rename_evidence_applied")),
+                "left_manifest_package_name": pair_row.get(
+                    "package_rename_left_manifest_package_name"
+                ),
+                "right_manifest_package_name": pair_row.get(
+                    "package_rename_right_manifest_package_name"
+                ),
+                "score_effect": str(
+                    pair_row.get("package_rename_score_effect") or "none"
+                ),
+                "score_included": bool(
+                    pair_row.get("package_rename_score_included")
+                ),
+            },
+            "apk_layout": {
+                "applied": bool(pair_row.get("apk_layout_evidence_applied")),
+                "delta_kinds": _coerce_string_list(
+                    pair_row.get("apk_layout_delta_kinds"),
+                    limit=20,
+                ),
+                "score_effect": str(pair_row.get("apk_layout_score_effect") or "none"),
+                "score_included": bool(pair_row.get("apk_layout_score_included")),
+                "dex_name_delta": bool(pair_row.get("apk_layout_dex_name_delta")),
+                "native_lib_delta": bool(pair_row.get("apk_layout_native_lib_delta")),
+                "left_dex_names": _coerce_string_list(
+                    pair_row.get("left_dex_names"),
+                    limit=20,
+                ),
+                "right_dex_names": _coerce_string_list(
+                    pair_row.get("right_dex_names"),
+                    limit=20,
+                ),
+                "left_native_lib_names": _coerce_string_list(
+                    pair_row.get("left_native_lib_names"),
+                    limit=20,
+                ),
+                "right_native_lib_names": _coerce_string_list(
+                    pair_row.get("right_native_lib_names"),
+                    limit=20,
+                ),
+                "delta_sample": _coerce_string_list(
+                    pair_row.get("apk_entry_layout_delta_sample"),
+                    limit=20,
+                ),
+            },
         }
     )
     return evidence

@@ -72,6 +72,7 @@ class TestPackagingEvidence(unittest.TestCase):
                 entries={
                     "META-INF/CERT.RSA": b"cert-right",
                     "classes2.dex": b"dex\n035\0",
+                    "lib/arm64-v8a/libpayload.so": b"native-right",
                     "assets/payload.bin": b"payload",
                 },
             )
@@ -95,6 +96,24 @@ class TestPackagingEvidence(unittest.TestCase):
         self.assertIn("manifest_package_name_delta", fields["packaging_delta_kinds"])
         self.assertIn("signing_certificate_delta", fields["packaging_delta_kinds"])
         self.assertIn("apk_entry_layout_delta", fields["packaging_delta_kinds"])
+        self.assertTrue(fields["package_rename_evidence_applied"])
+        self.assertEqual(
+            fields["package_rename_left_manifest_package_name"],
+            "com.example.left",
+        )
+        self.assertEqual(
+            fields["package_rename_right_manifest_package_name"],
+            "com.example.right",
+        )
+        self.assertEqual(fields["package_rename_score_effect"], "none")
+        self.assertFalse(fields["package_rename_score_included"])
+        self.assertTrue(fields["apk_layout_evidence_applied"])
+        self.assertEqual(fields["apk_layout_score_effect"], "none")
+        self.assertFalse(fields["apk_layout_score_included"])
+        self.assertIn("dex_layout_delta", fields["apk_layout_delta_kinds"])
+        self.assertIn("native_lib_delta", fields["apk_layout_delta_kinds"])
+        self.assertTrue(fields["apk_layout_dex_name_delta"])
+        self.assertTrue(fields["apk_layout_native_lib_delta"])
 
 
 if __name__ == "__main__":
