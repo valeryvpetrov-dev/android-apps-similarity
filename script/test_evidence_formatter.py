@@ -301,6 +301,58 @@ class TestCollectEvidenceFromPairwise(unittest.TestCase):
             ["lib/arm64-v8a/libpayload.so"],
         )
 
+    def test_adds_deleted_code_direct_evidence_when_left_only_methods_exist(
+        self,
+    ) -> None:
+        pair_row = {
+            "app_a": "A",
+            "app_b": "B",
+            "full_similarity_score": 0.8,
+            "library_reduced_score": 0.8,
+            "status": "success",
+            "views_used": ["code"],
+            "deleted_code_direct_evidence_applied": True,
+            "deleted_code_direct_evidence_score": 0.5,
+            "deleted_code_direct_evidence_ref": "R_deleted_code_method_delta",
+            "deleted_code_direct_evidence_role": "evidence_only",
+            "deleted_code_direct_score_effect": "none",
+            "deleted_code_direct_score_included": False,
+            "deleted_code_direct_left_method_count": 4,
+            "deleted_code_direct_right_method_count": 2,
+            "deleted_code_direct_common_method_id_count": 2,
+            "deleted_code_direct_left_only_method_count": 2,
+            "deleted_code_direct_right_only_method_count": 0,
+            "deleted_code_direct_deleted_fingerprint_count": 2,
+            "deleted_code_direct_left_only_method_ratio": 0.5,
+            "deleted_code_direct_top_method_prefixes": [
+                {"prefix": "legacy.Removed", "count": 2}
+            ],
+            "deleted_code_direct_method_sample": [
+                "Llegacy/Removed;->x()V",
+                "Llegacy/Removed;->y()V",
+            ],
+        }
+
+        evidence = collect_evidence_from_pairwise(pair_row)
+        deleted_records = [
+            item
+            for item in evidence
+            if item["signal_type"] == "deleted_code_direct_evidence"
+        ]
+
+        self.assertEqual(len(deleted_records), 1)
+        self.assertEqual(deleted_records[0]["source_stage"], "pairwise")
+        self.assertEqual(deleted_records[0]["ref"], "R_deleted_code_method_delta")
+        self.assertEqual(deleted_records[0]["magnitude"], 0.5)
+        self.assertEqual(deleted_records[0]["score_effect"], "none")
+        self.assertFalse(deleted_records[0]["score_included"])
+        self.assertEqual(deleted_records[0]["left_only_method_count"], 2)
+        self.assertEqual(deleted_records[0]["deleted_fingerprint_count"], 2)
+        self.assertEqual(
+            deleted_records[0]["method_sample"],
+            ["Llegacy/Removed;->x()V", "Llegacy/Removed;->y()V"],
+        )
+
     def test_adds_same_code_core_evidence_when_fingerprint_core_exists(self) -> None:
         pair_row = {
             "app_a": "A",
