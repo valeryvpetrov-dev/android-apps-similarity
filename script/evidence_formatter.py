@@ -183,18 +183,32 @@ def _library_noise_indicators(pair_row: dict) -> list[str]:
 def _build_library_noise_evidence(pair_row: dict) -> dict | None:
     full_similarity = _score_or_none(pair_row.get("full_similarity_score"))
     library_reduced = _score_or_none(pair_row.get("library_reduced_score"))
-    if full_similarity is None or library_reduced is None:
+    direct_applied = pair_row.get("library_noise_direct_evidence_applied") is True
+    score_delta: float | None = None
+    if full_similarity is not None and library_reduced is not None:
+        score_delta = full_similarity - library_reduced
+
+    delta_applied = (
+        score_delta is not None and score_delta >= _LIBRARY_NOISE_DELTA_THRESHOLD
+    )
+    if not direct_applied and not delta_applied:
         return None
 
-    score_delta = full_similarity - library_reduced
-    if score_delta < _LIBRARY_NOISE_DELTA_THRESHOLD:
-        return None
+    if direct_applied:
+        magnitude = _clamp_unit(pair_row.get("library_noise_direct_evidence_score"))
+        ref = str(
+            pair_row.get("library_noise_direct_evidence_ref")
+            or "R_library_noise_namespace_delta"
+        )
+    else:
+        magnitude = _clamp_unit(score_delta)
+        ref = "library_reduced_score_delta"
 
     evidence = make_evidence(
         source_stage="pairwise",
         signal_type="library_noise",
-        magnitude=_clamp_unit(score_delta),
-        ref="library_reduced_score_delta",
+        magnitude=magnitude,
+        ref=ref,
     )
     evidence.update(
         {
@@ -204,6 +218,52 @@ def _build_library_noise_evidence(pair_row: dict) -> dict | None:
             "library_indicators": _library_noise_indicators(pair_row),
         }
     )
+    if direct_applied:
+        evidence.update(
+            {
+                "evidence_role": str(
+                    pair_row.get("library_noise_direct_evidence_role")
+                    or "evidence_only"
+                ),
+                "score_effect": str(
+                    pair_row.get("library_noise_direct_score_effect") or "none"
+                ),
+                "score_included": bool(
+                    pair_row.get("library_noise_direct_score_included")
+                ),
+                "left_method_count": pair_row.get(
+                    "library_noise_direct_left_method_count"
+                ),
+                "right_method_count": pair_row.get(
+                    "library_noise_direct_right_method_count"
+                ),
+                "common_method_id_count": pair_row.get(
+                    "library_noise_direct_common_method_id_count"
+                ),
+                "right_only_method_count": pair_row.get(
+                    "library_noise_direct_right_only_method_count"
+                ),
+                "left_only_method_count": pair_row.get(
+                    "library_noise_direct_left_only_method_count"
+                ),
+                "top_namespace_prefix": pair_row.get(
+                    "library_noise_direct_top_namespace_prefix"
+                ),
+                "top_namespace_method_count": pair_row.get(
+                    "library_noise_direct_top_namespace_method_count"
+                ),
+                "top_namespace_method_ratio": pair_row.get(
+                    "library_noise_direct_top_namespace_method_ratio"
+                ),
+                "namespace_groups": pair_row.get(
+                    "library_noise_direct_namespace_groups"
+                ),
+                "method_sample": _coerce_string_list(
+                    pair_row.get("library_noise_direct_method_sample"),
+                    limit=20,
+                ),
+            }
+        )
     return evidence
 
 

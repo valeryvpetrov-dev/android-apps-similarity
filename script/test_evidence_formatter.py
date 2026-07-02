@@ -191,6 +191,64 @@ class TestCollectEvidenceFromPairwise(unittest.TestCase):
             {item["signal_type"] for item in evidence},
         )
 
+    def test_adds_library_noise_direct_details_without_score_delta(self) -> None:
+        pair_row = {
+            "app_a": "A",
+            "app_b": "B",
+            "full_similarity_score": 0.64,
+            "library_reduced_score": 0.62,
+            "status": "success",
+            "views_used": ["code", "library"],
+            "library_noise_direct_evidence_applied": True,
+            "library_noise_direct_evidence_score": 1.0,
+            "library_noise_direct_evidence_ref": "R_library_noise_namespace_delta",
+            "library_noise_direct_evidence_role": "evidence_only",
+            "library_noise_direct_score_effect": "none",
+            "library_noise_direct_score_included": False,
+            "library_noise_direct_left_method_count": 2,
+            "library_noise_direct_right_method_count": 4,
+            "library_noise_direct_common_method_id_count": 2,
+            "library_noise_direct_right_only_method_count": 2,
+            "library_noise_direct_left_only_method_count": 0,
+            "library_noise_direct_top_namespace_prefix": "com.vendor.sdk",
+            "library_noise_direct_top_namespace_method_count": 2,
+            "library_noise_direct_top_namespace_method_ratio": 1.0,
+            "library_noise_direct_namespace_groups": [
+                {"prefix": "com.vendor.sdk", "count": 2}
+            ],
+            "library_noise_direct_method_sample": [
+                "Lcom/vendor/sdk/Ad;->load()V",
+                "Lcom/vendor/sdk/Ad;->show()V",
+            ],
+        }
+
+        evidence = collect_evidence_from_pairwise(pair_row)
+        library_noise_records = [
+            item for item in evidence if item["signal_type"] == "library_noise"
+        ]
+
+        self.assertEqual(len(library_noise_records), 1)
+        self.assertEqual(
+            library_noise_records[0]["ref"],
+            "R_library_noise_namespace_delta",
+        )
+        self.assertEqual(library_noise_records[0]["magnitude"], 1.0)
+        self.assertEqual(library_noise_records[0]["score_effect"], "none")
+        self.assertEqual(library_noise_records[0]["evidence_role"], "evidence_only")
+        self.assertFalse(library_noise_records[0]["score_included"])
+        self.assertEqual(
+            library_noise_records[0]["top_namespace_prefix"],
+            "com.vendor.sdk",
+        )
+        self.assertEqual(library_noise_records[0]["right_only_method_count"], 2)
+        self.assertEqual(
+            library_noise_records[0]["method_sample"],
+            [
+                "Lcom/vendor/sdk/Ad;->load()V",
+                "Lcom/vendor/sdk/Ad;->show()V",
+            ],
+        )
+
     def test_adds_signature_match_evidence_when_present_and_success(self) -> None:
         pair_row = {
             "app_a": "A",
