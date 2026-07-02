@@ -500,6 +500,63 @@ class TestCollectEvidenceFromPairwise(unittest.TestCase):
             ["Lpayload/New;->x()V", "Lpayload/New;->y()V"],
         )
 
+    def test_adds_obfuscation_direct_evidence_when_short_names_exist(self) -> None:
+        pair_row = {
+            "app_a": "A",
+            "app_b": "B",
+            "full_similarity_score": 0.7,
+            "library_reduced_score": 0.7,
+            "status": "success",
+            "views_used": ["code"],
+            "obfuscation_direct_evidence_applied": True,
+            "obfuscation_direct_evidence_score": 1.0,
+            "obfuscation_direct_evidence_ref": "R_obfuscation_name_shortening_delta",
+            "obfuscation_direct_evidence_role": "evidence_only",
+            "obfuscation_direct_score_effect": "none",
+            "obfuscation_direct_score_included": False,
+            "obfuscation_direct_same_package": True,
+            "obfuscation_direct_left_method_count": 4,
+            "obfuscation_direct_right_method_count": 4,
+            "obfuscation_direct_common_method_id_count": 0,
+            "obfuscation_direct_common_fingerprint_count": 4,
+            "obfuscation_direct_left_short_class_name_count": 0,
+            "obfuscation_direct_right_short_class_name_count": 4,
+            "obfuscation_direct_left_short_method_name_count": 0,
+            "obfuscation_direct_right_short_method_name_count": 2,
+            "obfuscation_direct_left_short_class_name_ratio": 0.0,
+            "obfuscation_direct_right_short_class_name_ratio": 1.0,
+            "obfuscation_direct_left_short_method_name_ratio": 0.0,
+            "obfuscation_direct_right_short_method_name_ratio": 1.0,
+            "obfuscation_direct_left_package_sample": ["com/example/app"],
+            "obfuscation_direct_right_package_sample": ["com/example/app"],
+            "obfuscation_direct_left_class_name_sample": ["Feature00", "Feature01"],
+            "obfuscation_direct_right_class_name_sample": ["a", "b"],
+            "obfuscation_direct_left_method_name_sample": ["compute00", "compute01"],
+            "obfuscation_direct_right_method_name_sample": ["a", "b"],
+        }
+
+        evidence = collect_evidence_from_pairwise(pair_row)
+        obfuscation_records = [
+            item
+            for item in evidence
+            if item["signal_type"] == "obfuscation_direct_evidence"
+        ]
+
+        self.assertEqual(len(obfuscation_records), 1)
+        self.assertEqual(obfuscation_records[0]["source_stage"], "pairwise")
+        self.assertEqual(
+            obfuscation_records[0]["ref"],
+            "R_obfuscation_name_shortening_delta",
+        )
+        self.assertEqual(obfuscation_records[0]["magnitude"], 1.0)
+        self.assertEqual(obfuscation_records[0]["score_effect"], "none")
+        self.assertEqual(obfuscation_records[0]["evidence_role"], "evidence_only")
+        self.assertFalse(obfuscation_records[0]["score_included"])
+        self.assertTrue(obfuscation_records[0]["same_package"])
+        self.assertEqual(obfuscation_records[0]["common_fingerprint_count"], 4)
+        self.assertEqual(obfuscation_records[0]["right_class_name_sample"], ["a", "b"])
+        self.assertEqual(obfuscation_records[0]["right_method_name_sample"], ["a", "b"])
+
 
 class TestCollectEvidenceFromPairwisePerLayerMagnitude(unittest.TestCase):
     """EXEC-EVIDENCE-PER-LAYER-MAGNITUDE.

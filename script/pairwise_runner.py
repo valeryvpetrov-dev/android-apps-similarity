@@ -330,6 +330,23 @@ except Exception:
         build_library_noise_direct_evidence_fields = None  # type: ignore[assignment]
 
 try:
+    from script.obfuscation_direct_evidence import (
+        OBFUSCATION_DIRECT_EVIDENCE_POLICY_ID,
+        build_obfuscation_direct_evidence_fields,
+    )
+except Exception:
+    try:
+        from obfuscation_direct_evidence import (  # type: ignore[no-redef]
+            OBFUSCATION_DIRECT_EVIDENCE_POLICY_ID,
+            build_obfuscation_direct_evidence_fields,
+        )
+    except Exception:
+        OBFUSCATION_DIRECT_EVIDENCE_POLICY_ID = (  # type: ignore[assignment]
+            "R_obfuscation_direct_evidence_policy_v1"
+        )
+        build_obfuscation_direct_evidence_fields = None  # type: ignore[assignment]
+
+try:
     from script.code_core_evidence import (
         CODE_CORE_EVIDENCE_POLICY_ID,
         build_code_core_evidence_fields,
@@ -2387,6 +2404,14 @@ def build_code_stats_policy_fields_for_pair(
                 selected_layers=selected_layers,
             )
         )
+    if build_obfuscation_direct_evidence_fields is not None:
+        fields.update(
+            build_obfuscation_direct_evidence_fields(
+                layers_a=layers_a,
+                layers_b=layers_b,
+                selected_layers=selected_layers,
+            )
+        )
     if build_code_core_evidence_fields is not None:
         fields.update(
             build_code_core_evidence_fields(
@@ -3278,6 +3303,14 @@ def _compute_pair_row_with_caches(
                         "library_noise_direct_score_effect": "none",
                         "library_noise_direct_score_included": False,
                         "library_noise_direct_evidence_error": str(policy_error),
+                        "obfuscation_direct_evidence_policy_id": (
+                            OBFUSCATION_DIRECT_EVIDENCE_POLICY_ID
+                        ),
+                        "obfuscation_direct_evidence_applied": False,
+                        "obfuscation_direct_evidence_role": "evidence_only",
+                        "obfuscation_direct_score_effect": "none",
+                        "obfuscation_direct_score_included": False,
+                        "obfuscation_direct_evidence_error": str(policy_error),
                         "framework_shift_evidence_policy_id": (
                             FRAMEWORK_SHIFT_EVIDENCE_POLICY_ID
                         ),
@@ -3321,6 +3354,13 @@ def _compute_pair_row_with_caches(
                     "library_noise_direct_evidence_role": "evidence_only",
                     "library_noise_direct_score_effect": "none",
                     "library_noise_direct_score_included": False,
+                    "obfuscation_direct_evidence_policy_id": (
+                        OBFUSCATION_DIRECT_EVIDENCE_POLICY_ID
+                    ),
+                    "obfuscation_direct_evidence_applied": False,
+                    "obfuscation_direct_evidence_role": "evidence_only",
+                    "obfuscation_direct_score_effect": "none",
+                    "obfuscation_direct_score_included": False,
                     "framework_shift_evidence_policy_id": (
                         FRAMEWORK_SHIFT_EVIDENCE_POLICY_ID
                     ),

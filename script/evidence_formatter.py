@@ -499,6 +499,96 @@ def _build_deleted_code_direct_evidence(pair_row: dict) -> dict | None:
     return evidence
 
 
+def _build_obfuscation_direct_evidence(pair_row: dict) -> dict | None:
+    if pair_row.get("obfuscation_direct_evidence_applied") is not True:
+        return None
+    evidence = make_evidence(
+        source_stage="pairwise",
+        signal_type="obfuscation_direct_evidence",
+        magnitude=_clamp_unit(pair_row.get("obfuscation_direct_evidence_score")),
+        ref=str(
+            pair_row.get("obfuscation_direct_evidence_ref")
+            or "R_obfuscation_name_shortening_delta"
+        ),
+    )
+    evidence.update(
+        {
+            "evidence_role": str(
+                pair_row.get("obfuscation_direct_evidence_role")
+                or "evidence_only"
+            ),
+            "score_effect": str(
+                pair_row.get("obfuscation_direct_score_effect") or "none"
+            ),
+            "score_included": bool(
+                pair_row.get("obfuscation_direct_score_included")
+            ),
+            "same_package": bool(pair_row.get("obfuscation_direct_same_package")),
+            "left_method_count": pair_row.get(
+                "obfuscation_direct_left_method_count"
+            ),
+            "right_method_count": pair_row.get(
+                "obfuscation_direct_right_method_count"
+            ),
+            "common_method_id_count": pair_row.get(
+                "obfuscation_direct_common_method_id_count"
+            ),
+            "common_fingerprint_count": pair_row.get(
+                "obfuscation_direct_common_fingerprint_count"
+            ),
+            "left_short_class_name_count": pair_row.get(
+                "obfuscation_direct_left_short_class_name_count"
+            ),
+            "right_short_class_name_count": pair_row.get(
+                "obfuscation_direct_right_short_class_name_count"
+            ),
+            "left_short_method_name_count": pair_row.get(
+                "obfuscation_direct_left_short_method_name_count"
+            ),
+            "right_short_method_name_count": pair_row.get(
+                "obfuscation_direct_right_short_method_name_count"
+            ),
+            "left_short_class_name_ratio": pair_row.get(
+                "obfuscation_direct_left_short_class_name_ratio"
+            ),
+            "right_short_class_name_ratio": pair_row.get(
+                "obfuscation_direct_right_short_class_name_ratio"
+            ),
+            "left_short_method_name_ratio": pair_row.get(
+                "obfuscation_direct_left_short_method_name_ratio"
+            ),
+            "right_short_method_name_ratio": pair_row.get(
+                "obfuscation_direct_right_short_method_name_ratio"
+            ),
+            "left_package_sample": _coerce_string_list(
+                pair_row.get("obfuscation_direct_left_package_sample"),
+                limit=5,
+            ),
+            "right_package_sample": _coerce_string_list(
+                pair_row.get("obfuscation_direct_right_package_sample"),
+                limit=5,
+            ),
+            "left_class_name_sample": _coerce_string_list(
+                pair_row.get("obfuscation_direct_left_class_name_sample"),
+                limit=5,
+            ),
+            "right_class_name_sample": _coerce_string_list(
+                pair_row.get("obfuscation_direct_right_class_name_sample"),
+                limit=5,
+            ),
+            "left_method_name_sample": _coerce_string_list(
+                pair_row.get("obfuscation_direct_left_method_name_sample"),
+                limit=5,
+            ),
+            "right_method_name_sample": _coerce_string_list(
+                pair_row.get("obfuscation_direct_right_method_name_sample"),
+                limit=5,
+            ),
+        }
+    )
+    return evidence
+
+
 def collect_evidence_from_pairwise(pair_row: dict) -> list[dict]:
     """Построить список Evidence из pair_row.
 
@@ -595,6 +685,10 @@ def collect_evidence_from_pairwise(pair_row: dict) -> list[dict]:
     deleted_code_direct_evidence = _build_deleted_code_direct_evidence(pair_row)
     if deleted_code_direct_evidence is not None:
         evidence.append(deleted_code_direct_evidence)
+
+    obfuscation_direct_evidence = _build_obfuscation_direct_evidence(pair_row)
+    if obfuscation_direct_evidence is not None:
+        evidence.append(obfuscation_direct_evidence)
 
     if pair_row.get("code_stats_containment_policy_applied") is True:
         evidence.append(
