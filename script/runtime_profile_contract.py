@@ -28,15 +28,14 @@ feature_extractors, m_static_views, pairwise_runner = _load_runtime_modules(
 
 def build_runtime_profile_manifest() -> dict[str, Any]:
     """Return a JSON-serializable manifest assembled from runtime constants."""
-    layers = list(m_static_views.ALL_LAYERS)
     return {
         "light_views": list(feature_extractors.ZIP_LIGHT_SUPPORTED_VIEWS),
         "light_view_schema_versions": dict(
             feature_extractors.ZIP_LIGHT_VIEW_SCHEMA_VERSIONS
         ),
         "active_measures": list(pairwise_runner.ACTIVE_SIMILARITY_MEASURES),
-        "default_layers": layers,
-        "available_layers": list(m_static_views.ALL_LAYERS),
+        "default_layers": list(m_static_views.DEFAULT_LAYERS),
+        "available_layers": list(m_static_views.AVAILABLE_LAYERS),
         "public_pair_check_ids": sorted(pairwise_runner.PUBLIC_PAIR_CHECK_IDS),
         "conditional_pair_check_ids": sorted(
             pairwise_runner.CONDITIONAL_PAIR_CHECK_IDS

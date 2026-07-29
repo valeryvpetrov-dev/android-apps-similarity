@@ -25,8 +25,15 @@ logger = logging.getLogger(__name__)
 try:
     from androguard.misc import AnalyzeAPK
     _ANDROGUARD_AVAILABLE = True
+    try:
+        from androguard.core.analysis.analysis import (
+            ExternalMethod as _AndroguardExternalMethod,
+        )
+    except ImportError:
+        _AndroguardExternalMethod = None
 except ImportError:
     _ANDROGUARD_AVAILABLE = False
+    _AndroguardExternalMethod = None
     logger.warning(
         "androguard is not installed. "
         "Install with: pip install androguard\n"
@@ -78,13 +85,27 @@ def _extract_api_sequences(apk_path: Path) -> list[list[str]]:
         calls = []
         try:
             for _, call, _ in method.get_xref_to():
-                if call.is_external():
-                    # Только вызовы во внешние (framework) методы
-                    class_name = call.get_method().get_class_name()
-                    family = _get_api_family(class_name)
-                    # Фильтруем только android.*, java.*, javax.*, kotlin.*
-                    if family.startswith(('android', 'java', 'javax', 'kotlin')):
-                        calls.append(family)
+                is_external = getattr(call, "is_external", None)
+                if callable(is_external):
+                    if not is_external():
+                        continue
+                elif (
+                    _AndroguardExternalMethod is None
+                    or not isinstance(call, _AndroguardExternalMethod)
+                ):
+                    continue
+
+                get_method = getattr(call, "get_method", None)
+                target_method = get_method() if callable(get_method) else call
+                get_class_name = getattr(target_method, "get_class_name", None)
+                if not callable(get_class_name):
+                    continue
+
+                # Только вызовы во внешние (framework) методы
+                family = _get_api_family(get_class_name())
+                # Фильтруем только android.*, java.*, javax.*, kotlin.*
+                if family.startswith(('android', 'java', 'javax', 'kotlin')):
+                    calls.append(family)
         except Exception:
             continue
         if calls:

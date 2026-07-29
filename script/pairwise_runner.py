@@ -4115,9 +4115,11 @@ def build_detailed_views(
     analysis_status: str,
     failure_reason: str | None,
 ) -> dict[str, Any]:
-    canonical_views = ("code", "api", "component", "resource", "library", "cfg_ged")
     selected = set(selected_layers)
     used = set(views_used)
+    canonical_views = ["code", "component", "resource", "library", "cfg_ged"]
+    if "api" in selected:
+        canonical_views.insert(1, "api")
     views: dict[str, Any] = {}
 
     for view in canonical_views:
