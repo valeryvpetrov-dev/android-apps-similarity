@@ -4026,8 +4026,33 @@ def _undefined_detailed_scores(
     return scores
 
 
+def _explicit_similarity_score_sources(
+    record: dict[str, Any],
+) -> tuple[str, ...]:
+    sources: list[str] = []
+    for container in (record, record.get("scores")):
+        if not isinstance(container, dict):
+            continue
+        if "similarity_score_source" not in container:
+            continue
+        source = container.get("similarity_score_source")
+        if source is not None:
+            sources.append(str(source))
+    return tuple(sources)
+
+
 def _explicit_similarity_score_source(record: dict[str, Any]) -> str:
-    return str(record.get("similarity_score_source") or "similarity_score")
+    sources = _explicit_similarity_score_sources(record)
+    return sources[0] if sources else "similarity_score"
+
+
+def _has_unregistered_similarity_score_source(
+    record: dict[str, Any],
+) -> bool:
+    return any(
+        source not in SIMILARITY_SCORE_SOURCES
+        for source in _explicit_similarity_score_sources(record)
+    )
 
 
 def infer_failure_reason(
@@ -4057,14 +4082,14 @@ def infer_failure_reason(
 def build_detailed_scores(summary_row: dict[str, Any], analysis_status: str) -> dict[str, Any]:
     if analysis_status == "analysis_failed":
         return _undefined_detailed_scores()
+    if _has_unregistered_similarity_score_source(summary_row):
+        return _undefined_detailed_scores(UNREGISTERED_SCORE_SOURCE_REASON)
 
     full_score = summary_row.get("full_similarity_score")
     reduced_score = summary_row.get("library_reduced_score")
     explicit_score = summary_row.get("similarity_score")
     if explicit_score is not None:
         score_source = _explicit_similarity_score_source(summary_row)
-        if score_source not in SIMILARITY_SCORE_SOURCES:
-            return _undefined_detailed_scores(UNREGISTERED_SCORE_SOURCE_REASON)
         selected_score = explicit_score
     elif reduced_score is not None:
         selected_score = reduced_score
@@ -4365,26 +4390,25 @@ def _apply_deep_m2_score_decision(
     if item_status == "analysis_failed":
         _set_item_analysis_failed_similarity(item)
     else:
-        full_score = item.get("full_similarity_score")
-        reduced_score = item.get("library_reduced_score")
-        explicit_score = item.get("similarity_score")
-        if explicit_score is not None:
-            score_source = _explicit_similarity_score_source(item)
-            if score_source not in SIMILARITY_SCORE_SOURCES:
-                effective_status = "analysis_failed"
-                _set_item_analysis_failed_similarity(
-                    item,
-                    UNREGISTERED_SCORE_SOURCE_REASON,
-                )
-                selected_score = None
-            else:
-                selected_score = explicit_score
-        elif reduced_score is not None:
-            selected_score = reduced_score
-            score_source = "library_reduced_score"
+        if _has_unregistered_similarity_score_source(item):
+            effective_status = "analysis_failed"
+            _set_item_analysis_failed_similarity(
+                item,
+                UNREGISTERED_SCORE_SOURCE_REASON,
+            )
         else:
-            selected_score = full_score
-            score_source = "full_similarity_score"
+            full_score = item.get("full_similarity_score")
+            reduced_score = item.get("library_reduced_score")
+            explicit_score = item.get("similarity_score")
+            if explicit_score is not None:
+                score_source = _explicit_similarity_score_source(item)
+                selected_score = explicit_score
+            elif reduced_score is not None:
+                selected_score = reduced_score
+                score_source = "library_reduced_score"
+            else:
+                selected_score = full_score
+                score_source = "full_similarity_score"
 
         if effective_status != "analysis_failed":
             item["similarity_score"] = selected_score

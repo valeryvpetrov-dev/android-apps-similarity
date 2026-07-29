@@ -7,6 +7,8 @@ import importlib.util
 import sys
 from pathlib import Path
 
+import pytest
+
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -110,6 +112,17 @@ def _success_row(**overrides: object) -> dict[str, object]:
     return row
 
 
+def _assert_analysis_failed_score_fields(record: dict[str, object]) -> None:
+    assert record["similarity_score"] is None
+    assert record["full_similarity_score"] is None
+    assert record["library_reduced_score"] is None
+    assert record["selected_similarity_score"] is None
+    assert record["similarity_score_source"] == "analysis_failed"
+    assert record["library_reduced_status"] == "not_applicable"
+    assert record["failure_similarity_semantics"] == "undefined_not_zero"
+    assert record["analysis_failed_reason"] == "unregistered_score_source"
+
+
 def test_pairwise_runtime_registries_are_complete_and_immutable() -> None:
     assert (
         getattr(pairwise_runner, "PUBLIC_PAIR_CHECK_IDS", None)
@@ -203,6 +216,21 @@ def test_registered_explicit_score_sources_survive_detailed_score_building() -> 
         assert scores["similarity_score_source"] == source
         assert scores["failure_similarity_semantics"] is None
 
+        item = pairwise_runner._build_detailed_json_item(
+            _success_row(similarity_score_source=source),
+            index=0,
+        )
+        assert item["status"] == "success"
+        assert item["similarity_score"] == 0.83
+        assert item["selected_similarity_score"] == 0.83
+        assert item["similarity_score_source"] == source
+        content_check = next(
+            check
+            for check in item["pair_check_runs"]
+            if check["check_id"] == "set_based_multiview_similarity"
+        )
+        assert content_check["outputs"]["similarity_score_source"] == source
+
 
 def test_unregistered_explicit_score_source_fails_closed_in_detailed_scores() -> None:
     scores = pairwise_runner.build_detailed_scores(
@@ -210,14 +238,7 @@ def test_unregistered_explicit_score_source_fails_closed_in_detailed_scores() ->
         analysis_status="success",
     )
 
-    assert scores["similarity_score"] is None
-    assert scores["full_similarity_score"] is None
-    assert scores["library_reduced_score"] is None
-    assert scores["selected_similarity_score"] is None
-    assert scores["similarity_score_source"] == "analysis_failed"
-    assert scores["library_reduced_status"] == "not_applicable"
-    assert scores["failure_similarity_semantics"] == "undefined_not_zero"
-    assert scores["analysis_failed_reason"] == "unregistered_score_source"
+    _assert_analysis_failed_score_fields(scores)
 
 
 def test_unregistered_explicit_score_source_fails_closed_in_detailed_json() -> None:
@@ -228,12 +249,7 @@ def test_unregistered_explicit_score_source_fails_closed_in_detailed_json() -> N
 
     assert item["status"] == "analysis_failed"
     assert item["analysis_failed_reason"] == "unregistered_score_source"
-    assert item["similarity_score"] is None
-    assert item["full_similarity_score"] is None
-    assert item["library_reduced_score"] is None
-    assert item["selected_similarity_score"] is None
-    assert item["similarity_score_source"] == "analysis_failed"
-    assert item["failure_similarity_semantics"] == "undefined_not_zero"
+    _assert_analysis_failed_score_fields(item)
     content_check = next(
         check
         for check in item["pair_check_runs"]
@@ -241,6 +257,68 @@ def test_unregistered_explicit_score_source_fails_closed_in_detailed_json() -> N
     )
     assert content_check["status"] == "analysis_failed"
     assert content_check["outputs"]["similarity_score"] is None
+
+
+def test_unregistered_source_without_explicit_score_fails_before_fallback() -> None:
+    row = _success_row(
+        similarity_score=None,
+        similarity_score_source="unregistered_test_source",
+    )
+
+    scores = pairwise_runner.build_detailed_scores(
+        row,
+        analysis_status="success",
+    )
+    _assert_analysis_failed_score_fields(scores)
+
+    item = pairwise_runner._build_detailed_json_item(row, index=0)
+    assert item["status"] == "analysis_failed"
+    _assert_analysis_failed_score_fields(item)
+    assert item["pair_similarity_result"]["status"] == "analysis_failed"
+    assert item["pair_similarity_result"]["scores"]["similarity_score"] is None
+
+
+def test_unregistered_nested_source_fails_closed_and_sanitizes_nested_scores() -> None:
+    row = _success_row(similarity_score=None)
+    row.pop("similarity_score_source")
+    row["scores"] = {
+        "similarity_score": None,
+        "similarity_score_source": "unregistered_nested_source",
+        "full_similarity_score": 0.92,
+        "library_reduced_score": 0.81,
+        "selected_similarity_score": 0.81,
+    }
+
+    scores = pairwise_runner.build_detailed_scores(
+        row,
+        analysis_status="success",
+    )
+    _assert_analysis_failed_score_fields(scores)
+
+    item = pairwise_runner._build_detailed_json_item(row, index=0)
+    assert item["status"] == "analysis_failed"
+    _assert_analysis_failed_score_fields(item)
+    _assert_analysis_failed_score_fields(item["scores"])
+    assert item["pair_similarity_result"]["status"] == "analysis_failed"
+    assert item["pair_similarity_result"]["scores"]["similarity_score"] is None
+
+
+def test_pair_check_id_validation_rejects_unregistered_and_unbacked_conditional() -> None:
+    with pytest.raises(ValueError, match="unregistered_pair_check_id"):
+        pairwise_runner._validated_pair_check_id("unregistered_pair_check")
+
+    with pytest.raises(ValueError, match="conditional_pair_check_without_result"):
+        pairwise_runner._validated_pair_check_id(
+            "semantic_multiview_similarity"
+        )
+
+    assert (
+        pairwise_runner._validated_pair_check_id(
+            "semantic_multiview_similarity",
+            semantic_result={"status": "success"},
+        )
+        == "semantic_multiview_similarity"
+    )
 
 
 def test_public_pair_checks_match_runtime_and_semantic_is_conditional() -> None:
