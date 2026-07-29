@@ -198,7 +198,7 @@ stages:
         self.assertEqual(result["explanation"]["explanation_status"], "not_available")
         self.assertFalse(result["explanation"]["library_impact_flag"])
 
-    def test_export_detailed_json_preserves_incoming_aggregation_policy(self) -> None:
+    def test_export_detailed_json_rejects_incompatible_aggregation_policy(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = Path(tmpdir) / "detailed.json"
             pairwise_runner.export_pairwise_detailed_json(
@@ -231,17 +231,28 @@ stages:
             payload = json.loads(output_path.read_text(encoding="utf-8"))
 
         item = payload["pairs"][0]
+        self.assertEqual(item["status"], "analysis_failed")
+        self.assertEqual(
+            item["analysis_failed_reason"],
+            "unregistered_aggregation_policy",
+        )
+        self.assertIsNone(item["similarity_score"])
+        self.assertIsNone(item["selected_similarity_score"])
         self.assertEqual(
             item["aggregation_policy"]["policy_id"],
-            "m1_code_policy_candidate_v0",
+            "deep_m2_score_decision_policy_v1",
         )
         self.assertEqual(
             item["pair_similarity_result"]["scores"]["similarity_score"],
-            0.90,
+            None,
         )
         self.assertEqual(
             item["pair_similarity_result"]["scores"]["selected_score_field"],
-            "code_policy_score",
+            "similarity_score",
+        )
+        self.assertEqual(
+            item["similarity_score"],
+            item["pair_similarity_result"]["scores"]["similarity_score"],
         )
 
     def test_build_detailed_explanation_describes_resource_change_with_code_support(self) -> None:

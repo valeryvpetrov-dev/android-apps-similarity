@@ -39,6 +39,10 @@ DEEP_VERIFICATION_STATUS_SKIPPED = "skipped_shortcut"
 SHORTCUT_VERDICT_LIKELY_CLONE = "likely_clone_by_signature"
 SEMANTIC_MULTIVIEW_ENABLED_ENV = "ANDROID_SIM_SEMANTIC_MULTIVIEW"
 DEEP_M2_SCORE_DECISION_POLICY_ID = "deep_m2_score_decision_policy_v1"
+DEEP_M2_SCORE_DECISION_STRATEGY = (
+    "select_content_similarity_score_with_evidence_guards"
+)
+DEEP_M2_SELECTED_SCORE_FIELD = "similarity_score"
 DEEP_M2_SCORE_DECISION_LIMITATIONS = (
     "full_similarity_score_is_diagnostic_not_final_verdict",
     "library_reduced_score_requires_real_computation",
@@ -206,6 +210,9 @@ SCORE_DECISION_PRIORITY_P2 = 20
 SCORE_DECISION_PRIORITY_P0 = 30
 SCORE_DECISION_PRIORITY_P0_GUARD = 40
 SCORE_DECISION_PRIORITY_ORDER = "P0_guard > P0 > P2 > core"
+ACTIVE_SIMILARITY_MEASURES = ("jaccard",)
+UNREGISTERED_SCORE_SOURCE_REASON = "unregistered_score_source"
+UNREGISTERED_AGGREGATION_POLICY_REASON = "unregistered_aggregation_policy"
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -362,11 +369,30 @@ except Exception:
         build_code_core_evidence_fields = None  # type: ignore[assignment]
 
 try:
-    from script.packaging_evidence import build_packaging_evidence_fields
+    from script.packaging_evidence import (
+        APK_LAYOUT_EVIDENCE_POLICY_ID,
+        PACKAGE_RENAME_EVIDENCE_POLICY_ID,
+        PACKAGING_EVIDENCE_POLICY_ID,
+        build_packaging_evidence_fields,
+    )
 except Exception:
     try:
-        from packaging_evidence import build_packaging_evidence_fields  # type: ignore[no-redef]
+        from packaging_evidence import (  # type: ignore[no-redef]
+            APK_LAYOUT_EVIDENCE_POLICY_ID,
+            PACKAGE_RENAME_EVIDENCE_POLICY_ID,
+            PACKAGING_EVIDENCE_POLICY_ID,
+            build_packaging_evidence_fields,
+        )
     except Exception:
+        PACKAGING_EVIDENCE_POLICY_ID = (  # type: ignore[assignment]
+            "R_apk_packaging_evidence_policy_v1"
+        )
+        PACKAGE_RENAME_EVIDENCE_POLICY_ID = (  # type: ignore[assignment]
+            "R_packaging_package_rename_evidence_v1"
+        )
+        APK_LAYOUT_EVIDENCE_POLICY_ID = (  # type: ignore[assignment]
+            "R_packaging_apk_layout_evidence_v1"
+        )
         build_packaging_evidence_fields = None  # type: ignore[assignment]
 
 try:
@@ -408,6 +434,59 @@ except Exception:
         from feature_cache_sqlite import FeatureCacheSqlite  # type: ignore[no-redef]
     except Exception:
         FeatureCacheSqlite = None  # type: ignore[assignment]
+
+
+PUBLIC_PAIR_CHECK_IDS = frozenset(
+    {
+        "set_based_multiview_similarity",
+        "apk_signature_match",
+        "semantic_multiview_similarity",
+    }
+)
+CONDITIONAL_PAIR_CHECK_IDS = frozenset({"semantic_multiview_similarity"})
+GUARDED_SCORE_POLICY_IDS = frozenset(
+    {
+        CODE_STATS_CONTAINMENT_POLICY_ID,
+        CODE_STATS_ADDED_CODE_POLICY_ID,
+        CODE_STATS_RESOURCE_CHANGE_IDENTITY_POLICY_ID,
+        CODE_STATS_REPACK_CORE_POLICY_ID,
+        CODE_STATS_PAYLOAD_RESOURCE_POLICY_ID,
+        CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_POLICY_ID,
+        CODE_CONFLICT_GUARD_POLICY_ID,
+        SEMANTIC_MULTIVIEW_SCORE_POLICY_ID,
+        C05_STATIC_SCORE_POLICY_ID,
+    }
+)
+SIMILARITY_SCORE_SOURCES = frozenset(
+    {
+        "similarity_score",
+        "library_reduced_score",
+        "full_similarity_score",
+        CODE_CONFLICT_GUARD_SCORE_SOURCE,
+        CODE_STATS_CONTAINMENT_SCORE_SOURCE,
+        CODE_STATS_ADDED_CODE_SCORE_SOURCE,
+        CODE_STATS_RESOURCE_CHANGE_IDENTITY_SCORE_SOURCE,
+        CODE_STATS_REPACK_CORE_SCORE_SOURCE,
+        CODE_STATS_PAYLOAD_RESOURCE_SCORE_SOURCE,
+        CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_SCORE_SOURCE,
+        SEMANTIC_MULTIVIEW_SCORE_SOURCE,
+        C05_STATIC_SCORE_SOURCE,
+    }
+)
+EVIDENCE_ONLY_POLICY_IDS = frozenset(
+    {
+        FRAMEWORK_SHIFT_EVIDENCE_POLICY_ID,
+        C05_STATIC_EVIDENCE_POLICY_ID,
+        CODE_CORE_EVIDENCE_POLICY_ID,
+        ADDED_CODE_DIRECT_EVIDENCE_POLICY_ID,
+        DELETED_CODE_DIRECT_EVIDENCE_POLICY_ID,
+        LIBRARY_NOISE_DIRECT_EVIDENCE_POLICY_ID,
+        OBFUSCATION_DIRECT_EVIDENCE_POLICY_ID,
+        PACKAGING_EVIDENCE_POLICY_ID,
+        PACKAGE_RENAME_EVIDENCE_POLICY_ID,
+        APK_LAYOUT_EVIDENCE_POLICY_ID,
+    }
+)
 
 
 def collect_signature_match(apk_a: str | None, apk_b: str | None) -> dict:
@@ -3397,7 +3476,7 @@ def _compute_pair_row_with_caches(
             pair_row.update(
                 {
                     "packaging_evidence_policy_id": (
-                        "R_apk_packaging_evidence_policy_v1"
+                        PACKAGING_EVIDENCE_POLICY_ID
                     ),
                     "packaging_evidence_role": "evidence_only",
                     "packaging_score_effect": "none",
@@ -3931,6 +4010,52 @@ def normalize_detailed_analysis_status(summary_row: dict[str, Any]) -> str:
     return "success"
 
 
+def _undefined_detailed_scores(
+    analysis_failed_reason: str | None = None,
+) -> dict[str, Any]:
+    scores = {
+        "similarity_score": None,
+        "full_similarity_score": None,
+        "library_reduced_score": None,
+        "selected_similarity_score": None,
+        "similarity_score_source": "analysis_failed",
+        "library_reduced_status": "not_applicable",
+        "failure_similarity_semantics": "undefined_not_zero",
+    }
+    if analysis_failed_reason is not None:
+        scores["analysis_failed_reason"] = analysis_failed_reason
+    return scores
+
+
+def _explicit_similarity_score_sources(
+    record: dict[str, Any],
+) -> tuple[str, ...]:
+    sources: list[str] = []
+    for container in (record, record.get("scores")):
+        if not isinstance(container, dict):
+            continue
+        if "similarity_score_source" not in container:
+            continue
+        source = container.get("similarity_score_source")
+        if source is not None:
+            sources.append(str(source))
+    return tuple(sources)
+
+
+def _explicit_similarity_score_source(record: dict[str, Any]) -> str:
+    sources = _explicit_similarity_score_sources(record)
+    return sources[0] if sources else "similarity_score"
+
+
+def _has_unregistered_similarity_score_source(
+    record: dict[str, Any],
+) -> bool:
+    return any(
+        source not in SIMILARITY_SCORE_SOURCES
+        for source in _explicit_similarity_score_sources(record)
+    )
+
+
 def infer_failure_reason(
     candidate: dict[str, Any],
     app_a_raw: Any,
@@ -3957,22 +4082,16 @@ def infer_failure_reason(
 
 def build_detailed_scores(summary_row: dict[str, Any], analysis_status: str) -> dict[str, Any]:
     if analysis_status == "analysis_failed":
-        return {
-            "similarity_score": None,
-            "full_similarity_score": None,
-            "library_reduced_score": None,
-            "selected_similarity_score": None,
-            "similarity_score_source": "analysis_failed",
-            "library_reduced_status": "not_applicable",
-            "failure_similarity_semantics": "undefined_not_zero",
-        }
+        return _undefined_detailed_scores()
+    if _has_unregistered_similarity_score_source(summary_row):
+        return _undefined_detailed_scores(UNREGISTERED_SCORE_SOURCE_REASON)
 
     full_score = summary_row.get("full_similarity_score")
     reduced_score = summary_row.get("library_reduced_score")
     explicit_score = summary_row.get("similarity_score")
     if explicit_score is not None:
+        score_source = _explicit_similarity_score_source(summary_row)
         selected_score = explicit_score
-        score_source = str(summary_row.get("similarity_score_source") or "similarity_score")
     elif reduced_score is not None:
         selected_score = reduced_score
         score_source = "library_reduced_score"
@@ -4136,6 +4255,10 @@ def build_detailed_result(
         analysis_status=analysis_status,
     )
     scores = build_detailed_scores(summary_row, analysis_status)
+    score_failure_reason = scores.get("analysis_failed_reason")
+    if score_failure_reason == UNREGISTERED_SCORE_SOURCE_REASON:
+        analysis_status = "analysis_failed"
+        failure_reason = UNREGISTERED_SCORE_SOURCE_REASON
     views_used = summary_row.get("views_used")
     if not isinstance(views_used, list):
         views_used = []
@@ -4243,40 +4366,112 @@ def _nested_score_value(pair_row: dict[str, Any], field: str) -> Any:
     return None
 
 
-def _apply_deep_m2_score_decision(item: dict[str, Any], item_status: str) -> None:
-    if item_status == "analysis_failed":
-        item["similarity_score"] = None
-        item["full_similarity_score"] = None
-        item["library_reduced_score"] = None
-        item["selected_similarity_score"] = None
-        item["similarity_score_source"] = "analysis_failed"
-        item["library_reduced_status"] = "not_applicable"
-        item["failure_similarity_semantics"] = "undefined_not_zero"
-    else:
-        full_score = item.get("full_similarity_score")
-        reduced_score = item.get("library_reduced_score")
-        explicit_score = item.get("similarity_score")
-        if explicit_score is not None:
-            selected_score = explicit_score
-            score_source = str(item.get("similarity_score_source") or "similarity_score")
-        elif reduced_score is not None:
-            selected_score = reduced_score
-            score_source = "library_reduced_score"
-        else:
-            selected_score = full_score
-            score_source = "full_similarity_score"
+def _set_item_analysis_failed_similarity(
+    item: dict[str, Any],
+    analysis_failed_reason: str | None = None,
+) -> None:
+    failed_scores = _undefined_detailed_scores(analysis_failed_reason)
+    item.update(failed_scores)
+    if analysis_failed_reason is not None:
+        item["status"] = "analysis_failed"
+        item["analysis_failed_reason"] = analysis_failed_reason
 
-        item["similarity_score"] = selected_score
-        item["selected_similarity_score"] = selected_score
-        item["similarity_score_source"] = score_source
-        item["library_reduced_status"] = (
-            "computed" if reduced_score is not None else "not_computed"
-        )
-        item["failure_similarity_semantics"] = None
+    nested_scores = item.get("scores")
+    if isinstance(nested_scores, dict):
+        sanitized_nested_scores = dict(nested_scores)
+        sanitized_nested_scores.update(failed_scores)
+        item["scores"] = sanitized_nested_scores
+
+
+def _apply_deep_m2_score_decision(
+    item: dict[str, Any],
+    item_status: str,
+) -> str:
+    effective_status = item_status
+    if item_status == "analysis_failed":
+        _set_item_analysis_failed_similarity(item)
+    else:
+        if _has_unregistered_similarity_score_source(item):
+            effective_status = "analysis_failed"
+            _set_item_analysis_failed_similarity(
+                item,
+                UNREGISTERED_SCORE_SOURCE_REASON,
+            )
+        else:
+            full_score = item.get("full_similarity_score")
+            reduced_score = item.get("library_reduced_score")
+            explicit_score = item.get("similarity_score")
+            if explicit_score is not None:
+                score_source = _explicit_similarity_score_source(item)
+                selected_score = explicit_score
+            elif reduced_score is not None:
+                selected_score = reduced_score
+                score_source = "library_reduced_score"
+            else:
+                selected_score = full_score
+                score_source = "full_similarity_score"
+
+        if effective_status != "analysis_failed":
+            item["similarity_score"] = selected_score
+            item["selected_similarity_score"] = selected_score
+            item["similarity_score_source"] = score_source
+            item["library_reduced_status"] = (
+                "computed" if reduced_score is not None else "not_computed"
+            )
+            item["failure_similarity_semantics"] = None
 
     item["score_decision_policy_id"] = DEEP_M2_SCORE_DECISION_POLICY_ID
     item["packaging_evidence_role"] = "evidence_only"
     item["packaging_score_included"] = False
+    return effective_status
+
+
+def _validated_pair_check_id(
+    check_id: str,
+    *,
+    semantic_result: object = None,
+) -> str:
+    if check_id not in PUBLIC_PAIR_CHECK_IDS:
+        raise ValueError("unregistered_pair_check_id:{}".format(check_id))
+    if (
+        check_id in CONDITIONAL_PAIR_CHECK_IDS
+        and not isinstance(semantic_result, dict)
+    ):
+        raise ValueError(
+            "conditional_pair_check_without_result:{}".format(check_id)
+        )
+    return check_id
+
+
+def _canonical_deep_m2_aggregation_policy() -> dict[str, Any]:
+    return build_pair_aggregation_policy(
+        policy_id=DEEP_M2_SCORE_DECISION_POLICY_ID,
+        strategy=DEEP_M2_SCORE_DECISION_STRATEGY,
+        weights={DEEP_M2_SELECTED_SCORE_FIELD: 1.0},
+        selected_score_field=DEEP_M2_SELECTED_SCORE_FIELD,
+        limitations=list(DEEP_M2_SCORE_DECISION_LIMITATIONS),
+    )
+
+
+def _is_canonical_deep_m2_aggregation_policy(policy: object) -> bool:
+    return (
+        isinstance(policy, dict)
+        and policy.get("policy_id") == DEEP_M2_SCORE_DECISION_POLICY_ID
+        and policy.get("strategy") == DEEP_M2_SCORE_DECISION_STRATEGY
+        and policy.get("selected_score_field") == DEEP_M2_SELECTED_SCORE_FIELD
+    )
+
+
+def _resolve_detailed_aggregation_policy(
+    item: dict[str, Any],
+) -> tuple[dict[str, Any], bool]:
+    if "aggregation_policy" not in item:
+        return _canonical_deep_m2_aggregation_policy(), True
+    incoming_policy = item.get("aggregation_policy")
+    return (
+        _canonical_deep_m2_aggregation_policy(),
+        _is_canonical_deep_m2_aggregation_policy(incoming_policy),
+    )
 
 
 def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str, Any]:
@@ -4318,7 +4513,19 @@ def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str,
         "library_reduced_score",
     ):
         item[score_field] = _nested_score_value(item, score_field)
-    _apply_deep_m2_score_decision(item, item_status)
+    item_status = _apply_deep_m2_score_decision(item, item_status)
+    aggregation_policy, aggregation_policy_is_valid = (
+        _resolve_detailed_aggregation_policy(item)
+    )
+    if (
+        not aggregation_policy_is_valid
+        and item_status != "analysis_failed"
+    ):
+        item_status = "analysis_failed"
+        _set_item_analysis_failed_similarity(
+            item,
+            UNREGISTERED_AGGREGATION_POLICY_REASON,
+        )
     scores = {
         "similarity_score": item.get("similarity_score"),
         "full_similarity_score": item.get("full_similarity_score"),
@@ -4331,7 +4538,9 @@ def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str,
         item["explanation"] = build_detailed_explanation(scores, item_status, item)
     content_check_run = build_pair_check_run(
         pair_id=item["pair_id"],
-        check_id="set_based_multiview_similarity",
+        check_id=_validated_pair_check_id(
+            "set_based_multiview_similarity"
+        ),
         status=item_status,
         duration_ms=item.get("elapsed_ms_deep") or item.get("duration_ms"),
         inputs={
@@ -4358,7 +4567,7 @@ def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str,
         signature_check_status = "partial_result"
     signature_check_run = build_pair_check_run(
         pair_id=item["pair_id"],
-        check_id="apk_signature_match",
+        check_id=_validated_pair_check_id("apk_signature_match"),
         status=signature_check_status,
         duration_ms=None,
         inputs={
@@ -4388,7 +4597,10 @@ def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str,
         pair_check_runs.append(
             build_pair_check_run(
                 pair_id=item["pair_id"],
-                check_id="semantic_multiview_similarity",
+                check_id=_validated_pair_check_id(
+                    "semantic_multiview_similarity",
+                    semantic_result=semantic_multiview,
+                ),
                 status=semantic_status,
                 duration_ms=semantic_multiview.get("duration_ms"),
                 inputs=semantic_inputs,
@@ -4407,17 +4619,6 @@ def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str,
             )
         )
     pair_check_runs.append(signature_check_run)
-    incoming_aggregation_policy = item.get("aggregation_policy")
-    if isinstance(incoming_aggregation_policy, dict):
-        aggregation_policy = incoming_aggregation_policy
-    else:
-        aggregation_policy = build_pair_aggregation_policy(
-            policy_id=DEEP_M2_SCORE_DECISION_POLICY_ID,
-            strategy="select_content_similarity_score_with_evidence_guards",
-            weights={"similarity_score": 1.0},
-            selected_score_field="similarity_score",
-            limitations=list(DEEP_M2_SCORE_DECISION_LIMITATIONS),
-        )
     item["pair_check_runs"] = pair_check_runs
     item["aggregation_policy"] = aggregation_policy
     pair_similarity_result = build_pair_similarity_result(item, pair_id=item["pair_id"])
