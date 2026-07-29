@@ -184,7 +184,7 @@ except Exception:
         is_library_token = None
 
 
-ALL_LAYERS = (
+AVAILABLE_LAYERS = (
     "code",
     "component",
     "resource",
@@ -196,9 +196,22 @@ ALL_LAYERS = (
     "resource_v2",
 )
 
+DEFAULT_LAYERS = (
+    "code",
+    "component",
+    "resource",
+    "metadata",
+    "library",
+    "code_v4",
+    "code_v4_shingled",
+    "resource_v2",
+)
+
+# Compatibility alias: this is the availability registry, not the defaults.
+ALL_LAYERS = AVAILABLE_LAYERS
+
 # Weights from cascade-config-schema-v1.
 # metadata is used as tiebreaker, not included in weighted score.
-# api layer weight is additive; existing weights renormalized when api is included.
 # code_v4 / code_v4_shingled are registered with weight 0.0 — layers are plumbed
 # through aggregation but are not part of the default weighted score until
 # calibrated by EXEC-086. Existing weights are intentionally unchanged.
@@ -211,8 +224,8 @@ ALL_LAYERS = (
 # ``inbox/critics/deep-verification-2026-04-24.md`` раздел 1).
 #
 # Метод калибровки — нормировка ``new_w = old_w / sum(old_w)``:
-# относительные пропорции сохранены (code/library = 4.5,
-# component/api = 5/3), поэтому агрегированный score
+# относительные пропорции сохранены (code/library = 4.5), поэтому
+# агрегированный score
 # ``full_similarity_score`` и ``library_reduced_score`` численно
 # совпадают со значениями до калибровки (формула в ``compare_all``
 # делит на ``weight_total``, см. строки ~870–900 ниже). Калибровка —
@@ -234,11 +247,10 @@ ALL_LAYERS = (
 # fallback ниже сохранён для случая отсутствия файла, но численно отличается от
 # реальных весов в JSON (см. README артефакта DEEP-27 для интерпретации).
 _LAYER_WEIGHTS_FALLBACK = {
-    "code": 0.45 / 1.15,
-    "component": 0.25 / 1.15,
-    "resource": 0.20 / 1.15,
-    "library": 0.10 / 1.15,
-    "api": 0.15 / 1.15,
+    "code": 0.45,
+    "component": 0.25,
+    "resource": 0.20,
+    "library": 0.10,
     "code_v4": 0.0,
     "code_v4_shingled": 0.0,
     # resource_v2: подключено, не активировано до калибровки EXEC-086.
@@ -290,21 +302,31 @@ def _load_layer_weights(path: Path = CALIBRATED_WEIGHTS_PATH) -> dict:
 
 LAYER_WEIGHTS = _load_layer_weights()
 
-# Predefined ablation configurations.
+# Default ablation configurations exclude rejected experimental layers.
 ABLATION_CONFIGS = {
     "code_only": ["code"],
     "code_metadata": ["code", "metadata"],
     "all_5_layers": ["code", "component", "resource", "metadata", "library"],
-    "all_6_layers": ["code", "component", "resource", "metadata", "library", "api"],
     "code_resource": ["code", "resource"],
     "code_component": ["code", "component"],
     "code_library": ["code", "library"],
-    "code_api": ["code", "api"],
     "resource_component_library": ["resource", "component", "library"],
     "code_only_v4": ["code_v4"],
     "code_only_v4_shingled": ["code_v4_shingled"],
     "all_code_variants": ["code", "code_v4", "code_v4_shingled"],
     "resource_only_v2": ["resource_v2"],
+}
+
+EXPERIMENTAL_API_ABLATION_CONFIGS = {
+    "all_6_layers": [
+        "code",
+        "component",
+        "resource",
+        "metadata",
+        "library",
+        "api",
+    ],
+    "code_api": ["code", "api"],
 }
 
 
@@ -1305,7 +1327,8 @@ def compare_all(
     features_a, features_b:
         Feature dicts produced by ``extract_all_features``.
     layers:
-        Optional subset of layers to use (default: all 6).
+        Optional subset of layers to use. By default, rejected experimental
+        layers are excluded.
     code_ged_score:
         Pre-computed GED similarity for the code layer.  When provided
         the module uses it instead of computing Jaccard on DEX names.
@@ -1326,7 +1349,7 @@ def compare_all(
     dict with full_similarity_score, per_layer, library_reduced_score,
     explanation_hints, layers_used, and mode.
     """
-    selected = list(layers) if layers else list(ALL_LAYERS)
+    selected = list(layers) if layers is not None else list(DEFAULT_LAYERS)
     mode_a = features_a.get("mode", "quick")
     mode_b = features_b.get("mode", "quick")
     is_enhanced = mode_a == "enhanced" and mode_b == "enhanced"
@@ -1463,13 +1486,18 @@ def run_ablation(
     code_v3_set_b: Any | None = None,
     api_chain_a: Any | None = None,
     api_chain_b: Any | None = None,
+    include_experimental_api: bool = False,
 ) -> dict:
     """Compare with multiple layer combinations for ablation analysis.
 
     Returns dict of configuration_name -> compare_all() result.
     """
+    configs = dict(ABLATION_CONFIGS)
+    if include_experimental_api:
+        configs.update(EXPERIMENTAL_API_ABLATION_CONFIGS)
+
     results: dict[str, dict] = {}
-    for config_name, layer_list in ABLATION_CONFIGS.items():
+    for config_name, layer_list in configs.items():
         results[config_name] = compare_all(
             features_a=features_a,
             features_b=features_b,
@@ -1520,6 +1548,11 @@ def parse_args() -> argparse.Namespace:
     ablation_p.add_argument("--a-apk", help="APK ZIP path for A")
     ablation_p.add_argument("--b-apk", help="APK ZIP path for B")
     ablation_p.add_argument("--code-ged-score", type=float, default=None, help="Pre-computed GED score for code layer")
+    ablation_p.add_argument(
+        "--include-experimental-api",
+        action="store_true",
+        help="Include rejected R_api configurations for explicit experiments",
+    )
     ablation_p.add_argument("--output", help="Write JSON result to file")
 
     return parser.parse_args()
@@ -1571,6 +1604,7 @@ def main() -> None:
             features_a=features_a,
             features_b=features_b,
             code_ged_score=args.code_ged_score,
+            include_experimental_api=args.include_experimental_api,
         )
         _write_output(result, args.output)
 

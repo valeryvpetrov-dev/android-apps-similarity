@@ -29,13 +29,23 @@ EXPECTED_LIGHT_VIEWS = (
 EXPECTED_LIGHT_VIEW_SCHEMAS = {
     view: "zip-light-{}-v1".format(view) for view in EXPECTED_LIGHT_VIEWS
 }
-EXPECTED_LAYERS = (
+EXPECTED_AVAILABLE_LAYERS = (
     "code",
     "component",
     "resource",
     "metadata",
     "library",
     "api",
+    "code_v4",
+    "code_v4_shingled",
+    "resource_v2",
+)
+EXPECTED_DEFAULT_LAYERS = (
+    "code",
+    "component",
+    "resource",
+    "metadata",
+    "library",
     "code_v4",
     "code_v4_shingled",
     "resource_v2",
@@ -171,8 +181,8 @@ def test_runtime_profile_manifest_matches_current_runtime() -> None:
         "light_views": list(EXPECTED_LIGHT_VIEWS),
         "light_view_schema_versions": EXPECTED_LIGHT_VIEW_SCHEMAS,
         "active_measures": ["jaccard"],
-        "default_layers": list(EXPECTED_LAYERS),
-        "available_layers": list(EXPECTED_LAYERS),
+        "default_layers": list(EXPECTED_DEFAULT_LAYERS),
+        "available_layers": list(EXPECTED_AVAILABLE_LAYERS),
         "public_pair_check_ids": sorted(EXPECTED_PUBLIC_PAIR_CHECK_IDS),
         "conditional_pair_check_ids": sorted(
             EXPECTED_CONDITIONAL_PAIR_CHECK_IDS
@@ -201,8 +211,10 @@ def test_runtime_profile_manifest_matches_current_runtime() -> None:
     assert manifest["light_views"] == list(
         feature_extractors.ZIP_LIGHT_SUPPORTED_VIEWS
     )
-    assert manifest["default_layers"] == list(m_static_views.ALL_LAYERS)
-    assert manifest["available_layers"] == list(m_static_views.ALL_LAYERS)
+    assert manifest["default_layers"] == list(m_static_views.DEFAULT_LAYERS)
+    assert manifest["available_layers"] == list(
+        m_static_views.AVAILABLE_LAYERS
+    )
 
 
 def test_runtime_profile_contract_uses_package_context_for_imports() -> None:
