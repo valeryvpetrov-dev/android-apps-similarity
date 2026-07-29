@@ -1577,6 +1577,30 @@ def _resolve_features(args: argparse.Namespace, side: str) -> dict:
     return extract_all_features(apk_path=apk_path, unpacked_dir=apk_dir)
 
 
+def _build_experimental_api_chains(
+    args: argparse.Namespace,
+) -> tuple[dict, dict]:
+    if not args.a_apk or not args.b_apk:
+        raise SystemExit(
+            "--include-experimental-api requires both --a-apk and --b-apk."
+        )
+    if build_markov_chain is None:
+        raise SystemExit(
+            "Experimental API extraction failed: build_markov_chain is unavailable."
+        )
+    chains = []
+    for option, apk_path in (("--a-apk", args.a_apk), ("--b-apk", args.b_apk)):
+        chain = build_markov_chain(Path(apk_path).expanduser().resolve())
+        if not chain:
+            raise SystemExit(
+                "Experimental API extraction produced no transitions for {}.".format(
+                    option
+                )
+            )
+        chains.append(chain)
+    return chains[0], chains[1]
+
+
 def main() -> None:
     args = parse_args()
 
@@ -1597,6 +1621,10 @@ def main() -> None:
         _write_output(result, args.output)
 
     elif args.command == "ablation":
+        api_chain_a = None
+        api_chain_b = None
+        if args.include_experimental_api:
+            api_chain_a, api_chain_b = _build_experimental_api_chains(args)
         features_a = _resolve_features(args, "a")
         features_b = _resolve_features(args, "b")
 
@@ -1604,6 +1632,8 @@ def main() -> None:
             features_a=features_a,
             features_b=features_b,
             code_ged_score=args.code_ged_score,
+            api_chain_a=api_chain_a,
+            api_chain_b=api_chain_b,
             include_experimental_api=args.include_experimental_api,
         )
         _write_output(result, args.output)
