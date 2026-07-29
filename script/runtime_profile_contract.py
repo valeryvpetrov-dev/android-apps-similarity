@@ -2,26 +2,28 @@
 """Build the manifest of the similarity profile implemented at runtime."""
 from __future__ import annotations
 
+from collections.abc import Callable
+from importlib import import_module
+from types import ModuleType
 from typing import Any
 
-try:
-    from script import feature_extractors
-    from script import m_static_views
-    from script import pairwise_runner
-except Exception:
-    import feature_extractors  # type: ignore[no-redef]
-    import m_static_views  # type: ignore[no-redef]
-    import pairwise_runner  # type: ignore[no-redef]
 
-
-def _zip_light_view_schema_versions() -> dict[str, str]:
-    schema_prefix, schema_version = (
-        feature_extractors.ZIP_LIGHT_EXTRACTOR_VERSION.rsplit("-", 1)
+def _load_runtime_modules(
+    package_context: str | None,
+    *,
+    module_importer: Callable[[str], ModuleType] = import_module,
+) -> tuple[ModuleType, ModuleType, ModuleType]:
+    prefix = "{}.".format(package_context) if package_context else ""
+    return (
+        module_importer("{}feature_extractors".format(prefix)),
+        module_importer("{}m_static_views".format(prefix)),
+        module_importer("{}pairwise_runner".format(prefix)),
     )
-    return {
-        view: "{}-{}-{}".format(schema_prefix, view, schema_version)
-        for view in feature_extractors.ZIP_LIGHT_SUPPORTED_VIEWS
-    }
+
+
+feature_extractors, m_static_views, pairwise_runner = _load_runtime_modules(
+    __package__
+)
 
 
 def build_runtime_profile_manifest() -> dict[str, Any]:
@@ -29,7 +31,9 @@ def build_runtime_profile_manifest() -> dict[str, Any]:
     layers = list(m_static_views.ALL_LAYERS)
     return {
         "light_views": list(feature_extractors.ZIP_LIGHT_SUPPORTED_VIEWS),
-        "light_view_schema_versions": _zip_light_view_schema_versions(),
+        "light_view_schema_versions": dict(
+            feature_extractors.ZIP_LIGHT_VIEW_SCHEMA_VERSIONS
+        ),
         "active_measures": list(pairwise_runner.ACTIVE_SIMILARITY_MEASURES),
         "default_layers": layers,
         "available_layers": list(m_static_views.ALL_LAYERS),

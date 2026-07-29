@@ -212,6 +212,7 @@ SCORE_DECISION_PRIORITY_P0_GUARD = 40
 SCORE_DECISION_PRIORITY_ORDER = "P0_guard > P0 > P2 > core"
 ACTIVE_SIMILARITY_MEASURES = ("jaccard",)
 UNREGISTERED_SCORE_SOURCE_REASON = "unregistered_score_source"
+UNREGISTERED_AGGREGATION_POLICY_REASON = "unregistered_aggregation_policy"
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -4442,6 +4443,37 @@ def _validated_pair_check_id(
     return check_id
 
 
+def _canonical_deep_m2_aggregation_policy() -> dict[str, Any]:
+    return build_pair_aggregation_policy(
+        policy_id=DEEP_M2_SCORE_DECISION_POLICY_ID,
+        strategy=DEEP_M2_SCORE_DECISION_STRATEGY,
+        weights={DEEP_M2_SELECTED_SCORE_FIELD: 1.0},
+        selected_score_field=DEEP_M2_SELECTED_SCORE_FIELD,
+        limitations=list(DEEP_M2_SCORE_DECISION_LIMITATIONS),
+    )
+
+
+def _is_canonical_deep_m2_aggregation_policy(policy: object) -> bool:
+    return (
+        isinstance(policy, dict)
+        and policy.get("policy_id") == DEEP_M2_SCORE_DECISION_POLICY_ID
+        and policy.get("strategy") == DEEP_M2_SCORE_DECISION_STRATEGY
+        and policy.get("selected_score_field") == DEEP_M2_SELECTED_SCORE_FIELD
+    )
+
+
+def _resolve_detailed_aggregation_policy(
+    item: dict[str, Any],
+) -> tuple[dict[str, Any], bool]:
+    if "aggregation_policy" not in item:
+        return _canonical_deep_m2_aggregation_policy(), True
+    incoming_policy = item.get("aggregation_policy")
+    return (
+        _canonical_deep_m2_aggregation_policy(),
+        _is_canonical_deep_m2_aggregation_policy(incoming_policy),
+    )
+
+
 def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str, Any]:
     """Shape a single pair_row into a DEEP-004 detailed JSON item.
 
@@ -4482,6 +4514,18 @@ def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str,
     ):
         item[score_field] = _nested_score_value(item, score_field)
     item_status = _apply_deep_m2_score_decision(item, item_status)
+    aggregation_policy, aggregation_policy_is_valid = (
+        _resolve_detailed_aggregation_policy(item)
+    )
+    if (
+        not aggregation_policy_is_valid
+        and item_status != "analysis_failed"
+    ):
+        item_status = "analysis_failed"
+        _set_item_analysis_failed_similarity(
+            item,
+            UNREGISTERED_AGGREGATION_POLICY_REASON,
+        )
     scores = {
         "similarity_score": item.get("similarity_score"),
         "full_similarity_score": item.get("full_similarity_score"),
@@ -4575,17 +4619,6 @@ def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str,
             )
         )
     pair_check_runs.append(signature_check_run)
-    incoming_aggregation_policy = item.get("aggregation_policy")
-    if isinstance(incoming_aggregation_policy, dict):
-        aggregation_policy = incoming_aggregation_policy
-    else:
-        aggregation_policy = build_pair_aggregation_policy(
-            policy_id=DEEP_M2_SCORE_DECISION_POLICY_ID,
-            strategy=DEEP_M2_SCORE_DECISION_STRATEGY,
-            weights={"similarity_score": 1.0},
-            selected_score_field=DEEP_M2_SELECTED_SCORE_FIELD,
-            limitations=list(DEEP_M2_SCORE_DECISION_LIMITATIONS),
-        )
     item["pair_check_runs"] = pair_check_runs
     item["aggregation_policy"] = aggregation_policy
     pair_similarity_result = build_pair_similarity_result(item, pair_id=item["pair_id"])

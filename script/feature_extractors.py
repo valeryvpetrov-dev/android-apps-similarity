@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from hashlib import sha256
 from pathlib import Path
 from time import perf_counter
+from types import MappingProxyType
 from typing import Any
 import zipfile
 
@@ -52,6 +53,19 @@ ZIP_LIGHT_EXTRACTOR_ID = "zip_light_extractor"
 ZIP_LIGHT_EXTRACTOR_VERSION = "zip-light-v1"
 ZIP_LIGHT_SUPPORTED_VIEWS = ("code", "component", "resource", "metadata", "library")
 ZIP_LIGHT_SUPPORTED_MODES = ("light",)
+_ZIP_LIGHT_SCHEMA_PREFIX, _ZIP_LIGHT_SCHEMA_VERSION = (
+    ZIP_LIGHT_EXTRACTOR_VERSION.rsplit("-", 1)
+)
+ZIP_LIGHT_VIEW_SCHEMA_VERSIONS = MappingProxyType(
+    {
+        view: "{}-{}-{}".format(
+            _ZIP_LIGHT_SCHEMA_PREFIX,
+            view,
+            _ZIP_LIGHT_SCHEMA_VERSION,
+        )
+        for view in ZIP_LIGHT_SUPPORTED_VIEWS
+    }
+)
 
 SEMANTIC_MULTIVIEW_EXTRACTOR_ID = "semantic_multiview_extractor"
 SEMANTIC_MULTIVIEW_EXTRACTOR_VERSION = "semantic-multiview-v1"
@@ -497,7 +511,7 @@ def run_zip_light_extractor(
                     "source": "apk_zip",
                 },
                 status=STATUS_SUCCESS,
-                view_schema_version="zip-light-{}-v1".format(view),
+                view_schema_version=ZIP_LIGHT_VIEW_SCHEMA_VERSIONS[view],
                 extractor_run_ref=run_record["run_id"],
                 extractor_run_record=run_record,
             )

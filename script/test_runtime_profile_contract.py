@@ -112,7 +112,10 @@ def _success_row(**overrides: object) -> dict[str, object]:
     return row
 
 
-def _assert_analysis_failed_score_fields(record: dict[str, object]) -> None:
+def _assert_analysis_failed_score_fields(
+    record: dict[str, object],
+    reason: str = "unregistered_score_source",
+) -> None:
     assert record["similarity_score"] is None
     assert record["full_similarity_score"] is None
     assert record["library_reduced_score"] is None
@@ -120,7 +123,7 @@ def _assert_analysis_failed_score_fields(record: dict[str, object]) -> None:
     assert record["similarity_score_source"] == "analysis_failed"
     assert record["library_reduced_status"] == "not_applicable"
     assert record["failure_similarity_semantics"] == "undefined_not_zero"
-    assert record["analysis_failed_reason"] == "unregistered_score_source"
+    assert record["analysis_failed_reason"] == reason
 
 
 def test_pairwise_runtime_registries_are_complete_and_immutable() -> None:
@@ -200,6 +203,37 @@ def test_runtime_profile_manifest_matches_current_runtime() -> None:
     )
     assert manifest["default_layers"] == list(m_static_views.ALL_LAYERS)
     assert manifest["available_layers"] == list(m_static_views.ALL_LAYERS)
+
+
+def test_runtime_profile_contract_uses_package_context_for_imports() -> None:
+    direct_module = importlib.import_module("runtime_profile_contract")
+    package_module = importlib.import_module("script.runtime_profile_contract")
+
+    assert direct_module.feature_extractors.__name__ == "feature_extractors"
+    assert direct_module.m_static_views.__name__ == "m_static_views"
+    assert direct_module.pairwise_runner.__name__ == "pairwise_runner"
+    assert package_module.feature_extractors.__name__ == "script.feature_extractors"
+    assert package_module.m_static_views.__name__ == "script.m_static_views"
+    assert package_module.pairwise_runner.__name__ == "script.pairwise_runner"
+
+
+def test_runtime_profile_contract_propagates_internal_import_errors() -> None:
+    runtime_profile_contract = importlib.import_module("runtime_profile_contract")
+    load_runtime_modules = getattr(
+        runtime_profile_contract,
+        "_load_runtime_modules",
+        None,
+    )
+    assert load_runtime_modules is not None
+
+    def raise_internal_error(_module_name: str) -> object:
+        raise RuntimeError("internal import failure")
+
+    with pytest.raises(RuntimeError, match="internal import failure"):
+        load_runtime_modules(
+            "script",
+            module_importer=raise_internal_error,
+        )
 
 
 def test_registered_explicit_score_sources_survive_detailed_score_building() -> None:
@@ -319,6 +353,62 @@ def test_pair_check_id_validation_rejects_unregistered_and_unbacked_conditional(
         )
         == "semantic_multiview_similarity"
     )
+
+
+@pytest.mark.parametrize(
+    "aggregation_policy",
+    [
+        {
+            "policy_id": "unregistered_policy",
+            "strategy": "select_content_similarity_score_with_evidence_guards",
+            "selected_score_field": "similarity_score",
+        },
+        {
+            "policy_id": "deep_m2_score_decision_policy_v1",
+            "strategy": "unregistered_strategy",
+            "selected_score_field": "similarity_score",
+        },
+        {
+            "policy_id": "deep_m2_score_decision_policy_v1",
+            "strategy": "select_content_similarity_score_with_evidence_guards",
+            "selected_score_field": "malicious_score",
+        },
+    ],
+)
+def test_unregistered_aggregation_policy_cannot_diverge_nested_score(
+    aggregation_policy: dict[str, object],
+) -> None:
+    item = pairwise_runner._build_detailed_json_item(
+        _success_row(
+            aggregation_policy=aggregation_policy,
+            malicious_score=0.99,
+        ),
+        index=0,
+    )
+
+    assert item["status"] == "analysis_failed"
+    _assert_analysis_failed_score_fields(
+        item,
+        reason="unregistered_aggregation_policy",
+    )
+    assert item["aggregation_policy"]["policy_id"] == (
+        "deep_m2_score_decision_policy_v1"
+    )
+    assert item["aggregation_policy"]["strategy"] == (
+        "select_content_similarity_score_with_evidence_guards"
+    )
+    assert item["aggregation_policy"]["selected_score_field"] == (
+        "similarity_score"
+    )
+    nested_result = item["pair_similarity_result"]
+    assert nested_result["status"] == "analysis_failed"
+    assert nested_result["scores"]["selected_score_field"] == (
+        "similarity_score"
+    )
+    assert nested_result["scores"]["similarity_score"] is None
+    assert nested_result["selected_similarity_score"] is None
+    assert item["similarity_score"] == nested_result["scores"]["similarity_score"]
+    assert nested_result["scores"]["similarity_score"] != item["malicious_score"]
 
 
 def test_public_pair_checks_match_runtime_and_semantic_is_conditional() -> None:

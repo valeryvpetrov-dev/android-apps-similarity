@@ -62,6 +62,37 @@ class TestZipLightExtractor(unittest.TestCase):
             self.assertEqual(artifact["extractor_run_ref"], run_record["run_id"])
             self.assertEqual(artifact["extractor_run_record"]["run_id"], run_record["run_id"])
 
+    def test_zip_light_artifact_schema_versions_match_runtime_manifest(self) -> None:
+        import feature_extractors
+        from runtime_profile_contract import build_runtime_profile_manifest
+
+        schema_versions = getattr(
+            feature_extractors,
+            "ZIP_LIGHT_VIEW_SCHEMA_VERSIONS",
+            None,
+        )
+        self.assertIsNotNone(schema_versions)
+        with self.assertRaises(TypeError):
+            schema_versions["code"] = "mutated"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            apk_path = self._make_apk(Path(tmp))
+            result = feature_extractors.run_zip_light_extractor(apk_path)
+
+        actual_versions = {
+            artifact["view_type"]: artifact["view_schema_version"]
+            for artifact in result["view_artifacts"]
+        }
+        manifest = build_runtime_profile_manifest()
+        self.assertEqual(
+            actual_versions,
+            manifest["light_view_schema_versions"],
+        )
+        self.assertEqual(
+            actual_versions,
+            dict(schema_versions),
+        )
+
     def test_zip_light_extractor_reports_missing_apk_as_typed_failure(self) -> None:
         from feature_extractors import run_zip_light_extractor
 
