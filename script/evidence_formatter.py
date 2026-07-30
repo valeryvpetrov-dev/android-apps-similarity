@@ -403,6 +403,9 @@ def _build_added_code_direct_evidence(pair_row: dict) -> dict | None:
     )
     evidence.update(
         {
+            "policy_id": pair_row.get(
+                "added_code_direct_evidence_policy_id"
+            ),
             "evidence_role": str(
                 pair_row.get("added_code_direct_evidence_role") or "evidence_only"
             ),

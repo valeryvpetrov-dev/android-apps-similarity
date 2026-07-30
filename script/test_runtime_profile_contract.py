@@ -94,7 +94,7 @@ EXPECTED_EVIDENCE_ONLY_POLICY_IDS = frozenset(
         "R_framework_shift_anchor_evidence_policy_v1",
         "R_c05_static_evidence_policy_v1",
         "R_code_core_evidence_policy_v1",
-        "R_added_code_direct_evidence_policy_v1",
+        "R_added_code_direct_evidence_policy_v2",
         "R_deleted_code_direct_evidence_policy_v1",
         "R_library_noise_direct_evidence_policy_v1",
         "R_obfuscation_direct_evidence_policy_v1",

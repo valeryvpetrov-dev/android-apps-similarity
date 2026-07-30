@@ -151,6 +151,62 @@ class TestPairwiseAddedCodeDirectEvidence(unittest.TestCase):
             ["Lpayload/New;->x()V", "Lpayload/New;->y()V"],
         )
 
+    def test_run_pairwise_does_not_report_renamed_methods_as_added_code(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            apk_a = root / "a.apk"
+            apk_b = root / "b.apk"
+            touch_apk(apk_a)
+            touch_apk(apk_b)
+            config_path, enriched_path = _build_enriched_pair_file(root, apk_a, apk_b)
+
+            bundle_a = _feature_bundle(
+                {
+                    "Lbase/A;->a()V": "fp:a",
+                    "Lbase/B;->b()V": "fp:b",
+                }
+            )
+            bundle_b = _feature_bundle(
+                {
+                    "Lrenamed/X;->x()V": "fp:a",
+                    "Lrenamed/Y;->y()V": "fp:b",
+                }
+            )
+
+            with mock.patch.object(
+                pairwise_runner,
+                "extract_all_features",
+                side_effect=[bundle_a, bundle_b],
+            ):
+                payload = pairwise_runner.run_pairwise(
+                    config_path=config_path,
+                    enriched_path=enriched_path,
+                    ins_block_sim_threshold=0.8,
+                    ged_timeout_sec=30,
+                    processes_count=1,
+                    threads_count=2,
+                )
+
+        row = payload[0]
+        self.assertEqual(row["status"], "success")
+        self.assertEqual(
+            row["added_code_direct_evidence_policy_id"],
+            "R_added_code_direct_evidence_policy_v2",
+        )
+        self.assertFalse(row["added_code_direct_evidence_applied"])
+        self.assertEqual(row["added_code_direct_right_only_method_count"], 2)
+        self.assertEqual(row["added_code_direct_added_fingerprint_count"], 0)
+        self.assertEqual(row["added_code_direct_evidence_score"], 0.0)
+        self.assertTrue(row["code_core_evidence_applied"])
+        added_items = [
+            item
+            for item in row["evidence"]
+            if item["signal_type"] == "added_code_direct_evidence"
+        ]
+        self.assertEqual(added_items, [])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

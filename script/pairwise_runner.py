@@ -298,7 +298,7 @@ except Exception:
         )
     except Exception:
         ADDED_CODE_DIRECT_EVIDENCE_POLICY_ID = (  # type: ignore[assignment]
-            "R_added_code_direct_evidence_policy_v1"
+            "R_added_code_direct_evidence_policy_v2"
         )
         build_added_code_direct_evidence_fields = None  # type: ignore[assignment]
 

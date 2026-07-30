@@ -6,7 +6,7 @@ from collections import Counter
 from typing import Any
 
 
-ADDED_CODE_DIRECT_EVIDENCE_POLICY_ID = "R_added_code_direct_evidence_policy_v1"
+ADDED_CODE_DIRECT_EVIDENCE_POLICY_ID = "R_added_code_direct_evidence_policy_v2"
 ADDED_CODE_DIRECT_EVIDENCE_REF = "R_added_code_method_delta"
 ADDED_CODE_DIRECT_EVIDENCE_ROLE = "evidence_only"
 ADDED_CODE_DIRECT_SCORE_EFFECT = "none"
@@ -41,13 +41,25 @@ def _top_prefixes(method_ids: list[str]) -> list[dict[str, Any]]:
     ]
 
 
-def _added_fingerprint_count(left: dict[str, str], right: dict[str, str]) -> int:
-    left_counts = Counter(left.values())
-    right_counts = Counter(right.values())
-    return sum(
-        max(0, count - left_counts.get(fingerprint, 0))
-        for fingerprint, count in right_counts.items()
-    )
+def _added_fingerprint_evidence(
+    left: dict[str, str],
+    right: dict[str, str],
+    left_only: list[str],
+    right_only: list[str],
+) -> tuple[int, list[str]]:
+    left_counts = Counter(left[method_id] for method_id in left_only)
+    right_ids_by_fingerprint: dict[str, list[str]] = {}
+    for method_id in right_only:
+        fingerprint = right[method_id]
+        right_ids_by_fingerprint.setdefault(fingerprint, []).append(method_id)
+
+    added_count = 0
+    unambiguous_method_ids: list[str] = []
+    for fingerprint, method_ids in right_ids_by_fingerprint.items():
+        added_count += max(0, len(method_ids) - left_counts[fingerprint])
+        if left_counts[fingerprint] == 0:
+            unambiguous_method_ids.extend(method_ids)
+    return added_count, sorted(unambiguous_method_ids)
 
 
 def default_added_code_direct_evidence_fields(
@@ -89,6 +101,12 @@ def build_added_code_direct_evidence_fields(
         return default_added_code_direct_evidence_fields(
             error="code_layer_not_selected"
         )
+    left_raw = layers_a.get("code_method_fingerprints")
+    right_raw = layers_b.get("code_method_fingerprints")
+    if not isinstance(left_raw, dict) or not isinstance(right_raw, dict):
+        return default_added_code_direct_evidence_fields(
+            error="code_method_fingerprints_unavailable"
+        )
 
     left = _method_fingerprints(layers_a)
     right = _method_fingerprints(layers_b)
@@ -99,25 +117,31 @@ def build_added_code_direct_evidence_fields(
     common = left_ids & right_ids
     right_count = len(right)
     right_only_ratio = len(right_only) / right_count if right_count else 0.0
-    score = right_only_ratio if right_only else 0.0
+    added_fingerprint_count, added_method_ids = _added_fingerprint_evidence(
+        left,
+        right,
+        left_only,
+        right_only,
+    )
+    applied = bool(right_only) and added_fingerprint_count > 0
+    score = added_fingerprint_count / right_count if applied and right_count else 0.0
 
     fields = default_added_code_direct_evidence_fields()
     fields.update(
         {
-            "added_code_direct_evidence_applied": bool(right_only),
+            "added_code_direct_evidence_applied": applied,
             "added_code_direct_evidence_score": float(score),
             "added_code_direct_left_method_count": len(left),
             "added_code_direct_right_method_count": right_count,
             "added_code_direct_common_method_id_count": len(common),
             "added_code_direct_right_only_method_count": len(right_only),
             "added_code_direct_left_only_method_count": len(left_only),
-            "added_code_direct_added_fingerprint_count": _added_fingerprint_count(
-                left,
-                right,
-            ),
+            "added_code_direct_added_fingerprint_count": added_fingerprint_count,
             "added_code_direct_right_only_method_ratio": right_only_ratio,
-            "added_code_direct_top_method_prefixes": _top_prefixes(right_only),
-            "added_code_direct_method_sample": right_only[
+            "added_code_direct_top_method_prefixes": _top_prefixes(
+                added_method_ids
+            ),
+            "added_code_direct_method_sample": added_method_ids[
                 :ADDED_CODE_DIRECT_SAMPLE_LIMIT
             ],
         }

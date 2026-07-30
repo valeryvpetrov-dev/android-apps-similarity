@@ -464,6 +464,9 @@ class TestCollectEvidenceFromPairwise(unittest.TestCase):
             "views_used": ["code"],
             "added_code_direct_evidence_applied": True,
             "added_code_direct_evidence_score": 0.5,
+            "added_code_direct_evidence_policy_id": (
+                "R_added_code_direct_evidence_policy_v2"
+            ),
             "added_code_direct_evidence_ref": "R_added_code_method_delta",
             "added_code_direct_evidence_role": "evidence_only",
             "added_code_direct_score_effect": "none",
@@ -491,6 +494,10 @@ class TestCollectEvidenceFromPairwise(unittest.TestCase):
         self.assertEqual(len(added_records), 1)
         self.assertEqual(added_records[0]["source_stage"], "pairwise")
         self.assertEqual(added_records[0]["ref"], "R_added_code_method_delta")
+        self.assertEqual(
+            added_records[0]["policy_id"],
+            "R_added_code_direct_evidence_policy_v2",
+        )
         self.assertEqual(added_records[0]["score_effect"], "none")
         self.assertEqual(added_records[0]["evidence_role"], "evidence_only")
         self.assertFalse(added_records[0]["score_included"])
