@@ -13,8 +13,10 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _SCRIPT_DIR.parent
@@ -29,6 +31,8 @@ from m_static_views import (
     compare_all,
     compare_m_static_layer,
 )
+import m_static_views
+from feature_cache import FeatureCache, cache_key
 
 
 def _make_v4_bundle(fingerprints: dict[str, str]) -> dict:
@@ -317,6 +321,47 @@ class TestCompareAllApiAggregation(unittest.TestCase):
         self.assertAlmostEqual(
             result["library_reduced_score"], self._CANONICAL_LIBRARY_REDUCED, places=6,
         )
+
+
+class TestFeatureCacheQuarantine(unittest.TestCase):
+    def test_extract_all_features_skips_v1_bundle_with_rejected_active_tokens(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            apk_path = root / "sample.apk"
+            apk_path.write_bytes(b"not-a-zip-fixture")
+            cache_dir = root / "feature-cache"
+            cache = FeatureCache(cache_dir)
+            legacy_version = "v1__ihash-{}".format(
+                m_static_views._RESOURCE_V2_ICON_HASH_METHOD
+            )
+            cache.put(
+                cache_key(str(apk_path), legacy_version),
+                {
+                    "mode": "quick",
+                    "code": {"method_namespace:Lcom/example"},
+                    "metadata": {"apk_name:legacy"},
+                },
+            )
+            fresh_bundle = {
+                "mode": "quick",
+                "code": {"method_id:Lcom/example/App;->run()V"},
+                "metadata": {"manifest_present:1"},
+                "component": set(),
+                "resource": set(),
+                "library": set(),
+            }
+            with mock.patch.object(
+                m_static_views,
+                "_extract_quick",
+                return_value=fresh_bundle,
+            ) as extract_quick:
+                result = m_static_views.extract_all_features(
+                    apk_path=str(apk_path),
+                    cache_dir=str(cache_dir),
+                )
+
+        self.assertEqual(result, fresh_bundle)
+        extract_quick.assert_called_once()
 
 
 if __name__ == "__main__":

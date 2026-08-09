@@ -338,7 +338,7 @@ def extract_all_features(
     apk_path: str | None = None,
     unpacked_dir: str | None = None,
     cache_dir: str | None = None,
-    feature_version: str = "v1",
+    feature_version: str = "v2",
 ) -> dict:
     """Extract features from an APK in quick or enhanced mode.
 

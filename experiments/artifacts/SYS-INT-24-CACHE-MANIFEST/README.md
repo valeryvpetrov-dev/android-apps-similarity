@@ -39,8 +39,10 @@
 ## Текущие ключи
 
 - `noise`: `(sha256, profile_version)`, версия `v1`, файл `<sha256>__<profile_version>.json`.
-- `feature_sqlite`: `(sha256, feature_version)`, версия `v1`, таблица `features`, `PRIMARY KEY (sha256, feature_version)`.
-- `feature_json`: `(sha256, feature_version)`, версия `v1__ihash-whash`, файл `<sha256>__<feature_version>.json`.
+- `feature_sqlite`: `(sha256, feature_version)`, версия `v2`, таблица `features`, `PRIMARY KEY (sha256, feature_version)`.
+- `feature_json`: `(sha256, feature_version)`, версия `v2__ihash-whash`, файл `<sha256>__<feature_version>.json`.
+
+Версии `v2` и `v2__ihash-whash` инвалидируют все записи `v1`: они могли содержать отклоненные активные токены до quarantine.
 
 ## Миграция при изменении extraction logic
 

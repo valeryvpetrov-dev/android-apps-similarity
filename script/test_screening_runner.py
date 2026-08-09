@@ -8,6 +8,7 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest import mock
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -26,6 +27,124 @@ def _write_apk(tmpdir: Path, name: str, manifest_bytes: bytes) -> Path:
 
 
 class TestScreeningRunnerMetadataExtraction(unittest.TestCase):
+    def test_validate_app_records_rejects_forbidden_active_layer_tokens(self) -> None:
+        app_records = [
+            {
+                "app_id": "clean",
+                "layers": {
+                    "code": {"method_id:Lcom/example/Clean;->run()V"},
+                    "component": set(),
+                    "resource": set(),
+                    "metadata": set(),
+                    "library": set(),
+                },
+            },
+            {
+                "app_id": "contaminated",
+                "layers": {
+                    "code": {"method_namespace:Lcom/example"},
+                    "component": set(),
+                    "resource": set(),
+                    "metadata": set(),
+                    "library": set(),
+                },
+            },
+        ]
+
+        with self.assertRaisesRegex(
+            screening_runner.RejectedActiveTokenError,
+            "^rejected_active_token:code:method_namespace:$",
+        ):
+            screening_runner.validate_app_records(app_records)
+
+    def test_build_screening_signature_rejects_persisted_quarantined_tokens_and_keeps_clean_signature(self) -> None:
+        for token in (
+            "code:method_namespace:Lcom/example",
+            "code:method_namespace_segment:example",
+            "metadata:apk_name:legacy",
+        ):
+            with self.subTest(token=token):
+                app_record = {"screening_signature": ["code:method_id:clean", token]}
+                with self.assertRaisesRegex(
+                    screening_runner.RejectedActiveTokenError,
+                    "^rejected_active_token:",
+                ):
+                    screening_runner.build_screening_signature(app_record)
+
+        clean_record = {
+            "screening_signature": ["metadata:manifest_present:1", "code:method_id:clean"],
+        }
+        self.assertEqual(
+            screening_runner.build_screening_signature(clean_record),
+            ["code:method_id:clean", "metadata:manifest_present:1"],
+        )
+
+    def test_validate_active_layer_tokens_rejects_malformed_active_layers_deterministically(self) -> None:
+        invalid_cases = (
+            (
+                None,
+                "invalid_active_layers:expected_dict",
+            ),
+            (
+                {"code": "method_id:unexpected-string-container"},
+                "invalid_active_layer:code:expected_token_collection",
+            ),
+            (
+                {"metadata": {"manifest_present:1", 1}},
+                "invalid_active_layer:metadata:expected_string_tokens",
+            ),
+        )
+
+        for layers, reason in invalid_cases:
+            with self.subTest(reason=reason):
+                with self.assertRaisesRegex(
+                    screening_runner.RejectedActiveTokenError,
+                    "^{}$".format(reason),
+                ):
+                    screening_runner.validate_active_layer_tokens(layers)
+
+    def test_extract_layers_from_apk_keeps_method_ids_without_rejected_namespace_tokens(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            apk_path = _write_apk(Path(tmpdir), "method-id.apk", b"<manifest />")
+            with mock.patch.object(
+                screening_runner,
+                "_extract_code_method_identity_tokens",
+                return_value={"method_id:Lcom/example/Feature;->run()V"},
+            ):
+                layers = extract_layers_from_apk(apk_path)
+
+        self.assertIn("method_id:Lcom/example/Feature;->run()V", layers["code"])
+        self.assertFalse(
+            any(
+                token.startswith("method_namespace:")
+                for token in layers["code"]
+            )
+        )
+        self.assertFalse(
+            any(
+                token.startswith("method_namespace_segment:")
+                for token in layers["code"]
+            )
+        )
+
+    def test_extract_layers_from_apk_excludes_filename_from_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            first_path = _write_apk(root, "first-name.apk", b"<manifest />")
+            second_path = root / "second-name.apk"
+            second_path.write_bytes(first_path.read_bytes())
+
+            first_layers = extract_layers_from_apk(first_path)
+            second_layers = extract_layers_from_apk(second_path)
+
+        self.assertEqual(first_layers["metadata"], second_layers["metadata"])
+        self.assertFalse(
+            any(
+                token.startswith("apk_name:")
+                for token in first_layers["metadata"]
+            )
+        )
+
     def test_extract_layers_from_apk_adds_manifest_metadata_tokens(self) -> None:
         manifest = """\
 <?xml version="1.0" encoding="utf-8"?>

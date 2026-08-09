@@ -38,9 +38,40 @@ PAIRWISE_RUNNER = import_optional("pairwise_runner")
 
 
 M_STATIC_LAYERS = ("code", "component", "resource", "metadata", "library")
+REJECTED_ACTIVE_TOKEN_PREFIXES = {
+    "code": ("method_namespace:", "method_namespace_segment:"),
+    "metadata": ("apk_name:",),
+}
 MANIFEST_COMPONENT_PATTERN = re.compile(
     r"(?<![A-Za-z0-9_$.])(\.?[A-Za-z_][\w$]*(?:\.[A-Za-z_][\w$]*)*(?:Activity|Service|Receiver|Provider|Application))(?![A-Za-z0-9_$.])"
 )
+
+
+def validate_inline_active_layer_tokens(layers: object) -> None:
+    """Apply the active-token quarantine when screening_runner is unavailable."""
+    if SCREENING_RUNNER and hasattr(SCREENING_RUNNER, "validate_active_layer_tokens"):
+        SCREENING_RUNNER.validate_active_layer_tokens(layers)
+        return
+    if not isinstance(layers, dict):
+        raise ValueError("invalid_active_layers:expected_dict")
+    for layer in M_STATIC_LAYERS:
+        if layer not in layers:
+            continue
+        tokens = layers[layer]
+        if not isinstance(tokens, (set, list, tuple, frozenset)):
+            raise ValueError(
+                "invalid_active_layer:{}:expected_token_collection".format(layer)
+            )
+        if not all(isinstance(token, str) for token in tokens):
+            raise ValueError(
+                "invalid_active_layer:{}:expected_string_tokens".format(layer)
+            )
+        for token in sorted(tokens):
+            for prefix in REJECTED_ACTIVE_TOKEN_PREFIXES.get(layer, ()):
+                if token.startswith(prefix):
+                    raise ValueError(
+                        "rejected_active_token:{}:{}".format(layer, prefix)
+                    )
 
 
 @contextmanager
@@ -381,7 +412,6 @@ def extract_layers_from_apk_inline(apk_path: Path) -> dict[str, set[str]]:
                 has_manifest = False
 
         metadata = {
-            "apk_name:{}".format(apk_path.stem),
             "entry_bin:{}".format(size_bucket(len(entries))),
             "dex_count_bin:{}".format(size_bucket(len(dex_entries))),
             "manifest_present:{}".format(1 if has_manifest else 0),
@@ -422,13 +452,15 @@ def extract_layers_from_apk_inline(apk_path: Path) -> dict[str, set[str]]:
         if not code:
             code.add("dex:absent")
 
-        return {
+        layers = {
             "code": code,
             "component": component,
             "resource": resource,
             "metadata": metadata,
             "library": library,
         }
+        validate_inline_active_layer_tokens(layers)
+        return layers
 
 
 def build_app_record(apk_path: str, app_record_cache: dict[str, dict[str, Any]]) -> dict[str, Any]:

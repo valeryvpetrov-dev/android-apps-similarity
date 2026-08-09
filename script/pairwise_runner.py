@@ -217,7 +217,7 @@ UNREGISTERED_AGGREGATION_POLICY_REASON = "unregistered_aggregation_policy"
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_FEATURE_CACHE_PATH = PROJECT_ROOT / "experiments" / "artifacts" / ".feature_cache.sqlite"
-FEATURE_CACHE_VERSION = "v1"
+FEATURE_CACHE_VERSION = "v2"
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -238,6 +238,8 @@ def _make_parallel_executor(max_workers: int):
 try:
     from script.system_requirements import verify_required_dependencies
     from script.screening_runner import M_STATIC_LAYERS
+    from script.screening_runner import REJECTED_ACTIVE_TOKEN_PREFIXES
+    from script.screening_runner import RejectedActiveTokenError
     from script.screening_runner import containment_similarity
     from script.screening_runner import cosine_similarity
     from script.screening_runner import dice_similarity
@@ -246,9 +248,12 @@ try:
     from script.screening_runner import normalize_metric_name
     from script.screening_runner import overlap_similarity
     from script.screening_runner import shared_count_similarity
+    from script.screening_runner import validate_active_layer_tokens
 except Exception:
     from system_requirements import verify_required_dependencies
     from screening_runner import M_STATIC_LAYERS
+    from screening_runner import REJECTED_ACTIVE_TOKEN_PREFIXES
+    from screening_runner import RejectedActiveTokenError
     from screening_runner import containment_similarity
     from screening_runner import cosine_similarity
     from screening_runner import dice_similarity
@@ -257,6 +262,7 @@ except Exception:
     from screening_runner import normalize_metric_name
     from screening_runner import overlap_similarity
     from screening_runner import shared_count_similarity
+    from screening_runner import validate_active_layer_tokens
 
 try:
     from script.m_static_views import extract_all_features
@@ -1583,6 +1589,20 @@ def build_framework_shift_evidence_fields(
     return fields
 
 
+def _validate_pairwise_feature_bundle(feature_bundle: object) -> None:
+    if not isinstance(feature_bundle, dict):
+        raise PairwiseAnalysisError("invalid_feature_bundle:expected_dict")
+    active_layers = {
+        layer: feature_bundle[layer]
+        for layer in REJECTED_ACTIVE_TOKEN_PREFIXES
+        if layer in feature_bundle
+    }
+    try:
+        validate_active_layer_tokens(active_layers)
+    except RejectedActiveTokenError as error:
+        raise PairwiseAnalysisError(str(error)) from error
+
+
 def load_layers_for_pairwise(
     apk_path: str,
     decoded_dir: str | None,
@@ -1613,10 +1633,15 @@ def load_layers_for_pairwise(
                 apk_path=str(apk_file),
                 unpacked_dir=decoded_dir,
             )
+        except RejectedActiveTokenError as error:
+            raise PairwiseAnalysisError(str(error)) from error
         except Exception as error:
             raise PairwiseAnalysisError("feature_bundle_error: {}".format(error)) from error
+        _validate_pairwise_feature_bundle(feature_bundle)
         if feature_cache is not None and apk_sha256 is not None:
             feature_cache.put(apk_sha256, FEATURE_CACHE_VERSION, feature_bundle)
+    else:
+        _validate_pairwise_feature_bundle(feature_bundle)
 
     code_v4_shingled = feature_bundle.get("code_v4_shingled")
     code_v4 = feature_bundle.get("code_v4")
@@ -1637,6 +1662,12 @@ def load_layers_for_pairwise(
         "resource": normalize_pairwise_layer_tokens("resource", feature_bundle.get("resource", {})),
         "library": normalize_pairwise_layer_tokens("library", feature_bundle.get("library", {})),
     }
+    try:
+        validate_active_layer_tokens(
+            {layer: layers[layer] for layer in M_STATIC_LAYERS}
+        )
+    except RejectedActiveTokenError as error:
+        raise PairwiseAnalysisError(str(error)) from error
     layer_cache[cache_key] = layers
     return layers
 
@@ -3449,6 +3480,15 @@ def _compute_pair_row_with_caches(
             )
         apply_code_stats_score_policy(pair_row, threshold=threshold)
         apply_c05_static_score_policy(pair_row, threshold=threshold)
+    except PairwiseAnalysisError as error:
+        pair_row.update(
+            {
+                "full_similarity_score": None,
+                "library_reduced_score": None,
+                "status": "analysis_failed",
+                "analysis_failed_reason": str(error),
+            }
+        )
     except Exception:
         pair_row.update(
             {

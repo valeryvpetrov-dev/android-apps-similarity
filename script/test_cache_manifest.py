@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import inspect
 import json
 from pathlib import Path
 
@@ -41,6 +42,24 @@ def test_every_cache_declares_version_invalidation_rule_and_path() -> None:
         assert isinstance(spec["version"], str) and spec["version"], cache_name
         assert isinstance(spec["invalidation_rule"], str) and spec["invalidation_rule"], cache_name
         assert isinstance(spec["path"], str) and spec["path"], cache_name
+
+
+def test_feature_cache_versions_match_runtime_contracts() -> None:
+    cache_manifest = _cache_manifest()
+    manifest = cache_manifest.load()
+    pairwise_runner = importlib.import_module("script.pairwise_runner")
+    m_static_views = importlib.import_module("script.m_static_views")
+
+    feature_version = inspect.signature(
+        m_static_views.extract_all_features
+    ).parameters["feature_version"].default
+    expected_json_version = "{}__ihash-{}".format(
+        feature_version,
+        m_static_views._RESOURCE_V2_ICON_HASH_METHOD,
+    )
+
+    assert manifest["feature_sqlite"]["version"] == pairwise_runner.FEATURE_CACHE_VERSION
+    assert manifest["feature_json"]["version"] == expected_json_version
 
 
 def test_validate_cache_record_accepts_manifest_match_and_rejects_mismatch() -> None:

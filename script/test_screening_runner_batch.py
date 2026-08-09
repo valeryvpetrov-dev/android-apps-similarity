@@ -137,6 +137,38 @@ class TestBuildCandidateListBatchBasics(unittest.TestCase):
         config = _make_config(threshold=0.0)
         self.assertEqual(build_candidate_list_batch([], corpus, config), [])
 
+    def test_direct_and_lsh_batch_reject_clean_signatures_with_contaminated_layers(self) -> None:
+        def contaminated_app(app_id: str) -> dict:
+            app = _make_app(app_id, {"method_namespace:Lcom/example"})
+            app["screening_signature"] = ["code:method_id:clean"]
+            return app
+
+        direct_records = [contaminated_app("A"), contaminated_app("B")]
+        with self.assertRaisesRegex(
+            screening_runner.RejectedActiveTokenError,
+            "^rejected_active_token:code:method_namespace:$",
+        ):
+            build_candidate_list(
+                app_records=direct_records,
+                selected_layers=["code"],
+                metric="jaccard",
+                threshold=0.0,
+                ins_block_sim_threshold=0.80,
+                ged_timeout_sec=30,
+                processes_count=1,
+                threads_count=2,
+            )
+
+        with self.assertRaisesRegex(
+            screening_runner.RejectedActiveTokenError,
+            "^rejected_active_token:code:method_namespace:$",
+        ):
+            build_candidate_list_batch(
+                [contaminated_app("Q")],
+                [contaminated_app("C")],
+                _make_config(features=["code"], threshold=0.0),
+            )
+
 
 class TestBatchVsSequentialEquivalence(unittest.TestCase):
     """На одном query батч и последовательный вариант дают одинаковые кандидаты."""

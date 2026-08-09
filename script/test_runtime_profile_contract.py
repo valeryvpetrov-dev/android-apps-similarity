@@ -27,7 +27,15 @@ EXPECTED_LIGHT_VIEWS = (
     "library",
 )
 EXPECTED_LIGHT_VIEW_SCHEMAS = {
-    view: "zip-light-{}-v1".format(view) for view in EXPECTED_LIGHT_VIEWS
+    "code": "zip-light-code-v2",
+    "component": "zip-light-component-v1",
+    "resource": "zip-light-resource-v1",
+    "metadata": "zip-light-metadata-v2",
+    "library": "zip-light-library-v1",
+}
+EXPECTED_LIGHT_REJECTED_TOKEN_PREFIXES = {
+    "code": ["method_namespace:", "method_namespace_segment:"],
+    "metadata": ["apk_name:"],
 }
 EXPECTED_AVAILABLE_LAYERS = (
     "code",
@@ -180,6 +188,7 @@ def test_runtime_profile_manifest_matches_current_runtime() -> None:
     assert manifest == {
         "light_views": list(EXPECTED_LIGHT_VIEWS),
         "light_view_schema_versions": EXPECTED_LIGHT_VIEW_SCHEMAS,
+        "light_rejected_token_prefixes": EXPECTED_LIGHT_REJECTED_TOKEN_PREFIXES,
         "active_measures": ["jaccard"],
         "default_layers": list(EXPECTED_DEFAULT_LAYERS),
         "available_layers": list(EXPECTED_AVAILABLE_LAYERS),

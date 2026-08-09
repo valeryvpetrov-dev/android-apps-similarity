@@ -16,6 +16,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 import pairwise_runner
+from feature_cache_sqlite import FeatureCacheSqlite
 
 
 def write_text(path: Path, content: str) -> None:
@@ -562,6 +563,139 @@ stages:
         self.assertEqual(features_mock.call_count, 2)
         self.assertEqual(row_one["status"], "success")
         self.assertEqual(row_two["status"], "success")
+
+
+class TestPairwiseFeatureCacheQuarantine(unittest.TestCase):
+    @staticmethod
+    def _fresh_bundle() -> dict:
+        return {
+            "mode": "quick",
+            "code": {"method_id:Lcom/example/App;->run()V"},
+            "metadata": {"manifest_present:1"},
+            "component": set(),
+            "resource": set(),
+            "library": set(),
+        }
+
+    def test_pairwise_skips_v1_bundle_with_rejected_active_tokens(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            apk_path = root / "sample.apk"
+            apk_path.write_bytes(b"apk-fixture")
+            cache = FeatureCacheSqlite(root / "feature-cache.sqlite")
+            apk_sha256 = pairwise_runner._sha256_of_file(apk_path)
+            cache.put(
+                apk_sha256,
+                "v1",
+                {
+                    "mode": "quick",
+                    "code": {"method_namespace:Lcom/example"},
+                    "metadata": {"apk_name:legacy"},
+                },
+            )
+            with mock.patch.object(
+                pairwise_runner,
+                "extract_all_features",
+                return_value=self._fresh_bundle(),
+            ) as extract_features:
+                layers = pairwise_runner.load_layers_for_pairwise(
+                    str(apk_path),
+                    None,
+                    ["code", "metadata"],
+                    {},
+                    feature_cache=cache,
+                )
+            cache.close()
+
+        self.assertEqual(
+            layers["code"],
+            {"method_id:Lcom/example/App;->run()V"},
+        )
+        extract_features.assert_called_once()
+
+    def test_pairwise_rejects_current_cache_bundle_with_rejected_active_tokens(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            apk_path = root / "sample.apk"
+            apk_path.write_bytes(b"apk-fixture")
+            cache = FeatureCacheSqlite(root / "feature-cache.sqlite")
+            cache.put(
+                pairwise_runner._sha256_of_file(apk_path),
+                pairwise_runner.FEATURE_CACHE_VERSION,
+                {
+                    "mode": "quick",
+                    "code": {"method_namespace:Lcom/example"},
+                    "metadata": set(),
+                },
+            )
+            with self.assertRaisesRegex(
+                pairwise_runner.PairwiseAnalysisError,
+                "rejected_active_token:code:method_namespace:",
+            ):
+                pairwise_runner.load_layers_for_pairwise(
+                    str(apk_path),
+                    None,
+                    ["code"],
+                    {},
+                    feature_cache=cache,
+                )
+            cache.close()
+
+    def test_run_pairwise_preserves_quarantine_reason_from_extractor(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            config_path = root / "config.yaml"
+            enriched_path = root / "enriched.json"
+            apk_a = root / "a.apk"
+            apk_b = root / "b.apk"
+            touch_apk(apk_a)
+            touch_apk(apk_b)
+            write_text(
+                config_path,
+                """
+stages:
+  pairwise:
+    features: [code, metadata]
+    metric: cosine
+    threshold: 0.10
+""".strip(),
+            )
+            enriched_path.write_text(
+                json.dumps(
+                    {
+                        "enriched_candidates": [
+                            {
+                                "app_a": {"app_id": "A", "apk_path": str(apk_a)},
+                                "app_b": {"app_id": "B", "apk_path": str(apk_b)},
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with mock.patch.object(
+                pairwise_runner,
+                "extract_all_features",
+                side_effect=pairwise_runner.RejectedActiveTokenError(
+                    "rejected_active_token:code:method_namespace:"
+                ),
+            ):
+                payload = pairwise_runner.run_pairwise(
+                    config_path=config_path,
+                    enriched_path=enriched_path,
+                    processes_count=1,
+                    threads_count=2,
+                )
+
+        result = payload[0]
+        self.assertEqual(result["status"], "analysis_failed")
+        self.assertIsNone(result["full_similarity_score"])
+        self.assertIsNone(result["library_reduced_score"])
+        self.assertEqual(
+            result["analysis_failed_reason"],
+            "rejected_active_token:code:method_namespace:",
+        )
 
 
 if __name__ == "__main__":

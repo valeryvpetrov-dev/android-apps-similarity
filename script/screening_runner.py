@@ -74,6 +74,40 @@ SHORTCUT_STATUS = "success_shortcut"
 SHORTCUT_REASON_HIGH_CONFIDENCE = "high_confidence_signature_match"
 
 M_STATIC_LAYERS = ("code", "component", "resource", "metadata", "library")
+REJECTED_ACTIVE_TOKEN_PREFIXES = {
+    "code": ("method_namespace:", "method_namespace_segment:"),
+    "metadata": ("apk_name:",),
+}
+
+
+class RejectedActiveTokenError(ValueError):
+    """Raised when an active layer contains a quarantined token prefix."""
+
+
+def validate_active_layer_tokens(layers: object) -> None:
+    """Reject quarantined tokens in active M_static layers deterministically."""
+    if not isinstance(layers, dict):
+        raise RejectedActiveTokenError("invalid_active_layers:expected_dict")
+    for layer in M_STATIC_LAYERS:
+        if layer not in layers:
+            continue
+        tokens = layers[layer]
+        if not isinstance(tokens, (set, list, tuple, frozenset)):
+            raise RejectedActiveTokenError(
+                "invalid_active_layer:{}:expected_token_collection".format(layer)
+            )
+        if not all(isinstance(token, str) for token in tokens):
+            raise RejectedActiveTokenError(
+                "invalid_active_layer:{}:expected_string_tokens".format(layer)
+            )
+        for token in sorted(tokens):
+            for prefix in REJECTED_ACTIVE_TOKEN_PREFIXES.get(layer, ()):
+                if token.startswith(prefix):
+                    raise RejectedActiveTokenError(
+                        "rejected_active_token:{}:{}".format(layer, prefix)
+                    )
+
+
 SCREENING_SIGNATURE_FALLBACK_WARNING = (
     "screening_signature missing in app_record; built on-the-fly from M_static layers"
 )
@@ -957,7 +991,6 @@ def extract_layers_from_apk(apk_path: Path) -> dict[str, set[str]]:
         has_resources_arsc = "resources.arsc" in entry_set
         manifest_component_features = set()
         metadata = {
-            "apk_name:{}".format(apk_path.stem),
             "entry_bin:{}".format(size_bucket(len(entries))),
             "dex_count_bin:{}".format(size_bucket(len(dex_entries))),
             "manifest_present:{}".format(1 if has_manifest else 0),
@@ -1012,9 +1045,6 @@ def extract_layers_from_apk(apk_path: Path) -> dict[str, set[str]]:
             apk_path,
             total_dex_bytes=total_dex_bytes,
         )
-        if code:
-            code.update(_code_method_namespace_tokens(code))
-            code.update(_code_method_namespace_segment_tokens(code))
         if not code:
             code = set("dex:{}".format(entry) for entry in dex_entries)
 
@@ -1047,13 +1077,15 @@ def extract_layers_from_apk(apk_path: Path) -> dict[str, set[str]]:
         if not code:
             code.add("dex:absent")
 
-        return {
+        layers = {
             "code": code,
             "component": component,
             "resource": resource,
             "metadata": metadata,
             "library": library,
         }
+        validate_active_layer_tokens(layers)
+        return layers
 
 
 def extract_code_v2_hash(apk_path: Path, app_only: bool = False) -> str | None:
@@ -1253,6 +1285,19 @@ def _normalize_signature_tokens(raw_signature) -> list[str]:
     return sorted(set(tokens))
 
 
+def validate_screening_signature_tokens(signature: list[str]) -> None:
+    """Reject quarantined active-layer tokens in an aggregated signature."""
+    for token in sorted(signature):
+        layer, separator, layer_token = token.partition(":")
+        if not separator:
+            continue
+        for prefix in REJECTED_ACTIVE_TOKEN_PREFIXES.get(layer, ()):
+            if layer_token.startswith(prefix):
+                raise RejectedActiveTokenError(
+                    "rejected_active_token:{}:{}".format(layer, prefix)
+                )
+
+
 def build_screening_signature(app_record: dict) -> list[str]:
     """Return the canonical token list used as the LSH index source.
 
@@ -1264,10 +1309,13 @@ def build_screening_signature(app_record: dict) -> list[str]:
     persisted_signature = app_record.get("screening_signature")
     if persisted_signature is not None:
         signature = _normalize_signature_tokens(persisted_signature)
+        validate_screening_signature_tokens(signature)
         app_record["screening_signature"] = signature
         return signature
 
+    validate_active_layer_tokens(app_record.get("layers"))
     signature = sorted(aggregate_features(app_record, list(M_STATIC_LAYERS)))
+    validate_screening_signature_tokens(signature)
     app_record["screening_signature"] = signature
     _append_unique_warning(app_record, SCREENING_SIGNATURE_FALLBACK_WARNING)
     return signature
@@ -1616,10 +1664,17 @@ def validate_app_records(app_records: list[dict]) -> None:
         raise ValueError("At least two apps are required to build candidate pairs")
     seen_ids = set()
     for app in app_records:
+        validate_active_layer_tokens(app.get("layers"))
         app_id = app["app_id"]
         if app_id in seen_ids:
             raise ValueError("Duplicate app_id detected: {!r}".format(app_id))
         seen_ids.add(app_id)
+
+
+def _validate_app_record_layers(app_record: dict) -> None:
+    """Validate explicit active layers without changing legacy records without layers."""
+    if "layers" in app_record:
+        validate_active_layer_tokens(app_record["layers"])
 
 
 def collect_signature_match(apk_a_path: str | Path | None, apk_b_path: str | Path | None) -> dict:
@@ -1780,6 +1835,8 @@ def build_candidate_list(
     threads_count: int,
     candidate_index_params: dict | None = None,
 ) -> list[dict]:
+    for app_record in app_records:
+        _validate_app_record_layers(app_record)
     records = sorted(app_records, key=lambda item: item["app_id"])
 
     allowed_pairs: set[tuple[str, str]] | None = None
@@ -1996,6 +2053,11 @@ def build_candidate_list_batch(
     """
     if not query_apps:
         return []
+
+    for query_app in query_apps:
+        _validate_app_record_layers(query_app)
+    for corpus_app in corpus_apps:
+        _validate_app_record_layers(corpus_app)
 
     selected_layers, metric, threshold = extract_screening_stage(config)
     candidate_index_params = extract_candidate_index_params(

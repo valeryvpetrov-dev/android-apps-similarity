@@ -24,9 +24,9 @@
     ],
     "key_format": "PRIMARY KEY (sha256, feature_version)",
     "version_field": "feature_version",
-    "version": "v1",
+    "version": "v2",
     "payload": "Feature bundle consumed by pairwise_runner.load_layers_for_pairwise",
-    "invalidation_rule": "A record is stale when feature_version differs from v1, sha256 is not a 64-character hex digest, any key field is missing, or the SQLite schema lacks feature_version."
+    "invalidation_rule": "A record is stale when feature_version differs from v2, including all pre-quarantine v1 records, sha256 is not a 64-character hex digest, any key field is missing, or the SQLite schema lacks feature_version."
   },
   "feature_json": {
     "cache_class": "script.feature_cache.FeatureCache",
@@ -38,8 +38,8 @@
     ],
     "key_format": "<sha256>__<feature_version>.json",
     "version_field": "feature_version",
-    "version": "v1__ihash-whash",
+    "version": "v2__ihash-whash",
     "payload": "m_static_views.extract_all_features output stored by feature_cache.get_or_extract",
-    "invalidation_rule": "A record is stale when feature_version differs from v1__ihash-whash, including changes to extraction logic or the resource icon hash method, sha256 is not a 64-character hex digest, or any key field is missing."
+    "invalidation_rule": "A record is stale when feature_version differs from v2__ihash-whash, including all pre-quarantine v1 records, changes to extraction logic, or the resource icon hash method, sha256 is not a 64-character hex digest, or any key field is missing."
   }
 }

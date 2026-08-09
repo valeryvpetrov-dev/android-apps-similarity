@@ -17,7 +17,12 @@ import zipfile
 
 try:
     from script.feature_cache import FeatureCache
-    from script.screening_runner import extract_layers_from_apk
+    from script.screening_runner import (
+        REJECTED_ACTIVE_TOKEN_PREFIXES,
+        RejectedActiveTokenError,
+        extract_layers_from_apk,
+        validate_active_layer_tokens,
+    )
     from script.semantic_multiview import (
         VIEW_SCHEMA_VERSIONS as SEMANTIC_VIEW_SCHEMA_VERSIONS,
         extract_semantic_views,
@@ -33,7 +38,12 @@ try:
     )
 except ImportError:  # pragma: no cover - direct script import fallback
     from feature_cache import FeatureCache
-    from screening_runner import extract_layers_from_apk
+    from screening_runner import (
+        REJECTED_ACTIVE_TOKEN_PREFIXES,
+        RejectedActiveTokenError,
+        extract_layers_from_apk,
+        validate_active_layer_tokens,
+    )
     from semantic_multiview import (
         VIEW_SCHEMA_VERSIONS as SEMANTIC_VIEW_SCHEMA_VERSIONS,
         extract_semantic_views,
@@ -50,20 +60,16 @@ except ImportError:  # pragma: no cover - direct script import fallback
 
 
 ZIP_LIGHT_EXTRACTOR_ID = "zip_light_extractor"
-ZIP_LIGHT_EXTRACTOR_VERSION = "zip-light-v1"
+ZIP_LIGHT_EXTRACTOR_VERSION = "zip-light-v2"
 ZIP_LIGHT_SUPPORTED_VIEWS = ("code", "component", "resource", "metadata", "library")
 ZIP_LIGHT_SUPPORTED_MODES = ("light",)
-_ZIP_LIGHT_SCHEMA_PREFIX, _ZIP_LIGHT_SCHEMA_VERSION = (
-    ZIP_LIGHT_EXTRACTOR_VERSION.rsplit("-", 1)
-)
 ZIP_LIGHT_VIEW_SCHEMA_VERSIONS = MappingProxyType(
     {
-        view: "{}-{}-{}".format(
-            _ZIP_LIGHT_SCHEMA_PREFIX,
-            view,
-            _ZIP_LIGHT_SCHEMA_VERSION,
-        )
-        for view in ZIP_LIGHT_SUPPORTED_VIEWS
+        "code": "zip-light-code-v2",
+        "component": "zip-light-component-v1",
+        "resource": "zip-light-resource-v1",
+        "metadata": "zip-light-metadata-v2",
+        "library": "zip-light-library-v1",
     }
 )
 
@@ -422,10 +428,41 @@ def run_zip_light_extractor(
     if cached_payload is not None:
         extracted_layers = cached_payload.get("layers")
         cache_status = "hit"
+        try:
+            validate_active_layer_tokens(extracted_layers)
+        except RejectedActiveTokenError as exc:
+            return _failure_result(
+                status=STATUS_ANALYSIS_FAILED,
+                errors=[str(exc)],
+                apk_sha256=apk_sha256,
+                requested_views=requested,
+                started_at=started_at,
+                duration_ms=int((perf_counter() - started) * 1000),
+                cache_key=cache_key,
+                profile_ref=profile_ref,
+                representation_spec_ref=representation_spec_ref,
+                config_hash=config_hash,
+                cache_status=cache_status,
+            )
     else:
         cache_status = _cache_status_for_miss(cache)
         try:
             extracted_layers = extract_layers_from_apk(path)
+            validate_active_layer_tokens(extracted_layers)
+        except RejectedActiveTokenError as exc:
+            return _failure_result(
+                status=STATUS_ANALYSIS_FAILED,
+                errors=[str(exc)],
+                apk_sha256=apk_sha256,
+                requested_views=requested,
+                started_at=started_at,
+                duration_ms=int((perf_counter() - started) * 1000),
+                cache_key=cache_key,
+                profile_ref=profile_ref,
+                representation_spec_ref=representation_spec_ref,
+                config_hash=config_hash,
+                cache_status=cache_status,
+            )
         except zipfile.BadZipFile:
             return _failure_result(
                 status=STATUS_ANALYSIS_FAILED,

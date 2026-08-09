@@ -104,9 +104,9 @@ class TestPairwiseRunnerFeatureCacheVersion(unittest.TestCase):
                     feature_cache=feature_cache,
                 )
 
-            self.assertEqual(pairwise_runner.FEATURE_CACHE_VERSION, "v1")
-            feature_cache.get.assert_called_once_with("d" * 64, "v1")
-            feature_cache.put.assert_called_once_with("d" * 64, "v1", feature_bundle)
+            self.assertEqual(pairwise_runner.FEATURE_CACHE_VERSION, "v2")
+            feature_cache.get.assert_called_once_with("d" * 64, "v2")
+            feature_cache.put.assert_called_once_with("d" * 64, "v2", feature_bundle)
 
 
 if __name__ == "__main__":

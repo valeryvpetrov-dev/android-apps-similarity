@@ -33,6 +33,10 @@ def build_runtime_profile_manifest() -> dict[str, Any]:
         "light_view_schema_versions": dict(
             feature_extractors.ZIP_LIGHT_VIEW_SCHEMA_VERSIONS
         ),
+        "light_rejected_token_prefixes": {
+            layer: list(prefixes)
+            for layer, prefixes in feature_extractors.REJECTED_ACTIVE_TOKEN_PREFIXES.items()
+        },
         "active_measures": list(pairwise_runner.ACTIVE_SIMILARITY_MEASURES),
         "default_layers": list(m_static_views.DEFAULT_LAYERS),
         "available_layers": list(m_static_views.AVAILABLE_LAYERS),

@@ -152,6 +152,128 @@ class TestZipLightExtractor(unittest.TestCase):
         self.assertEqual(result["extractor_run_record"]["status"], "analysis_failed")
         self.assertIn("invalid_dex_payload", result["extractor_run_record"]["errors"])
 
+    def test_zip_light_extractor_rejects_forbidden_fresh_layers_before_cache_write(self) -> None:
+        import feature_extractors
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            apk_path = self._make_apk(root)
+            cache_dir = root / "cache"
+            with mock.patch(
+                "feature_extractors.extract_layers_from_apk",
+                return_value={"code": {"method_namespace:Lcom/example"}},
+            ), mock.patch(
+                "feature_extractors._write_extractor_cache",
+            ) as write_cache:
+                result = feature_extractors.run_zip_light_extractor(
+                    apk_path,
+                    cache_dir=cache_dir,
+                )
+
+        self.assertEqual(result["status"], "analysis_failed")
+        self.assertEqual(result["layers"], {})
+        self.assertEqual(result["view_artifacts"], [])
+        self.assertIn(
+            "rejected_active_token:code:method_namespace:",
+            result["errors"],
+        )
+        write_cache.assert_not_called()
+
+    def test_zip_light_extractor_fails_closed_for_malformed_fresh_and_cached_layers(self) -> None:
+        import feature_extractors
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            apk_path = self._make_apk(root)
+            cache_dir = root / "cache"
+            with mock.patch(
+                "feature_extractors.extract_layers_from_apk",
+                return_value={"code": "not-a-token-collection"},
+            ), mock.patch(
+                "feature_extractors._write_extractor_cache",
+            ) as write_cache:
+                fresh_result = feature_extractors.run_zip_light_extractor(
+                    apk_path,
+                    cache_dir=cache_dir,
+                )
+
+            cache = feature_extractors._build_extractor_cache(cache_dir)
+            cache_key = feature_extractors._zip_light_cache_key(
+                apk_sha256=feature_extractors._sha256_file(apk_path),
+            )
+            feature_extractors._write_extractor_cache(
+                cache,
+                cache_key,
+                {"layers": None},
+            )
+            cached_result = feature_extractors.run_zip_light_extractor(
+                apk_path,
+                cache_dir=cache_dir,
+            )
+
+        for result, reason in (
+            (fresh_result, "invalid_active_layer:code:expected_token_collection"),
+            (cached_result, "invalid_active_layers:expected_dict"),
+        ):
+            with self.subTest(reason=reason):
+                self.assertEqual(result["status"], "analysis_failed")
+                self.assertEqual(result["layers"], {})
+                self.assertEqual(result["view_artifacts"], [])
+                self.assertIn(reason, result["errors"])
+        write_cache.assert_not_called()
+
+    def test_zip_light_extractor_rejects_forbidden_cached_layers(self) -> None:
+        import feature_extractors
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            apk_path = self._make_apk(root)
+            cache_dir = root / "cache"
+            apk_sha256 = feature_extractors._sha256_file(apk_path)
+            cache_key = feature_extractors._zip_light_cache_key(
+                apk_sha256=apk_sha256,
+            )
+            cache = feature_extractors._build_extractor_cache(cache_dir)
+            feature_extractors._write_extractor_cache(
+                cache,
+                cache_key,
+                {"layers": {"metadata": {"apk_name:cached"}}},
+            )
+
+            result = feature_extractors.run_zip_light_extractor(
+                apk_path,
+                cache_dir=cache_dir,
+            )
+
+        self.assertEqual(result["status"], "analysis_failed")
+        self.assertEqual(result["layers"], {})
+        self.assertEqual(result["view_artifacts"], [])
+        self.assertIn(
+            "rejected_active_token:metadata:apk_name:",
+            result["errors"],
+        )
+
+    def test_zip_light_extractor_maps_rejected_active_token_error_to_analysis_failed(self) -> None:
+        import feature_extractors
+
+        with tempfile.TemporaryDirectory() as tmp:
+            apk_path = self._make_apk(Path(tmp))
+            with mock.patch(
+                "feature_extractors.extract_layers_from_apk",
+                side_effect=feature_extractors.RejectedActiveTokenError(
+                    "rejected_active_token:code:method_namespace:"
+                ),
+            ):
+                result = feature_extractors.run_zip_light_extractor(apk_path)
+
+        self.assertEqual(result["status"], "analysis_failed")
+        self.assertEqual(result["layers"], {})
+        self.assertEqual(result["view_artifacts"], [])
+        self.assertIn(
+            "rejected_active_token:code:method_namespace:",
+            result["errors"],
+        )
+
     def test_zip_light_extractor_reuses_cache_on_second_call(self) -> None:
         from feature_extractors import run_zip_light_extractor
 
@@ -203,6 +325,62 @@ class TestZipLightExtractor(unittest.TestCase):
         self.assertEqual(second["extractor_run_record"]["cache_status"], "hit")
         self.assertEqual(second["extractor_run_record"]["produced_views"], ["metadata"])
         self.assertEqual(set(second["layers"]), {"metadata"})
+
+    def test_zip_light_cache_misses_entry_seeded_with_v1_after_v2_upgrade(self) -> None:
+        import feature_extractors
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            apk_path = self._make_apk(root)
+            cache_dir = root / "cache"
+            with mock.patch.object(
+                feature_extractors,
+                "ZIP_LIGHT_EXTRACTOR_VERSION",
+                "zip-light-v1",
+            ):
+                seeded = feature_extractors.run_zip_light_extractor(
+                    apk_path,
+                    cache_dir=cache_dir,
+                )
+            with mock.patch(
+                "feature_extractors.extract_layers_from_apk",
+                wraps=feature_extractors.extract_layers_from_apk,
+            ) as extract_layers:
+                result = feature_extractors.run_zip_light_extractor(
+                    apk_path,
+                    cache_dir=cache_dir,
+                )
+
+        self.assertEqual(seeded["extractor_run_record"]["extractor_version"], "zip-light-v1")
+        self.assertEqual(result["extractor_run_record"]["extractor_version"], "zip-light-v2")
+        self.assertEqual(result["extractor_run_record"]["cache_status"], "miss")
+        extract_layers.assert_called_once()
+
+    def test_zip_light_cache_misses_when_only_config_hash_changes(self) -> None:
+        import feature_extractors
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            apk_path = self._make_apk(root)
+            cache_dir = root / "cache"
+            first = feature_extractors.run_zip_light_extractor(
+                apk_path,
+                cache_dir=cache_dir,
+                config_hash="sha256:config-a",
+            )
+            with mock.patch(
+                "feature_extractors.extract_layers_from_apk",
+                wraps=feature_extractors.extract_layers_from_apk,
+            ) as extract_layers:
+                second = feature_extractors.run_zip_light_extractor(
+                    apk_path,
+                    cache_dir=cache_dir,
+                    config_hash="sha256:config-b",
+                )
+
+        self.assertEqual(first["extractor_run_record"]["cache_status"], "miss")
+        self.assertEqual(second["extractor_run_record"]["cache_status"], "miss")
+        extract_layers.assert_called_once()
 
 
 class TestSemanticMultiviewExtractor(unittest.TestCase):
