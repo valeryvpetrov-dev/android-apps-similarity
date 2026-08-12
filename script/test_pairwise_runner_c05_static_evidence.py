@@ -49,6 +49,14 @@ def _bundle(
 
 
 class TestC05StaticEvidencePolicy(unittest.TestCase):
+    _RAW_RELATION_FIELDS = {
+        "c05_static_relation_score",
+        "c05_static_code_namespace_overlap",
+        "c05_static_component_namespace_overlap",
+        "c05_static_code_token_containment",
+        "c05_static_relation_namespace_sample",
+    }
+
     def test_c05_static_namespace_prefixes_drop_platform_dalvik_prefixes(self) -> None:
         prefixes = pairwise_runner._c05_static_namespace_prefixes(
             {
@@ -133,7 +141,7 @@ stages:
                 )
         return payload[0]
 
-    def test_c05_static_guarded_high_evidence_promotes_score(self) -> None:
+    def test_c05_static_high_evidence_stays_evidence_only(self) -> None:
         left_components = {
             "activities": [{"name": "com.example.MainActivity"}],
             "services": [],
@@ -181,7 +189,7 @@ stages:
             ),
         )
 
-        self.assertEqual(result["status"], "success")
+        self.assertEqual(result["status"], "low_similarity")
         self.assertTrue(result["c05_static_evidence_applied"])
         self.assertEqual(result["c05_static_evidence_role"], "evidence_only")
         self.assertGreater(result["c05_static_component_delta_count"], 0)
@@ -189,17 +197,16 @@ stages:
         self.assertEqual(result["c05_static_extra_dex_delta_count"], 1)
         self.assertEqual(result["c05_static_native_lib_delta_count"], 1)
         self.assertGreater(result["c05_static_library_delta_count"], 0)
-        self.assertEqual(
+        self.assertNotEqual(
             result.get("similarity_score_source"),
             "c05_static_manifest_relation_high_score",
         )
-        self.assertTrue(result["c05_static_score_policy_applied"])
-        self.assertTrue(result["c05_static_score_selected"])
-        self.assertEqual(
-            result["c05_static_score_policy_reason"],
-            "selected_as_similarity_score",
+        self.assertFalse(
+            any(key.startswith("c05_static_score_") for key in result),
+            msg="quarantined C05 score-policy fields must not reach pair output",
         )
-        self.assertGreaterEqual(result["similarity_score"], 0.70)
+        self.assertTrue(self._RAW_RELATION_FIELDS.isdisjoint(result))
+        self.assertLess(result["similarity_score"], 0.70)
 
         evidence_refs = {
             (item["signal_type"], item["ref"]): item["magnitude"]
@@ -247,12 +254,10 @@ stages:
         self.assertEqual(result["c05_static_manifest_delta_count"], 0)
         self.assertEqual(result["c05_static_extra_dex_delta_count"], 1)
         self.assertGreaterEqual(result["c05_static_evidence_score"], 0.70)
-        self.assertFalse(result["c05_static_score_policy_applied"])
-        self.assertFalse(result["c05_static_score_selected"])
-        self.assertEqual(
-            result["c05_static_score_policy_reason"],
-            "missing_manifest_delta",
+        self.assertFalse(
+            any(key.startswith("c05_static_score_") for key in result)
         )
+        self.assertTrue(self._RAW_RELATION_FIELDS.isdisjoint(result))
         self.assertNotEqual(
             result.get("similarity_score_source"),
             "c05_static_manifest_relation_high_score",
@@ -304,12 +309,10 @@ stages:
         self.assertFalse(result["c05_static_evidence_applied"])
         self.assertGreater(result["c05_static_manifest_delta_count"], 0)
         self.assertGreater(result["c05_static_native_lib_delta_count"], 0)
-        self.assertFalse(result["c05_static_score_policy_applied"])
-        self.assertFalse(result["c05_static_score_selected"])
-        self.assertEqual(
-            result["c05_static_score_policy_reason"],
-            "static_evidence_not_applied",
+        self.assertFalse(
+            any(key.startswith("c05_static_score_") for key in result)
         )
+        self.assertTrue(self._RAW_RELATION_FIELDS.isdisjoint(result))
         self.assertNotEqual(
             result.get("similarity_score_source"),
             "c05_static_manifest_relation_high_score",

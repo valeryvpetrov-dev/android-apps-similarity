@@ -7,7 +7,8 @@
   - Каждый item в "pairs" содержит обязательные поля pair_id, app_a, app_b, status.
   - Timeout-строки сохраняют analysis_failed_reason и timeout_info.
   - Успешные строки сохраняют signature_match и evidence (если есть).
-  - Любые дополнительные поля из pair_row сохраняются без потерь.
+  - Дополнительные поля из pair_row сохраняются, кроме внутренних полей
+    карантинной C05 relation-политики.
 """
 from __future__ import annotations
 
@@ -278,6 +279,42 @@ class TestExportPairwiseDetailedJsonFieldPreservation(unittest.TestCase):
         item = payload["pairs"][0]
         self.assertEqual(item["future_field_x"], {"nested": [1, 2, 3]})
         self.assertEqual(item["future_field_y"], "custom-value")
+
+    def test_quarantined_c05_relation_fields_are_not_public(self) -> None:
+        row = _sample_success_row()
+        quarantined_fields = {
+            "c05_static_relation_score": 0.9,
+            "c05_static_code_namespace_overlap": 1.0,
+            "c05_static_component_namespace_overlap": 0.8,
+            "c05_static_code_token_containment": 0.2,
+            "c05_static_relation_namespace_sample": ["com.example"],
+            "c05_static_score_policy_id": (
+                "R_c05_static_manifest_relation_high_score_policy_v1"
+            ),
+            "c05_static_score_policy_applied": True,
+            "c05_static_score_selected": True,
+            "c05_static_score_policy_reason": "selected_as_similarity_score",
+            "c05_static_score_source": "c05_static_manifest_relation_high_score",
+            "c05_static_score_candidate": 0.9,
+        }
+        row.update(quarantined_fields)
+        row["c05_static_evidence_applied"] = True
+        row["c05_static_evidence_role"] = "evidence_only"
+        row["c05_static_evidence_score"] = 0.9
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "detailed.json"
+            pairwise_runner.export_pairwise_detailed_json(
+                results=[row],
+                output_path=output_path,
+            )
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+        item = payload["pairs"][0]
+        self.assertTrue(set(quarantined_fields).isdisjoint(item))
+        self.assertTrue(item["c05_static_evidence_applied"])
+        self.assertEqual(item["c05_static_evidence_role"], "evidence_only")
+        self.assertEqual(item["c05_static_evidence_score"], 0.9)
 
     def test_output_parent_directory_is_created_if_missing(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -78,7 +78,6 @@ EXPECTED_GUARDED_SCORE_POLICY_IDS = frozenset(
         "R_code_stats_payload_resource_bridge_policy_v1",
         "score_conflict_guard_zero_code_fingerprint_v1",
         "R_semantic_multiview_score_promotion_policy_v1",
-        "R_c05_static_manifest_relation_high_score_policy_v1",
     }
 )
 EXPECTED_SIMILARITY_SCORE_SOURCES = frozenset(
@@ -94,7 +93,6 @@ EXPECTED_SIMILARITY_SCORE_SOURCES = frozenset(
         "code_stats_payload_resource_support",
         "code_stats_payload_resource_bridge",
         "semantic_multiview_high_same_resources_code_stats_match",
-        "c05_static_manifest_relation_high_score",
     }
 )
 EXPECTED_EVIDENCE_ONLY_POLICY_IDS = frozenset(

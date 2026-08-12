@@ -105,11 +105,6 @@ C05_STATIC_EVIDENCE_POLICY_ID = "R_c05_static_evidence_policy_v1"
 C05_STATIC_EVIDENCE_REF = "R_c05_static_evidence"
 C05_STATIC_MIN_RELATION_SCORE = 0.10
 C05_STATIC_SAMPLE_LIMIT = 20
-C05_STATIC_SCORE_POLICY_ID = "R_c05_static_manifest_relation_high_score_policy_v1"
-C05_STATIC_SCORE_SOURCE = "c05_static_manifest_relation_high_score"
-C05_STATIC_SCORE_REF = "R_c05_static_manifest_relation_high_score"
-C05_STATIC_SCORE_EVIDENCE_THRESHOLD = 0.70
-C05_STATIC_SCORE_RELATION_THRESHOLD = 0.70
 C05_STATIC_NAMESPACE_STOPWORDS = {
     "android",
     "androidx",
@@ -121,6 +116,15 @@ C05_STATIC_NAMESPACE_STOPWORDS = {
 }
 C05_STATIC_NAMESPACE_ROOT_RE = (
     r"(android|androidx|dalvik|java|javax|kotlin|kotlinx|com|org|net|io|ru|cn)"
+)
+C05_QUARANTINED_PUBLIC_FIELDS = frozenset(
+    {
+        "c05_static_relation_score",
+        "c05_static_code_namespace_overlap",
+        "c05_static_component_namespace_overlap",
+        "c05_static_code_token_containment",
+        "c05_static_relation_namespace_sample",
+    }
 )
 FRAMEWORK_SHIFT_MIN_ANCHOR_CONTAINMENT = 0.10
 FRAMEWORK_SHIFT_MIN_COMMON_ANCHORS = 50
@@ -460,7 +464,6 @@ GUARDED_SCORE_POLICY_IDS = frozenset(
         CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_POLICY_ID,
         CODE_CONFLICT_GUARD_POLICY_ID,
         SEMANTIC_MULTIVIEW_SCORE_POLICY_ID,
-        C05_STATIC_SCORE_POLICY_ID,
     }
 )
 SIMILARITY_SCORE_SOURCES = frozenset(
@@ -476,7 +479,6 @@ SIMILARITY_SCORE_SOURCES = frozenset(
         CODE_STATS_PAYLOAD_RESOURCE_SCORE_SOURCE,
         CODE_STATS_PAYLOAD_RESOURCE_BRIDGE_SCORE_SOURCE,
         SEMANTIC_MULTIVIEW_SCORE_SOURCE,
-        C05_STATIC_SCORE_SOURCE,
     }
 )
 EVIDENCE_ONLY_POLICY_IDS = frozenset(
@@ -1977,10 +1979,6 @@ def _c05_static_default_fields(error: str | None = None) -> dict[str, Any]:
         "c05_static_evidence_role": "evidence_only",
         "c05_static_evidence_ref": C05_STATIC_EVIDENCE_REF,
         "c05_static_evidence_score": 0.0,
-        "c05_static_relation_score": 0.0,
-        "c05_static_code_namespace_overlap": 0.0,
-        "c05_static_component_namespace_overlap": 0.0,
-        "c05_static_code_token_containment": 0.0,
         "c05_static_manifest_delta_count": 0,
         "c05_static_component_delta_count": 0,
         "c05_static_permission_delta_count": 0,
@@ -1992,7 +1990,6 @@ def _c05_static_default_fields(error: str | None = None) -> dict[str, Any]:
         "c05_static_manifest_delta_sample": [],
         "c05_static_container_delta_sample": [],
         "c05_static_library_delta_sample": [],
-        "c05_static_relation_namespace_sample": [],
         "c05_static_min_relation_score": C05_STATIC_MIN_RELATION_SCORE,
     }
     if error is not None:
@@ -2133,9 +2130,6 @@ def build_c05_static_evidence_fields(
     code_namespaces_b = _c05_static_namespace_prefixes(code_b)
     component_namespaces_a = _c05_static_namespace_prefixes(component_a)
     component_namespaces_b = _c05_static_namespace_prefixes(component_b)
-    common_code_namespaces = code_namespaces_a & code_namespaces_b
-    common_component_namespaces = component_namespaces_a & component_namespaces_b
-
     code_namespace_overlap = float(
         containment_similarity(code_namespaces_a, code_namespaces_b)
     )
@@ -2174,12 +2168,6 @@ def build_c05_static_evidence_fields(
         {
             "c05_static_evidence_applied": bool(applied),
             "c05_static_evidence_score": float(evidence_score if applied else 0.0),
-            "c05_static_relation_score": float(relation_score),
-            "c05_static_code_namespace_overlap": float(code_namespace_overlap),
-            "c05_static_component_namespace_overlap": float(
-                component_namespace_overlap
-            ),
-            "c05_static_code_token_containment": float(code_token_containment),
             "c05_static_manifest_delta_count": len(manifest_delta),
             "c05_static_component_delta_count": len(component_delta),
             "c05_static_permission_delta_count": len(permission_delta),
@@ -2196,9 +2184,6 @@ def build_c05_static_evidence_fields(
             ),
             "c05_static_library_delta_sample": _c05_static_sample(
                 library_delta
-            ),
-            "c05_static_relation_namespace_sample": _c05_static_sample(
-                common_code_namespaces | common_component_namespaces
             ),
         }
     )
@@ -2887,89 +2872,6 @@ def apply_semantic_multiview_score_policy(
     pair_row["status"] = "success" if promotion_score >= threshold else "low_similarity"
 
 
-def apply_c05_static_score_policy(
-    pair_row: dict[str, Any],
-    threshold: float,
-) -> None:
-    """Promote only the guarded high-only C05 static evidence score.
-
-    This policy follows the M3 C05 gate: it may raise the selected score only
-    when manifest delta, relation score, and evidence score are all strong. It
-    never promotes container-only evidence and never lowers an existing score.
-    """
-    pair_row["c05_static_score_policy_id"] = C05_STATIC_SCORE_POLICY_ID
-    pair_row["c05_static_score_policy_applied"] = False
-    pair_row["c05_static_score_selected"] = False
-    pair_row["c05_static_score_policy_reason"] = None
-    pair_row["c05_static_score_source"] = C05_STATIC_SCORE_SOURCE
-    pair_row["c05_static_score_ref"] = C05_STATIC_SCORE_REF
-    pair_row["c05_static_score_evidence_threshold"] = (
-        C05_STATIC_SCORE_EVIDENCE_THRESHOLD
-    )
-    pair_row["c05_static_score_relation_threshold"] = (
-        C05_STATIC_SCORE_RELATION_THRESHOLD
-    )
-    pair_row["c05_static_score_candidate"] = None
-
-    if pair_row.get("status") == "analysis_failed":
-        pair_row["c05_static_score_policy_reason"] = "analysis_failed_status"
-        return
-    if pair_row.get("c05_static_evidence_applied") is not True:
-        pair_row["c05_static_score_policy_reason"] = "static_evidence_not_applied"
-        return
-
-    try:
-        manifest_delta = int(pair_row.get("c05_static_manifest_delta_count") or 0)
-    except (TypeError, ValueError):
-        manifest_delta = 0
-    if manifest_delta <= 0:
-        pair_row["c05_static_score_policy_reason"] = "missing_manifest_delta"
-        return
-
-    relation_score = _score_float_or_none(pair_row.get("c05_static_relation_score"))
-    if (
-        relation_score is None
-        or relation_score < C05_STATIC_SCORE_RELATION_THRESHOLD
-    ):
-        pair_row["c05_static_score_policy_reason"] = "relation_below_threshold"
-        return
-
-    evidence_score = _score_float_or_none(pair_row.get("c05_static_evidence_score"))
-    if (
-        evidence_score is None
-        or evidence_score < C05_STATIC_SCORE_EVIDENCE_THRESHOLD
-    ):
-        pair_row["c05_static_score_policy_reason"] = "evidence_score_below_threshold"
-        return
-
-    pair_row["c05_static_score_policy_applied"] = True
-    pair_row["c05_static_score_candidate"] = evidence_score
-
-    current_score = _score_float_or_none(pair_row.get("similarity_score"))
-    if current_score is None:
-        current_score = _score_float_or_none(pair_row.get("selected_similarity_score"))
-    if current_score is None:
-        current_score = _score_float_or_none(pair_row.get("library_reduced_score"))
-    if current_score is None:
-        current_score = _score_float_or_none(pair_row.get("full_similarity_score"))
-
-    if current_score is not None and evidence_score <= current_score:
-        pair_row["c05_static_score_policy_reason"] = "existing_score_is_equal_or_higher"
-        return
-
-    pair_row["c05_static_score_selected"] = True
-    pair_row["c05_static_score_policy_reason"] = "selected_as_similarity_score"
-    pair_row["score_decision_priority_order"] = SCORE_DECISION_PRIORITY_ORDER
-    pair_row["score_decision_selected_priority"] = "P0_guard"
-    pair_row["score_decision_selected_priority_rank"] = SCORE_DECISION_PRIORITY_P0_GUARD
-    pair_row["similarity_score"] = evidence_score
-    pair_row["selected_similarity_score"] = evidence_score
-    pair_row["similarity_score_source"] = C05_STATIC_SCORE_SOURCE
-    pair_row["score_decision_policy_id"] = DEEP_M2_SCORE_DECISION_POLICY_ID
-    pair_row["failure_similarity_semantics"] = None
-    pair_row["status"] = "success" if evidence_score >= threshold else "low_similarity"
-
-
 def apply_code_stats_containment_score_policy(
     pair_row: dict[str, Any],
     threshold: float,
@@ -3479,7 +3381,6 @@ def _compute_pair_row_with_caches(
                 }
             )
         apply_code_stats_score_policy(pair_row, threshold=threshold)
-        apply_c05_static_score_policy(pair_row, threshold=threshold)
     except PairwiseAnalysisError as error:
         pair_row.update(
             {
@@ -4523,7 +4424,7 @@ def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str,
       - required fields always present (None-filled when absent in pair_row);
       - pair_id is stable sequential "PAIR-{index+1:06d}" unless pair_row
         already carries a non-empty str pair_id;
-      - any extra fields from pair_row are preserved verbatim (forward-compat).
+      - extra fields are preserved except quarantined C05 relation diagnostics.
     """
     item: dict[str, Any] = {}
     existing_pair_id = pair_row.get("pair_id") if isinstance(pair_row, dict) else None
@@ -4541,6 +4442,10 @@ def _build_detailed_json_item(pair_row: dict[str, Any], index: int) -> dict[str,
             if key in item:
                 continue
             if key == "pair_id":
+                continue
+            if key in C05_QUARANTINED_PUBLIC_FIELDS:
+                continue
+            if key.startswith("c05_static_score_"):
                 continue
             item[key] = value
 
