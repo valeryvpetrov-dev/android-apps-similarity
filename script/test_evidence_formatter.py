@@ -595,7 +595,7 @@ class TestCollectEvidenceFromPairwise(unittest.TestCase):
         self.assertFalse(record["relation_inferred"])
         self.assertEqual(record["observation_scope"], "framework_anchor_delta")
 
-    def test_c05_public_evidence_declares_no_score_effect(self) -> None:
+    def test_c05_relation_heuristic_is_quarantined_from_public_evidence(self) -> None:
         pair_row = {
             "status": "success",
             "views_used": [],
@@ -605,17 +605,10 @@ class TestCollectEvidenceFromPairwise(unittest.TestCase):
         }
 
         evidence = collect_evidence_from_pairwise(pair_row)
-        record = next(
-            item
-            for item in evidence
-            if item["signal_type"] == "c05_static_evidence"
+        self.assertNotIn(
+            "c05_static_evidence",
+            {item["signal_type"] for item in evidence},
         )
-
-        self.assertEqual(record["evidence_role"], "evidence_only")
-        self.assertEqual(record["score_effect"], "none")
-        self.assertFalse(record["score_included"])
-        self.assertFalse(record["relation_inferred"])
-        self.assertEqual(record["observation_scope"], "static_apk_delta")
 
 
 class TestCollectEvidenceFromPairwisePerLayerMagnitude(unittest.TestCase):
@@ -806,6 +799,21 @@ class TestFormatEvidenceAsText(unittest.TestCase):
     def test_empty_list_returns_placeholder(self) -> None:
         result = format_evidence_as_text([])
         self.assertEqual(result, ["Нет доказательств для этой пары."])
+
+    def test_only_quarantined_c05_returns_placeholder(self) -> None:
+        records = [
+            make_evidence(
+                "pairwise",
+                "c05_static_evidence",
+                0.8,
+                "R_c05_static_evidence",
+            )
+        ]
+
+        self.assertEqual(
+            format_evidence_as_text(records),
+            ["Нет доказательств для этой пары."],
+        )
 
     def test_maps_source_stage_to_russian_labels(self) -> None:
         records = [
@@ -1019,6 +1027,25 @@ class TestDescribePairEvidence(unittest.TestCase):
         self.assertEqual(description["summary"]["by_stage"]["pairwise"], 1)
         self.assertEqual(description["summary"]["by_stage"]["signing"], 1)
 
+    def test_legacy_c05_relation_heuristic_is_removed_from_public_description(self) -> None:
+        pair_row = self._success_pair_row()
+        pair_row["evidence"].append(
+            make_evidence(
+                "pairwise",
+                "c05_static_evidence",
+                0.8,
+                "R_c05_static_evidence",
+            )
+        )
+
+        description = describe_pair_evidence(pair_row)
+
+        self.assertEqual(description["summary"]["total"], 3)
+        self.assertNotIn(
+            "c05_static_evidence",
+            "\n".join(description["evidence_lines"]),
+        )
+
 
 class TestEvidenceToMarkdownBlock(unittest.TestCase):
 
@@ -1030,6 +1057,21 @@ class TestEvidenceToMarkdownBlock(unittest.TestCase):
         # Пустой список не даёт таблицу.
         self.assertNotIn("| Этап |", block)
         self.assertNotIn("<", block)
+
+    def test_legacy_c05_relation_heuristic_is_removed_from_public_markdown(self) -> None:
+        records = [
+            make_evidence(
+                "pairwise",
+                "c05_static_evidence",
+                0.8,
+                "R_c05_static_evidence",
+            )
+        ]
+
+        block = evidence_to_markdown_block(records)
+
+        self.assertIn("Всего сигналов: 0", block)
+        self.assertNotIn("R_c05_static_evidence", block)
 
     def test_three_evidence_renders_table_with_three_rows(self) -> None:
         records = [

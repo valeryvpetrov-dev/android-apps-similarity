@@ -109,6 +109,18 @@ _PER_VIEW_SCORE_FIELDS: tuple[str, ...] = (
 )
 
 _LIBRARY_NOISE_DELTA_THRESHOLD = 0.05
+_QUARANTINED_PUBLIC_SIGNAL_TYPES = frozenset({"c05_static_evidence"})
+
+
+def _public_evidence_items(evidence_list: object) -> list[dict]:
+    if not isinstance(evidence_list, list):
+        return []
+    return [
+        item
+        for item in evidence_list
+        if isinstance(item, dict)
+        and item.get("signal_type") not in _QUARANTINED_PUBLIC_SIGNAL_TYPES
+    ]
 
 
 def _extract_per_view_scores(pair_row: dict) -> dict[str, float] | None:
@@ -852,33 +864,6 @@ def collect_evidence_from_pairwise(pair_row: dict) -> list[dict]:
         )
         evidence.append(framework_evidence)
 
-    if pair_row.get("c05_static_evidence_applied") is True:
-        c05_evidence = make_evidence(
-            source_stage="pairwise",
-            signal_type="c05_static_evidence",
-            magnitude=_clamp_unit(pair_row.get("c05_static_evidence_score")),
-            ref=str(
-                pair_row.get("c05_static_evidence_ref")
-                or "R_c05_static_evidence"
-            ),
-        )
-        c05_evidence.update(
-            {
-                "evidence_role": str(
-                    pair_row.get("c05_static_evidence_role") or "evidence_only"
-                ),
-                "score_effect": str(
-                    pair_row.get("c05_static_evidence_score_effect") or "none"
-                ),
-                "score_included": bool(
-                    pair_row.get("c05_static_evidence_score_included")
-                ),
-                "relation_inferred": False,
-                "observation_scope": "static_apk_delta",
-            }
-        )
-        evidence.append(c05_evidence)
-
     signature_match = pair_row.get("signature_match")
     if isinstance(signature_match, dict) and "score" in signature_match:
         magnitude = _clamp_unit(signature_match.get("score"))
@@ -950,6 +935,8 @@ def collect_all_evidence(
             continue
         for item in stage_evidence:
             if not isinstance(item, dict):
+                continue
+            if item.get("signal_type") in _QUARANTINED_PUBLIC_SIGNAL_TYPES:
                 continue
             combined.append(item)
 
@@ -1046,9 +1033,9 @@ def format_evidence_as_text(
     if not isinstance(evidence_list, list) or len(evidence_list) == 0:
         return ["Нет доказательств для этой пары."]
 
-    valid_items: list[dict] = [
-        item for item in evidence_list if isinstance(item, dict)
-    ]
+    valid_items = _public_evidence_items(evidence_list)
+    if not valid_items:
+        return ["Нет доказательств для этой пары."]
     valid_items.sort(key=_evidence_sort_key)
 
     try:
@@ -1096,9 +1083,7 @@ def format_evidence_summary(evidence_list: list[dict]) -> dict:
     if not isinstance(evidence_list, list):
         return summary
 
-    valid_items: list[dict] = [
-        item for item in evidence_list if isinstance(item, dict)
-    ]
+    valid_items = _public_evidence_items(evidence_list)
     if len(valid_items) == 0:
         return summary
 
@@ -1426,9 +1411,7 @@ def evidence_to_markdown_block(
     locale_key = locale if locale in _MARKDOWN_TEXTS else "ru"
     texts = _MARKDOWN_TEXTS[locale_key]
 
-    valid_items: list[dict] = []
-    if isinstance(evidence_list, list):
-        valid_items = [item for item in evidence_list if isinstance(item, dict)]
+    valid_items = _public_evidence_items(evidence_list)
 
     lines: list[str] = [texts["header"], ""]
     lines.append(texts["total_line"].format(count=len(valid_items)))
