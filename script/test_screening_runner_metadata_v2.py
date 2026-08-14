@@ -4,8 +4,8 @@
 Проверяет что ``screening_runner.extract_layers_from_apk`` добавляет
 в слой ``metadata`` новые дешёвые токены: версию DEX, признак наличия
 подписи, схему подписи, префикс отпечатка сертификата, токены
-разрешений и возможностей. Обратная совместимость со старым набором
-токенов сохраняется.
+разрешений и возможностей. Обратная совместимость с разрешённой частью
+старого набора сохраняется; ``apk_name:*`` исключён как маркер файла.
 """
 
 from __future__ import annotations
@@ -105,11 +105,9 @@ class TestMetadataV2OnSimpleApk(unittest.TestCase):
         layers_b = extract_layers_from_apk(SIMPLE_APK)
         self.assertEqual(self.metadata, layers_b["metadata"])
 
-    def test_backward_compatible_legacy_tokens_present(self) -> None:
-        """Существующие токены сохранены: apk_name, entry_bin, dex_count_bin,
-        manifest_present, resources_arsc_present."""
+    def test_allowed_legacy_tokens_present(self) -> None:
+        """Разрешённые старые токены метаданных сохранены после карантина."""
         legacy_prefixes = (
-            "apk_name:",
             "entry_bin:",
             "dex_count_bin:",
             "manifest_present:",
