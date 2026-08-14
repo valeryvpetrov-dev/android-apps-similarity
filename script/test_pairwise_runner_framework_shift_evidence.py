@@ -165,6 +165,8 @@ stages:
         self.assertEqual(result["similarity_score_source"], "library_reduced_score")
         self.assertTrue(result["framework_shift_evidence_applied"])
         self.assertEqual(result["framework_shift_evidence_role"], "evidence_only")
+        self.assertEqual(result["framework_shift_evidence_score_effect"], "none")
+        self.assertFalse(result["framework_shift_evidence_score_included"])
         self.assertEqual(result["framework_shift_common_anchor_count"], 60)
         self.assertGreaterEqual(result["framework_shift_anchor_containment"], 0.10)
 
@@ -176,6 +178,15 @@ stages:
             ("framework_shift_evidence", "R_framework_shift_anchors"),
             evidence_refs,
         )
+        evidence_record = next(
+            item
+            for item in result["evidence"]
+            if item["signal_type"] == "framework_shift_evidence"
+        )
+        self.assertEqual(evidence_record["evidence_role"], "evidence_only")
+        self.assertEqual(evidence_record["score_effect"], "none")
+        self.assertFalse(evidence_record["score_included"])
+        self.assertFalse(evidence_record["relation_inferred"])
 
     def test_framework_shift_evidence_requires_package_guard(self) -> None:
         result = self._run_one_pair(

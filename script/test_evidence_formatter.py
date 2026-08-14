@@ -236,6 +236,7 @@ class TestCollectEvidenceFromPairwise(unittest.TestCase):
         self.assertEqual(library_noise_records[0]["score_effect"], "none")
         self.assertEqual(library_noise_records[0]["evidence_role"], "evidence_only")
         self.assertFalse(library_noise_records[0]["score_included"])
+        self.assertFalse(library_noise_records[0]["relation_inferred"])
         self.assertEqual(
             library_noise_records[0]["top_namespace_prefix"],
             "com.vendor.sdk",
@@ -338,10 +339,13 @@ class TestCollectEvidenceFromPairwise(unittest.TestCase):
             packaging_records[0]["package_rename"],
             {
                 "applied": True,
+                "evidence_role": "evidence_only",
                 "left_manifest_package_name": "com.example.left",
                 "right_manifest_package_name": "com.example.right",
                 "score_effect": "none",
                 "score_included": False,
+                "relation_inferred": False,
+                "observation_scope": "manifest_package_name_delta",
             },
         )
         self.assertEqual(
@@ -404,6 +408,11 @@ class TestCollectEvidenceFromPairwise(unittest.TestCase):
         self.assertEqual(deleted_records[0]["magnitude"], 0.5)
         self.assertEqual(deleted_records[0]["score_effect"], "none")
         self.assertFalse(deleted_records[0]["score_included"])
+        self.assertFalse(deleted_records[0]["relation_inferred"])
+        self.assertEqual(
+            deleted_records[0]["observation_scope"],
+            "left_only_method_ids",
+        )
         self.assertEqual(deleted_records[0]["left_only_method_count"], 2)
         self.assertEqual(deleted_records[0]["deleted_fingerprint_count"], 2)
         self.assertEqual(
@@ -448,6 +457,7 @@ class TestCollectEvidenceFromPairwise(unittest.TestCase):
         self.assertEqual(code_core_records[0]["score_effect"], "none")
         self.assertEqual(code_core_records[0]["evidence_role"], "evidence_only")
         self.assertFalse(code_core_records[0]["score_included"])
+        self.assertFalse(code_core_records[0]["relation_inferred"])
         self.assertEqual(code_core_records[0]["common_fingerprint_count"], 12)
         self.assertEqual(
             code_core_records[0]["common_fingerprint_sample"],
@@ -494,6 +504,11 @@ class TestCollectEvidenceFromPairwise(unittest.TestCase):
         self.assertEqual(added_records[0]["score_effect"], "none")
         self.assertEqual(added_records[0]["evidence_role"], "evidence_only")
         self.assertFalse(added_records[0]["score_included"])
+        self.assertFalse(added_records[0]["relation_inferred"])
+        self.assertEqual(
+            added_records[0]["observation_scope"],
+            "right_only_method_ids",
+        )
         self.assertEqual(added_records[0]["right_only_method_count"], 2)
         self.assertEqual(
             added_records[0]["method_sample"],
@@ -552,10 +567,55 @@ class TestCollectEvidenceFromPairwise(unittest.TestCase):
         self.assertEqual(obfuscation_records[0]["score_effect"], "none")
         self.assertEqual(obfuscation_records[0]["evidence_role"], "evidence_only")
         self.assertFalse(obfuscation_records[0]["score_included"])
+        self.assertFalse(obfuscation_records[0]["relation_inferred"])
         self.assertTrue(obfuscation_records[0]["same_package"])
         self.assertEqual(obfuscation_records[0]["common_fingerprint_count"], 4)
         self.assertEqual(obfuscation_records[0]["right_class_name_sample"], ["a", "b"])
         self.assertEqual(obfuscation_records[0]["right_method_name_sample"], ["a", "b"])
+
+    def test_framework_shift_public_evidence_declares_no_score_effect(self) -> None:
+        pair_row = {
+            "status": "success",
+            "views_used": [],
+            "framework_shift_evidence_applied": True,
+            "framework_shift_anchor_containment": 0.75,
+            "framework_shift_evidence_role": "evidence_only",
+        }
+
+        evidence = collect_evidence_from_pairwise(pair_row)
+        record = next(
+            item
+            for item in evidence
+            if item["signal_type"] == "framework_shift_evidence"
+        )
+
+        self.assertEqual(record["evidence_role"], "evidence_only")
+        self.assertEqual(record["score_effect"], "none")
+        self.assertFalse(record["score_included"])
+        self.assertFalse(record["relation_inferred"])
+        self.assertEqual(record["observation_scope"], "framework_anchor_delta")
+
+    def test_c05_public_evidence_declares_no_score_effect(self) -> None:
+        pair_row = {
+            "status": "success",
+            "views_used": [],
+            "c05_static_evidence_applied": True,
+            "c05_static_evidence_score": 0.8,
+            "c05_static_evidence_role": "evidence_only",
+        }
+
+        evidence = collect_evidence_from_pairwise(pair_row)
+        record = next(
+            item
+            for item in evidence
+            if item["signal_type"] == "c05_static_evidence"
+        )
+
+        self.assertEqual(record["evidence_role"], "evidence_only")
+        self.assertEqual(record["score_effect"], "none")
+        self.assertFalse(record["score_included"])
+        self.assertFalse(record["relation_inferred"])
+        self.assertEqual(record["observation_scope"], "static_apk_delta")
 
 
 class TestCollectEvidenceFromPairwisePerLayerMagnitude(unittest.TestCase):
@@ -1016,10 +1076,26 @@ class TestEvidenceToMarkdownBlock(unittest.TestCase):
         row_ru = render_single_evidence(record, locale="ru")
         row_en = render_single_evidence(record, locale="en")
 
-        self.assertIn("Смена каркаса приложения", row_ru)
-        self.assertIn("Framework shift evidence", row_en)
+        self.assertIn("Различие каркаса при общих статических якорях", row_ru)
+        self.assertIn("Framework difference with shared static anchors", row_en)
         self.assertNotIn("framework_shift_evidence", row_ru)
         self.assertNotIn("framework_shift_evidence", row_en)
+
+    def test_c05_label_describes_static_delta_without_added_code_claim(self) -> None:
+        record = make_evidence(
+            "pairwise",
+            "c05_static_evidence",
+            0.8,
+            "R_c05_static_evidence",
+        )
+
+        row_ru = render_single_evidence(record, locale="ru")
+        row_en = render_single_evidence(record, locale="en")
+
+        self.assertIn("Статические различия APK", row_ru)
+        self.assertIn("Static APK differences", row_en)
+        self.assertNotIn("добавленного кода", row_ru)
+        self.assertNotIn("added-code", row_en)
 
     def test_library_noise_has_human_readable_labels(self) -> None:
         record = make_evidence(
@@ -1032,8 +1108,8 @@ class TestEvidenceToMarkdownBlock(unittest.TestCase):
         row_ru = render_single_evidence(record, locale="ru")
         row_en = render_single_evidence(record, locale="en")
 
-        self.assertIn("Библиотечный шум", row_ru)
-        self.assertIn("Library noise", row_en)
+        self.assertIn("Различие библиотечных признаков", row_ru)
+        self.assertIn("Library-related difference", row_en)
         self.assertNotIn("library_noise", row_ru)
         self.assertNotIn("library_noise", row_en)
 

@@ -192,6 +192,8 @@ stages:
         self.assertEqual(result["status"], "low_similarity")
         self.assertTrue(result["c05_static_evidence_applied"])
         self.assertEqual(result["c05_static_evidence_role"], "evidence_only")
+        self.assertEqual(result["c05_static_evidence_score_effect"], "none")
+        self.assertFalse(result["c05_static_evidence_score_included"])
         self.assertGreater(result["c05_static_component_delta_count"], 0)
         self.assertEqual(result["c05_static_permission_delta_count"], 1)
         self.assertEqual(result["c05_static_extra_dex_delta_count"], 1)
@@ -216,6 +218,15 @@ stages:
             ("c05_static_evidence", "R_c05_static_evidence"),
             evidence_refs,
         )
+        evidence_record = next(
+            item
+            for item in result["evidence"]
+            if item["signal_type"] == "c05_static_evidence"
+        )
+        self.assertEqual(evidence_record["evidence_role"], "evidence_only")
+        self.assertEqual(evidence_record["score_effect"], "none")
+        self.assertFalse(evidence_record["score_included"])
+        self.assertFalse(evidence_record["relation_inferred"])
 
     def test_c05_static_container_only_evidence_does_not_promote_score(self) -> None:
         components = {

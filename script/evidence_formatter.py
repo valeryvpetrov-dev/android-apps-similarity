@@ -231,6 +231,8 @@ def _build_library_noise_evidence(pair_row: dict) -> dict | None:
                 "score_included": bool(
                     pair_row.get("library_noise_direct_score_included")
                 ),
+                "relation_inferred": False,
+                "observation_scope": "right_only_namespace_concentration",
                 "left_method_count": pair_row.get(
                     "library_noise_direct_left_method_count"
                 ),
@@ -287,6 +289,8 @@ def _build_packaging_changed_evidence(pair_row: dict) -> dict | None:
             ),
             "score_effect": str(pair_row.get("packaging_score_effect") or "none"),
             "score_included": bool(pair_row.get("packaging_score_included")),
+            "relation_inferred": False,
+            "observation_scope": "apk_packaging_delta",
             "manifest_package_name_delta": bool(
                 pair_row.get("manifest_package_name_delta")
             ),
@@ -301,6 +305,9 @@ def _build_packaging_changed_evidence(pair_row: dict) -> dict | None:
             "right_manifest_package_name": pair_row.get("right_manifest_package_name"),
             "package_rename": {
                 "applied": bool(pair_row.get("package_rename_evidence_applied")),
+                "evidence_role": str(
+                    pair_row.get("package_rename_evidence_role") or "evidence_only"
+                ),
                 "left_manifest_package_name": pair_row.get(
                     "package_rename_left_manifest_package_name"
                 ),
@@ -313,15 +320,22 @@ def _build_packaging_changed_evidence(pair_row: dict) -> dict | None:
                 "score_included": bool(
                     pair_row.get("package_rename_score_included")
                 ),
+                "relation_inferred": False,
+                "observation_scope": "manifest_package_name_delta",
             },
             "apk_layout": {
                 "applied": bool(pair_row.get("apk_layout_evidence_applied")),
+                "evidence_role": str(
+                    pair_row.get("apk_layout_evidence_role") or "evidence_only"
+                ),
                 "delta_kinds": _coerce_string_list(
                     pair_row.get("apk_layout_delta_kinds"),
                     limit=20,
                 ),
                 "score_effect": str(pair_row.get("apk_layout_score_effect") or "none"),
                 "score_included": bool(pair_row.get("apk_layout_score_included")),
+                "relation_inferred": False,
+                "observation_scope": "apk_entry_layout_delta",
                 "dex_name_delta": bool(pair_row.get("apk_layout_dex_name_delta")),
                 "native_lib_delta": bool(pair_row.get("apk_layout_native_lib_delta")),
                 "left_dex_names": _coerce_string_list(
@@ -369,6 +383,8 @@ def _build_same_code_core_evidence(pair_row: dict) -> dict | None:
             ),
             "score_effect": str(pair_row.get("code_core_score_effect") or "none"),
             "score_included": bool(pair_row.get("code_core_score_included")),
+            "relation_inferred": False,
+            "observation_scope": "shared_code_fingerprint_multiset",
             "common_fingerprint_count": pair_row.get(
                 "code_core_common_fingerprint_count"
             ),
@@ -410,6 +426,8 @@ def _build_added_code_direct_evidence(pair_row: dict) -> dict | None:
                 pair_row.get("added_code_direct_score_effect") or "none"
             ),
             "score_included": bool(pair_row.get("added_code_direct_score_included")),
+            "relation_inferred": False,
+            "observation_scope": "right_only_method_ids",
             "left_method_count": pair_row.get(
                 "added_code_direct_left_method_count"
             ),
@@ -466,6 +484,8 @@ def _build_deleted_code_direct_evidence(pair_row: dict) -> dict | None:
             "score_included": bool(
                 pair_row.get("deleted_code_direct_score_included")
             ),
+            "relation_inferred": False,
+            "observation_scope": "left_only_method_ids",
             "left_method_count": pair_row.get(
                 "deleted_code_direct_left_method_count"
             ),
@@ -523,6 +543,8 @@ def _build_obfuscation_direct_evidence(pair_row: dict) -> dict | None:
             "score_included": bool(
                 pair_row.get("obfuscation_direct_score_included")
             ),
+            "relation_inferred": False,
+            "observation_scope": "name_shortening_with_shared_fingerprints",
             "same_package": bool(pair_row.get("obfuscation_direct_same_package")),
             "left_method_count": pair_row.get(
                 "obfuscation_direct_left_method_count"
@@ -804,29 +826,58 @@ def collect_evidence_from_pairwise(pair_row: dict) -> list[dict]:
         )
 
     if pair_row.get("framework_shift_evidence_applied") is True:
-        evidence.append(
-            make_evidence(
-                source_stage="pairwise",
-                signal_type="framework_shift_evidence",
-                magnitude=_clamp_unit(
-                    pair_row.get("framework_shift_anchor_containment")
-                ),
-                ref="R_framework_shift_anchors",
-            )
+        framework_evidence = make_evidence(
+            source_stage="pairwise",
+            signal_type="framework_shift_evidence",
+            magnitude=_clamp_unit(
+                pair_row.get("framework_shift_anchor_containment")
+            ),
+            ref="R_framework_shift_anchors",
         )
+        framework_evidence.update(
+            {
+                "evidence_role": str(
+                    pair_row.get("framework_shift_evidence_role")
+                    or "evidence_only"
+                ),
+                "score_effect": str(
+                    pair_row.get("framework_shift_evidence_score_effect") or "none"
+                ),
+                "score_included": bool(
+                    pair_row.get("framework_shift_evidence_score_included")
+                ),
+                "relation_inferred": False,
+                "observation_scope": "framework_anchor_delta",
+            }
+        )
+        evidence.append(framework_evidence)
 
     if pair_row.get("c05_static_evidence_applied") is True:
-        evidence.append(
-            make_evidence(
-                source_stage="pairwise",
-                signal_type="c05_static_evidence",
-                magnitude=_clamp_unit(pair_row.get("c05_static_evidence_score")),
-                ref=str(
-                    pair_row.get("c05_static_evidence_ref")
-                    or "R_c05_static_evidence"
-                ),
-            )
+        c05_evidence = make_evidence(
+            source_stage="pairwise",
+            signal_type="c05_static_evidence",
+            magnitude=_clamp_unit(pair_row.get("c05_static_evidence_score")),
+            ref=str(
+                pair_row.get("c05_static_evidence_ref")
+                or "R_c05_static_evidence"
+            ),
         )
+        c05_evidence.update(
+            {
+                "evidence_role": str(
+                    pair_row.get("c05_static_evidence_role") or "evidence_only"
+                ),
+                "score_effect": str(
+                    pair_row.get("c05_static_evidence_score_effect") or "none"
+                ),
+                "score_included": bool(
+                    pair_row.get("c05_static_evidence_score_included")
+                ),
+                "relation_inferred": False,
+                "observation_scope": "static_apk_delta",
+            }
+        )
+        evidence.append(c05_evidence)
 
     signature_match = pair_row.get("signature_match")
     if isinstance(signature_match, dict) and "score" in signature_match:
@@ -937,12 +988,19 @@ _STAGE_LABELS = {
 _SIGNAL_LABELS = {
     "signature_match": "совпадение подписи APK",
     "library_match": "совпадение набора библиотек",
-    "library_noise": "библиотечный шум, отделённый от основного кода",
+    "library_noise": "различие, связанное с библиотечными признаками",
     "icc_overlap": "пересечение ICC-кортежей",
-    "framework_shift_evidence": "смена каркаса приложения при сохранении якорей",
-    "c05_static_evidence": (
-        "статические признаки добавленного кода и изменений APK-контейнера"
+    "packaging_changed": "различия упаковки APK",
+    "same_code_core": "общие отпечатки тел методов",
+    "added_code_direct_evidence": "идентификаторы методов только в правом APK",
+    "deleted_code_direct_evidence": "идентификаторы методов только в левом APK",
+    "obfuscation_direct_evidence": (
+        "сокращение имён при общих отпечатках тел методов"
     ),
+    "framework_shift_evidence": (
+        "различие каркаса при общих статических якорях"
+    ),
+    "c05_static_evidence": "статические различия APK",
     "semantic_multiview_score_promotion": (
         "семантическое подтверждение по нескольким представлениям"
     ),
@@ -1171,9 +1229,18 @@ def describe_pair_evidence(
 _MARKDOWN_SIGNAL_LABELS_RU = {
     "layer_score": "Оценка по слою",
     "signature_match": "Совпадение подписи APK",
-    "library_noise": "Библиотечный шум",
-    "framework_shift_evidence": "Смена каркаса приложения",
-    "c05_static_evidence": "Статические признаки добавленного кода",
+    "library_noise": "Различие библиотечных признаков",
+    "packaging_changed": "Различия упаковки APK",
+    "same_code_core": "Общие отпечатки тел методов",
+    "added_code_direct_evidence": "Идентификаторы методов только в правом APK",
+    "deleted_code_direct_evidence": "Идентификаторы методов только в левом APK",
+    "obfuscation_direct_evidence": (
+        "Сокращение имён при общих отпечатках тел методов"
+    ),
+    "framework_shift_evidence": (
+        "Различие каркаса при общих статических якорях"
+    ),
+    "c05_static_evidence": "Статические различия APK",
     "shortcut_applied": "Применён короткий путь",
     "timeout": "Превышен лимит времени",
 }
@@ -1181,9 +1248,18 @@ _MARKDOWN_SIGNAL_LABELS_RU = {
 _MARKDOWN_SIGNAL_LABELS_EN = {
     "layer_score": "Layer score",
     "signature_match": "APK signature match",
-    "library_noise": "Library noise",
-    "framework_shift_evidence": "Framework shift evidence",
-    "c05_static_evidence": "Static added-code evidence",
+    "library_noise": "Library-related difference",
+    "packaging_changed": "APK packaging differences",
+    "same_code_core": "Shared method-body fingerprints",
+    "added_code_direct_evidence": "Method identifiers found only in the right APK",
+    "deleted_code_direct_evidence": "Method identifiers found only in the left APK",
+    "obfuscation_direct_evidence": (
+        "Name shortening with shared method-body fingerprints"
+    ),
+    "framework_shift_evidence": (
+        "Framework difference with shared static anchors"
+    ),
+    "c05_static_evidence": "Static APK differences",
     "shortcut_applied": "Shortcut applied",
     "timeout": "Timeout exceeded",
 }
